@@ -8,7 +8,7 @@ Branch: feature/mvp (one branch per milestone). No AI attribution anywhere.
 - [ ] U3 storage layer, hardened import, undo
 - [ ] U4 service worker wiring, startup, heartbeat, e2e tracking
 - [ ] U5 blocker: classifier, guard prototype on live sites, DNR rulesets, hiders, toggles
-- [ ] U6 aggregation, formatting, categories, simulator
+- [x] U6 aggregation, formatting, categories, simulator
 - [ ] U7 popup
 - [ ] U8 dashboard
 - [ ] U9 README, release workflow, docs
