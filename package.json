@@ -17,7 +17,7 @@
     "test:tz": "node scripts/test-tz.mjs",
     "test:e2e": "npm run build && playwright test",
     "check:privacy": "npm run build && node --experimental-strip-types scripts/check-privacy.ts",
-    "simulate": "node -e \"console.log('not yet')\"",
+    "simulate": "node --experimental-strip-types scripts/simulate.ts",
     "zip": "node -e \"console.log('not yet')\""
   },
   "dependencies": {
