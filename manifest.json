@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_extName__",
+  "version": "0.1.0",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
+  "permissions": ["tabs", "idle", "storage", "alarms", "declarativeNetRequest"],
+  "host_permissions": [
+    "https://www.instagram.com/*",
+    "https://instagram.com/*",
+    "https://www.youtube.com/*",
+    "https://m.youtube.com/*",
+    "https://youtube.com/*",
+    "https://www.facebook.com/*",
+    "https://m.facebook.com/*",
+    "https://facebook.com/*"
+  ],
+  "incognito": "not_allowed",
+  "content_security_policy": {
+    "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'"
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "src/popup/index.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.instagram.com/*", "https://instagram.com/*"],
+      "js": ["src/content/guard.ts", "src/content/media.ts"],
+      "css": ["src/content/instagram.css"],
+      "run_at": "document_start",
+      "all_frames": false,
+      "match_about_blank": false
+    },
+    {
+      "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*", "https://youtube.com/*"],
+      "js": ["src/content/guard.ts", "src/content/media.ts"],
+      "css": ["src/content/youtube.css"],
+      "run_at": "document_start",
+      "all_frames": false,
+      "match_about_blank": false
+    },
+    {
+      "matches": ["https://www.facebook.com/*", "https://m.facebook.com/*", "https://facebook.com/*"],
+      "js": ["src/content/guard.ts", "src/content/media.ts"],
+      "css": ["src/content/facebook.css"],
+      "run_at": "document_start",
+      "all_frames": false,
+      "match_about_blank": false
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      { "id": "instagram-reels", "enabled": true, "path": "src/blocker/rulesets/instagram-reels.json" },
+      { "id": "youtube-shorts", "enabled": true, "path": "src/blocker/rulesets/youtube-shorts.json" },
+      { "id": "facebook-reels", "enabled": true, "path": "src/blocker/rulesets/facebook-reels.json" },
+      { "id": "instagram-explore", "enabled": false, "path": "src/blocker/rulesets/instagram-explore.json" }
+    ]
+  }
+}

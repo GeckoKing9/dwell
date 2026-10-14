@@ -1,0 +1,38 @@
+{
+  "name": "dwell",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Screen time for websites, kept entirely in your browser.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run --coverage",
+    "test:tz": "node scripts/test-tz.mjs",
+    "test:e2e": "npm run build && playwright test",
+    "check:privacy": "npm run build && node --experimental-strip-types scripts/check-privacy.ts",
+    "simulate": "node -e \"console.log('not yet')\"",
+    "zip": "node -e \"console.log('not yet')\""
+  },
+  "dependencies": {
+    "preact": "11.0.1"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "3.0.0",
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "5.0.4",
+    "eslint": "10.12.0",
+    "fast-check": "4.10.2",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.4"
+  }
+}

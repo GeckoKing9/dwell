@@ -1,0 +1,122 @@
+/* Fonts: Hanken Grotesk and IBM Plex Mono, SIL Open Font License 1.1 (see fonts/OFL-*.txt). */
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("./fonts/hanken-grotesk-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("./fonts/hanken-grotesk-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-mono-400-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-mono-400-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-mono-500-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-mono-500-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Tokens: verbatim from design/prototype.html. */
+:root {
+  --page: #EDF0F0;
+  --surface: #FBFCFC;
+  --surface-2: #E3E8E8;
+  --surface-3: #FFFFFF;
+  --ink: #131D1F;
+  --ink-2: #465355;
+  --ink-3: #5B6869;
+  --bar: #78878A;
+  --bar-hover: #5A696B;
+  --accent: #0E877D;
+  --accent-text: #0A6B63;
+  --accent-wash: rgba(14, 135, 125, 0.12);
+  --dot: #B9C3C3;
+  --dot-faint: #D7DEDE;
+  --rule: #D6DDDD;
+  --edge: rgba(19, 29, 31, 0.10);
+  --top-light: rgba(255, 255, 255, 0);
+  --pop-shadow: 0 14px 36px rgba(19, 29, 31, 0.16), 0 2px 6px rgba(19, 29, 31, 0.08);
+  --card-shadow: 0 1px 2px rgba(19, 29, 31, 0.05);
+  --inverse-bg: #131D1F;
+  --inverse-fg: #FBFCFC;
+  --inverse-btn: rgba(251, 252, 252, 0.16);
+  --stage: #DCE2E2;
+  --stage-ink: #3E4A4C;
+
+  --f-sans: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --t-11: 0.6875rem; --t-12: 0.75rem; --t-13: 0.8125rem; --t-14: 0.875rem; --t-16: 1rem;
+  --t-20: 1.25rem; --t-28: 1.75rem; --t-44: 2.75rem; --t-56: 3.5rem;
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
+  --r-mark: 4px; --r-ctl: 6px; --r-well: 8px; --r-card: 14px; --r-pill: 999px;
+  --dot-track: radial-gradient(circle at center, var(--dot) 0 1px, transparent 1.4px) 0 50% / 6px 4px repeat-x;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #0E1314; --surface: #161D1E; --surface-2: #1E2728; --surface-3: #273133;
+    --ink: #E4ECEB; --ink-2: #AAB7B5; --ink-3: #8D9B99;
+    --bar: #6C7B7A; --bar-hover: #8E9D9C;
+    --accent: #35B8A9; --accent-text: #56CDBF; --accent-wash: rgba(53, 184, 169, 0.15);
+    --dot: #3A4647; --dot-faint: #263031; --rule: #263031;
+    --edge: rgba(255, 255, 255, 0.05); --top-light: rgba(255, 255, 255, 0.07);
+    --pop-shadow: 0 18px 44px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+    --card-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+    --inverse-bg: #E4ECEB; --inverse-fg: #0E1314; --inverse-btn: rgba(14, 19, 20, 0.12);
+    --stage: #080B0C; --stage-ink: #AAB7B5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #0E1314; --surface: #161D1E; --surface-2: #1E2728; --surface-3: #273133;
+  --ink: #E4ECEB; --ink-2: #AAB7B5; --ink-3: #8D9B99;
+  --bar: #6C7B7A; --bar-hover: #8E9D9C;
+  --accent: #35B8A9; --accent-text: #56CDBF; --accent-wash: rgba(53, 184, 169, 0.15);
+  --dot: #3A4647; --dot-faint: #263031; --rule: #263031;
+  --edge: rgba(255, 255, 255, 0.05); --top-light: rgba(255, 255, 255, 0.07);
+  --pop-shadow: 0 18px 44px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --card-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+  --inverse-bg: #E4ECEB; --inverse-fg: #0E1314; --inverse-btn: rgba(14, 19, 20, 0.12);
+  --stage: #080B0C; --stage-ink: #AAB7B5;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--f-sans);
+  font-size: var(--t-14);
+  line-height: 1.45;
+}

@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "Dwell",
+    "description": "Extension name shown in the Chrome toolbar and extensions page."
+  },
+  "extDescription": {
+    "message": "Screen time for websites, counted the way a person would count it, kept entirely in your browser.",
+    "description": "Extension description shown on the extensions page."
+  }
+}
