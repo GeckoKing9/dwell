@@ -1,0 +1,1171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dwell Week Dark</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 14 14%22%3E%3Ccircle cx=%227%22 cy=%222.5%22 r=%221%22 fill=%22%2378878A%22/%3E%3Ccircle cx=%227%22 cy=%225.5%22 r=%221%22 fill=%22%2378878A%22/%3E%3Cpath d=%22M4.5 13V9.5a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5V13Z%22 fill=%22%230E877D%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300..700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one quiet column of facts; charts sit in channels of time-dots (the single motif). */
+:root {
+  --page: #EDF0F0;
+  --surface: #FBFCFC;
+  --surface-2: #E3E8E8;
+  --surface-3: #FFFFFF;
+  --ink: #131D1F;
+  --ink-2: #465355;
+  --ink-3: #5B6869;
+  --bar: #78878A;
+  --bar-hover: #5A696B;
+  --accent: #0E877D;
+  --accent-text: #0A6B63;
+  --accent-wash: rgba(14, 135, 125, 0.12);
+  --dot: #B9C3C3;
+  --dot-faint: #D7DEDE;
+  --rule: #D6DDDD;
+  --edge: rgba(19, 29, 31, 0.10);
+  --top-light: rgba(255, 255, 255, 0);
+  --pop-shadow: 0 14px 36px rgba(19, 29, 31, 0.16), 0 2px 6px rgba(19, 29, 31, 0.08);
+  --card-shadow: 0 1px 2px rgba(19, 29, 31, 0.05);
+  --inverse-bg: #131D1F;
+  --inverse-fg: #FBFCFC;
+  --inverse-btn: rgba(251, 252, 252, 0.16);
+  --stage: #DCE2E2;
+  --stage-ink: #3E4A4C;
+
+  --f-sans: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --t-11: 0.6875rem; --t-12: 0.75rem; --t-13: 0.8125rem; --t-14: 0.875rem; --t-16: 1rem;
+  --t-20: 1.25rem; --t-28: 1.75rem; --t-44: 2.75rem; --t-56: 3.5rem;
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
+  --r-mark: 4px; --r-ctl: 6px; --r-well: 8px; --r-card: 14px; --r-pill: 999px;
+  --dot-track: radial-gradient(circle at center, var(--dot) 0 1px, transparent 1.4px) 0 50% / 6px 4px repeat-x;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #0E1314; --surface: #161D1E; --surface-2: #1E2728; --surface-3: #273133;
+    --ink: #E4ECEB; --ink-2: #AAB7B5; --ink-3: #8D9B99;
+    --bar: #6C7B7A; --bar-hover: #8E9D9C;
+    --accent: #35B8A9; --accent-text: #56CDBF; --accent-wash: rgba(53, 184, 169, 0.15);
+    --dot: #3A4647; --dot-faint: #263031; --rule: #263031;
+    --edge: rgba(255, 255, 255, 0.05); --top-light: rgba(255, 255, 255, 0.07);
+    --pop-shadow: 0 18px 44px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+    --card-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+    --inverse-bg: #E4ECEB; --inverse-fg: #0E1314; --inverse-btn: rgba(14, 19, 20, 0.12);
+    --stage: #080B0C; --stage-ink: #AAB7B5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #0E1314; --surface: #161D1E; --surface-2: #1E2728; --surface-3: #273133;
+  --ink: #E4ECEB; --ink-2: #AAB7B5; --ink-3: #8D9B99;
+  --bar: #6C7B7A; --bar-hover: #8E9D9C;
+  --accent: #35B8A9; --accent-text: #56CDBF; --accent-wash: rgba(53, 184, 169, 0.15);
+  --dot: #3A4647; --dot-faint: #263031; --rule: #263031;
+  --edge: rgba(255, 255, 255, 0.05); --top-light: rgba(255, 255, 255, 0.07);
+  --pop-shadow: 0 18px 44px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --card-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+  --inverse-bg: #E4ECEB; --inverse-fg: #0E1314; --inverse-btn: rgba(14, 19, 20, 0.12);
+  --stage: #080B0C; --stage-ink: #AAB7B5;
+  color-scheme: dark;
+}
+
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--page); color: var(--ink);
+  font-family: var(--f-sans); font-size: var(--t-14); line-height: 1.45;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+[hidden] { display: none !important; }
+h1, h2, h3, p, ol, ul, dl, dd, figure { margin: 0; padding: 0; }
+ol, ul { list-style: none; }
+h1, h2, h3 { text-wrap: balance; font-weight: 600; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-ctl); }
+.mono { font-family: var(--f-mono); font-size: 0.94em; letter-spacing: -0.01em; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-3); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ---------- Stage (prototype harness only) ---------- */
+.stage-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4);
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--stage); color: var(--stage-ink); font-size: var(--t-12);
+  border-bottom: 1px solid var(--edge);
+}
+.stage-bar .stage-label { font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; font-size: var(--t-11); }
+.stage-group { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; min-width: 0; }
+.stage-seed { margin-left: auto; display: flex; gap: var(--s-2); align-items: center; }
+.stage {
+  min-height: calc(100vh - 52px); display: flex; justify-content: center; align-items: flex-start;
+  padding-block: var(--s-6) var(--s-7);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--stage);
+}
+.browser { width: 100%; max-width: 760px; display: flex; flex-direction: column; align-items: flex-end; }
+.toolbar {
+  width: 100%; display: flex; align-items: center; gap: var(--s-2); padding: 8px 10px;
+  background: var(--surface); border-radius: var(--r-card) var(--r-card) 0 0; border: 1px solid var(--edge);
+  box-shadow: inset 0 1px 0 var(--top-light);
+}
+.omnibox {
+  flex: 1; min-width: 0; height: 30px; display: flex; align-items: center; padding: 0 12px;
+  border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-2);
+  font-family: var(--f-mono); font-size: var(--t-12); overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.ext-btn { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: var(--r-ctl); background: var(--accent-wash); }
+.popup-anchor { margin-top: 6px; margin-right: 4px; max-width: 100%; }
+@media (max-width: 400px) {
+  .stage { padding-left: 0; padding-right: 0; }
+  .toolbar { border-radius: 0; }
+  .popup-anchor { margin-right: 0; }
+}
+
+/* ---------- Segmented control + switch (shared) ---------- */
+.seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: var(--r-well); background: var(--surface-2); flex-wrap: wrap; }
+.seg button {
+  border: 0; background: transparent; padding: 4px 10px; border-radius: var(--r-ctl);
+  color: var(--ink-2); font-size: var(--t-12); font-weight: 500; white-space: nowrap;
+}
+.seg button[aria-pressed="true"], .seg button[aria-checked="true"] {
+  background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px var(--edge), inset 0 1px 0 var(--top-light);
+}
+.switch {
+  position: relative; flex: none; width: 36px; height: 22px; border-radius: var(--r-pill); border: 0; padding: 0;
+  background: var(--bar); transition: background 160ms ease;
+}
+.switch::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--surface-3); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); transition: transform 160ms ease;
+}
+.switch[aria-checked="true"] { background: var(--accent); }
+.switch[aria-checked="true"]::after { transform: translateX(14px); }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--edge); border-radius: var(--r-ctl);
+  padding: 6px 12px; background: var(--surface-2); color: var(--ink); font-weight: 500; font-size: var(--t-13);
+  box-shadow: inset 0 1px 0 var(--top-light);
+}
+.btn:hover { border-color: var(--bar); }
+.btn[disabled] { cursor: default; color: var(--ink-3); border-color: transparent; background: transparent; }
+.btn-quiet { background: transparent; border-color: transparent; box-shadow: none; color: var(--accent-text); padding-inline: 6px; }
+.btn-quiet:hover { border-color: transparent; background: var(--accent-wash); }
+
+/* ---------- Shared marks ---------- */
+.mark {
+  flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent-wash); color: var(--ink); font-size: var(--t-11); font-weight: 600; line-height: 1;
+}
+.track { position: relative; height: 4px; background: var(--dot-track); }
+.track > i { position: absolute; inset: 0 auto 0 0; display: block; background: var(--bar); border-radius: 0 2px 2px 0; }
+.track.is-accent > i { background: var(--accent); }
+.unit { font-size: 0.56em; font-weight: 500; color: var(--ink-2); margin-left: 0.06em; margin-right: 0.22em; letter-spacing: 0; }
+.unit:last-child { margin-right: 0; }
+.chip {
+  display: inline-block; padding: 1px 8px; border-radius: var(--r-pill); border: 1px solid var(--rule);
+  font-size: var(--t-11); color: var(--ink-2); white-space: nowrap; line-height: 1.6;
+}
+.wordmark { display: inline-flex; align-items: center; gap: 6px; font-weight: 650; letter-spacing: -0.01em; font-size: var(--t-14); }
+.wordmark svg { display: block; }
+.chart-wrap { position: relative; }
+.chart-wrap svg { display: block; overflow: visible; }
+.chart-wrap .hit { cursor: pointer; outline: none; }
+.chart-wrap .hit:focus-visible + .focus-ring { stroke: var(--accent); }
+.tip {
+  position: absolute; z-index: 5; pointer-events: none; min-width: 180px; max-width: 240px;
+  padding: 10px 12px; border-radius: var(--r-well); background: var(--surface-3); color: var(--ink);
+  box-shadow: var(--pop-shadow), inset 0 1px 0 var(--top-light); border: 1px solid var(--edge); font-size: var(--t-12);
+}
+.tip-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; margin-bottom: 6px; }
+.tip-head strong { font-size: var(--t-14); font-weight: 650; }
+.tip-row { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-2); }
+.tip-row span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tip-foot { margin-top: 6px; color: var(--ink-3); }
+
+/* ---------- Popup ---------- */
+.popup {
+  width: 360px; max-width: 100%; height: 560px; display: flex; flex-direction: column;
+  background: var(--surface); color: var(--ink); border-radius: var(--r-well); overflow: hidden;
+  box-shadow: var(--pop-shadow), inset 0 1px 0 var(--top-light); border: 1px solid var(--edge);
+}
+.pp-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 12px; }
+.pp-hero .label { display: flex; justify-content: space-between; gap: 8px; font-size: var(--t-12); color: var(--ink-2); font-weight: 500; }
+.pp-hero .label .date { color: var(--ink-3); font-weight: 400; }
+.hero-num { display: block; font-size: 2.5rem; font-weight: 400; letter-spacing: -0.03em; line-height: 1.05; margin-top: 2px; }
+.hero-num.is-quiet { color: var(--ink-2); }
+.pp-compare { margin-top: 6px; color: var(--ink-2); font-size: var(--t-13); line-height: 1.4; }
+.pp-compare b { color: var(--ink); font-weight: 600; }
+.pp-section-title { font-size: var(--t-12); font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
+.site-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; }
+.site-row + .site-row { margin-top: 8px; }
+.site-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--f-mono); font-size: var(--t-13); }
+.site-row .time { font-variant-numeric: tabular-nums; font-size: var(--t-13); font-weight: 500; }
+.site-row .track { grid-column: 2 / 4; }
+.empty-note { color: var(--ink-2); font-size: var(--t-13); line-height: 1.45; }
+.pp-site { border-radius: var(--r-well); background: var(--surface-2); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.pp-site-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pp-site-top .meta { min-width: 0; flex: 1; }
+.pp-site-top .dom { font-family: var(--f-mono); font-size: var(--t-13); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-site-top .facts { font-size: var(--t-12); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.pp-site-top .facts-r { flex: none; max-width: 55%; text-align: right; font-size: var(--t-13); font-weight: 500; font-variant-numeric: tabular-nums; }
+.pp-site-top .facts-r span { display: block; font-size: var(--t-12); font-weight: 400; color: var(--ink-2); }
+.pp-site-label { font-size: var(--t-11); color: var(--ink-3); font-weight: 500; letter-spacing: 0.02em; }
+.blocker-row { display: flex; align-items: center; gap: 12px; padding-top: 8px; border-top: 1px solid var(--rule); }
+.blocker-row .txt { flex: 1; min-width: 0; }
+.blocker-row .state { font-weight: 650; font-size: var(--t-14); }
+.blocker-row .sub { font-size: var(--t-12); color: var(--ink-2); }
+.pp-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 6px 12px 6px 8px; border-top: 1px solid var(--rule); background: var(--surface);
+}
+.pause-ctl { display: inline-flex; align-items: center; gap: 8px; font-size: var(--t-13); color: var(--ink-2); }
+.pp-paused {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px 8px 16px; background: var(--inverse-bg); color: var(--inverse-fg);
+}
+.pp-paused .txt { flex: 1; min-width: 0; }
+.pp-paused strong { display: block; font-size: var(--t-14); font-weight: 650; }
+.pp-paused .txt span { font-size: var(--t-12); }
+.pp-paused button { border: 0; border-radius: var(--r-ctl); padding: 6px 12px; background: var(--inverse-btn); color: var(--inverse-fg); font-weight: 600; font-size: var(--t-13); }
+.popup.is-paused .pp-foot { background: var(--surface-2); }
+
+/* ---------- Dashboard ---------- */
+.dash { background: var(--page); min-height: 100%; }
+.dash-top {
+  display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap;
+  padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  max-width: 1280px; margin: 0 auto;
+}
+.dash-top nav { display: flex; gap: 2px; flex-wrap: wrap; }
+.dash-top nav button {
+  border: 0; background: transparent; padding: 6px 12px; border-radius: var(--r-ctl); color: var(--ink-2); font-weight: 500;
+}
+.dash-top nav button[aria-current="page"] { color: var(--ink); background: var(--surface-2); }
+.dash-top nav button:hover { color: var(--ink); }
+.status-pill { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: var(--t-12); color: var(--ink-2); }
+.status-pill .led { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.status-pill.is-paused { background: var(--inverse-bg); color: var(--inverse-fg); padding: 3px 10px; border-radius: var(--r-pill); font-weight: 600; }
+.status-pill.is-paused .led { background: var(--inverse-fg); border-radius: 1px; width: 8px; height: 8px; }
+.dash-main {
+  max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--s-5);
+  padding-block: var(--s-2) var(--s-7);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.weeknav { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.weeknav .range { font-size: var(--t-20); font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.weeknav .rel { font-size: var(--t-12); color: var(--ink-2); padding: 2px 8px; border-radius: var(--r-pill); background: var(--surface-2); }
+.icon-btn {
+  width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r-ctl);
+  border: 1px solid var(--edge); background: var(--surface); color: var(--ink);
+}
+.icon-btn[disabled] { color: var(--dot); cursor: default; background: transparent; }
+.headline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-4) var(--s-7); }
+.stat .label { font-size: var(--t-12); color: var(--ink-2); font-weight: 500; }
+.stat .value { font-size: var(--t-28); font-weight: 450; letter-spacing: -0.02em; line-height: 1.15; }
+.stat.is-hero .value { font-size: var(--t-56); font-weight: 350; letter-spacing: -0.035em; line-height: 1; }
+.headline-notes { flex: 1 1 280px; min-width: 0; color: var(--ink-2); font-size: var(--t-14); max-width: 34rem; }
+.headline-notes p + p { margin-top: 4px; }
+.headline-notes b { color: var(--ink); font-weight: 600; }
+.grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--s-5); align-items: start; }
+@media (max-width: 960px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel {
+  background: var(--surface); border-radius: var(--r-card); padding: var(--s-5); min-width: 0;
+  border: 1px solid var(--edge); box-shadow: var(--card-shadow), inset 0 1px 0 var(--top-light);
+}
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: var(--s-4); }
+.panel-head h2 { font-size: var(--t-16); }
+.panel-head .aside { font-size: var(--t-12); color: var(--ink-3); }
+.legend-note { font-size: var(--t-12); color: var(--ink-3); margin-top: var(--s-2); }
+.cat-row { display: grid; grid-template-columns: minmax(64px, auto) minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; }
+.cat-row + .cat-row { margin-top: 12px; }
+.cat-row .n { font-size: var(--t-13); font-weight: 500; }
+.cat-row .v { font-size: var(--t-13); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.cat-row .v span { color: var(--ink-3); margin-left: 6px; }
+.blk-total { display: flex; align-items: baseline; gap: 10px; }
+.blk-total .n { font-size: var(--t-28); font-weight: 450; }
+.blk-total p { color: var(--ink-2); font-size: var(--t-13); }
+.blk-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--rule); }
+.blk-row .n { font-size: var(--t-13); }
+.blk-row .c { font-variant-numeric: tabular-nums; font-weight: 600; }
+.blk-dots { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; min-height: 6px; }
+.blk-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--bar); display: block; }
+.blk-note { margin-top: var(--s-4); font-size: var(--t-12); color: var(--ink-3); }
+
+/* Most used list */
+.mu { container-type: inline-size; }
+.mu-row {
+  display: grid; align-items: center; gap: 4px 12px; padding: 10px 0; border-top: 1px solid var(--rule);
+  grid-template-columns: 18px 24px minmax(0, 1fr) 76px 64px 44px 64px 52px;
+}
+.mu-row.is-head { border-top: 0; padding: 0 0 6px; font-size: var(--t-11); color: var(--ink-3); font-weight: 500; }
+.mu-row .rank { font-size: var(--t-11); color: var(--ink-3); font-variant-numeric: tabular-nums; text-align: right; }
+.mu-row .site { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.mu-row .site .d { font-family: var(--f-mono); font-size: var(--t-13); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mu-row .t, .mu-row .sh, .mu-row .dl, .mu-row .vi { font-variant-numeric: tabular-nums; text-align: right; font-size: var(--t-13); white-space: nowrap; }
+.mu-row .t { font-weight: 600; }
+.mu-row .sh, .mu-row .vi { color: var(--ink-2); }
+.mu-row .dl { color: var(--ink-2); }
+.mu-row .cat { justify-self: start; }
+.mu-row .meta { display: none; }
+@container (max-width: 620px) {
+  .mu-row { grid-template-columns: 18px 24px minmax(0, 1fr) auto; }
+  .mu-row .cat, .mu-row .sh, .mu-row .dl, .mu-row .vi { display: none; }
+  .mu-row.is-head { display: none; }
+  .mu-row .meta { display: block; font-size: var(--t-12); color: var(--ink-2); font-family: var(--f-sans); }
+}
+.mu-more { margin-top: var(--s-3); }
+
+/* Day view */
+.dayhead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+.dayhead h1 { font-size: var(--t-20); letter-spacing: -0.01em; }
+.dayhead .spacer { flex: 1; }
+
+/* Settings */
+.settings { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: var(--s-6); align-items: start; }
+@media (max-width: 860px) { .settings { grid-template-columns: minmax(0, 1fr); } .set-index { display: none; } }
+.set-index { position: sticky; top: var(--s-4); display: flex; flex-direction: column; gap: 2px; }
+.set-index a { color: var(--ink-2); text-decoration: none; padding: 6px 10px; border-radius: var(--r-ctl); font-size: var(--t-13); }
+.set-index a:hover { background: var(--surface-2); color: var(--ink); }
+.set-groups { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
+.set-group h2 { font-size: var(--t-16); margin-bottom: var(--s-2); }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-5); flex-wrap: wrap; padding: 14px 0; border-top: 1px solid var(--rule); }
+.set-group h2 + .set-row { border-top: 0; }
+.set-row .txt { flex: 1 1 260px; min-width: 0; }
+.set-row .ttl { font-weight: 550; }
+.set-row .desc { color: var(--ink-2); font-size: var(--t-13); max-width: 60ch; }
+.set-row .ctl { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip-x { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border-radius: var(--r-pill); background: var(--surface-2); font-family: var(--f-mono); font-size: var(--t-12); }
+.chip-x button { border: 0; background: transparent; width: 20px; height: 20px; border-radius: 50%; color: var(--ink-2); display: grid; place-items: center; }
+.chip-x button:hover { background: var(--dot-faint); color: var(--ink); }
+.field {
+  height: 32px; padding: 0 10px; border-radius: var(--r-ctl); border: 1px solid var(--bar); background: var(--surface); color: var(--ink);
+  min-width: 0; width: 220px; max-width: 100%; font-family: var(--f-mono); font-size: var(--t-13);
+}
+select.field { font-family: var(--f-sans); width: auto; padding-right: 6px; }
+.field::placeholder { color: var(--ink-3); opacity: 1; }
+.field-err { color: var(--ink); font-size: var(--t-12); flex-basis: 100%; }
+.cat-editor { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 24px; width: 100%; }
+.cat-editor label { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.cat-editor .d { font-family: var(--f-mono); font-size: var(--t-13); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.confirm { width: 100%; margin-top: var(--s-2); padding: var(--s-3) var(--s-4); border-radius: var(--r-well); background: var(--surface-2); display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); align-items: center; }
+.confirm p { flex: 1 1 240px; min-width: 0; font-size: var(--t-13); }
+.btn-ink { background: var(--inverse-bg); color: var(--inverse-fg); border-color: transparent; }
+.btn-ink:hover { border-color: transparent; opacity: 0.92; }
+.notice { font-size: var(--t-12); color: var(--ink-2); flex-basis: 100%; }
+
+/* Privacy */
+.privacy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: var(--s-6); align-items: start; }
+@media (max-width: 960px) { .privacy { grid-template-columns: minmax(0, 1fr); } }
+.prose { max-width: 31.5rem; }
+.prose h1 { font-size: var(--t-28); letter-spacing: -0.02em; margin-bottom: var(--s-3); }
+.prose h2 { font-size: var(--t-16); margin: var(--s-5) 0 var(--s-2); }
+.prose p { font-size: var(--t-16); line-height: 1.6; color: var(--ink); }
+.prose p + p { margin-top: var(--s-3); }
+.prose code { font-family: var(--f-mono); font-size: 0.88em; background: var(--surface-2); padding: 1px 5px; border-radius: var(--r-mark); }
+.kept { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin-top: var(--s-4); }
+@media (max-width: 560px) { .kept { grid-template-columns: minmax(0, 1fr); } }
+.prose .kept h2 { margin: 0 0 6px; font-size: var(--t-13); color: var(--ink-2); margin-bottom: 6px; }
+.kept li { font-size: var(--t-14); padding: 6px 0; border-top: 1px solid var(--rule); }
+.perm li { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 10px 0; border-top: 1px solid var(--rule); }
+.perm li:first-child { border-top: 0; padding-top: 0; }
+.perm code { font-family: var(--f-mono); font-size: var(--t-13); font-weight: 500; overflow-wrap: anywhere; }
+.perm span { font-size: var(--t-13); color: var(--ink-2); }
+
+/* Artboard mode */
+body.artboard { overflow: hidden; }
+body.artboard .popup { border-radius: 0; border: 0; box-shadow: none; }
+</style>
+<style>/* artboard: fixed 1280x900 */ html, body { width: 1280px; height: 900px; overflow: hidden; } :root { padding: 0; }</style>
+</head>
+<body>
+<div id="stagebar" class="stage-bar" hidden></div>
+<div id="app"></div>
+<script>window.DWELL_BOOT = {"view": "dashboard", "theme": "dark", "artboard": true};</script>
+<script>
+'use strict';
+const BOOT = Object.assign({ view: 'popup', state: 'normal', theme: null, artboard: false, dash: 'week', seed: 20261014, lang: 'en' }, window.DWELL_BOOT || {});
+
+/* ================= Strings (EN first; FR proves the 30% headroom) ================= */
+const STR = {
+  en: {
+    today: 'Today', todaySoFar: 'Today so far', usually: 'Usually {d} by this time of day',
+    avg7: '7-day average: {d} a day', avg7few: 'Average of the {n} recorded days: {d}',
+    last7: 'Last 7 days', dotIs30: 'each dot is 30 minutes', topToday: 'Top sites today',
+    thisSite: 'This site', visits1: '1 visit', visitsN: '{n} visits',
+    reelsOff: 'Reels off', reelsOn: 'Reels on', shortsOff: 'Shorts off', shortsOn: 'Shorts on',
+    reelsOffSub: 'Reels links open your feed instead', reelsOnSub: 'Switch on to send Reels links to your feed',
+    shortsOffSub: 'Shorts open as regular videos', shortsOnSub: 'Switch on to open Shorts as regular videos',
+    openDash: 'Open dashboard', pause: 'Pause tracking', paused: 'Paused',
+    pausedTitle: 'Tracking is paused', pausedSub: 'Nothing is recorded until you resume.', resume: 'Resume',
+    pausedSite: 'Not recording while paused', pausedHero: 'Recorded today before pausing',
+    firstTitle: 'Nothing recorded yet', firstBody: 'Dwell counts time while a tab is in front and you are active. Today’s first minutes will show here.',
+    firstTop: 'Your top sites appear after a few minutes of browsing.', firstCap: 'Your week fills in as you browse',
+    justStarted: 'Just started',
+    untrackTitle: 'New tab', untrackBody: 'Browser pages such as new tabs and settings aren’t recorded.',
+    navActivity: 'Activity', navSettings: 'Settings', navPrivacy: 'Privacy',
+    recording: 'Recording', pausedPill: 'Tracking paused',
+    thisWeek: 'This week', lastWeek: 'Last week', weeksAgo: '{n} weeks ago',
+    prevWeek: 'Previous week', nextWeek: 'Next week', olderGone: 'Older weeks are past the 90-day limit',
+    weekTotal: 'This week so far', weekTotalPast: 'Week total', dailyAvg: 'Daily average', dailyAvgFull: 'Daily average, full days', spanNote: 'Changes compare {a}\u2013{b} with the same days last week',
+    deltaLess: 'Daily average is {p}% lower than the week before ({d}).', deltaMore: 'Daily average is {p}% higher than the week before ({d}).',
+    deltaSame: 'Daily average is about the same as the week before ({d}).', deltaNone: 'No data for the week before to compare with.',
+    quietBusy: 'Quietest day: {q}. Busiest: {b}.',
+    gapNote: 'No data for {days}. Chrome was closed or tracking was paused; averages use the {n} recorded days.',
+    emptyWeek: 'Nothing was recorded this week. Days fill in as soon as you browse with tracking on.',
+    chartTitle: 'Active time per day', chartAside: 'Each dot is 15 minutes. Select a day for its hours.',
+    avg: 'avg', noData: 'No data', notKept: 'Not kept',
+    mostUsed: 'Most used', site: 'Site', category: 'Category', time: 'Time', share: 'Share', vsLast: 'vs last wk', visits: 'Visits',
+    showAll: 'Show all {n} sites', showFewer: 'Show top 10', newSite: 'new', same: 'same',
+    categories: 'Categories', blocked: 'Blocked', blockedLine: 'Reels and Shorts redirects this week',
+    blockedNote: 'Each dot is one redirect. Counted only while a blocker is on.',
+    igName: 'Instagram', ytName: 'YouTube', fbName: 'Facebook',
+    backWeek: 'Back to {r}', prevDay: 'Previous day', nextDay: 'Next day', dayTotal: 'Total',
+    hourlyTitle: 'Active time per hour', hourlyAside: 'Each dot is 5 minutes. An hour holds at most 60.',
+    busiestHour: 'Busiest hour: {h}, {d}.', dayTop: 'Sites this day', dayEmpty: 'Nothing was recorded on this day.',
+    sitesCount: '{n} sites', visitsTotal: '{n} visits',
+    cat_Social: 'Social', cat_Video: 'Video', cat_Work: 'Work', cat_Shopping: 'Shopping', cat_News: 'News', cat_Other: 'Other',
+    sTracking: 'Tracking', sIdle: 'Stop counting when idle for', sIdleDesc: 'No mouse or keyboard activity for this long ends the current visit.',
+    sMedia: 'Media keeps the timer running', sMediaDesc: 'Count time while audio or video plays, even when you are not touching anything.',
+    sPause: 'Pause tracking', sPauseDesc: 'While paused, nothing is recorded. Blockers keep working.',
+    sBlockers: 'Blockers', bIgReels: 'Instagram Reels', bIgReelsD: 'Reels links open your Instagram feed.',
+    bYtShorts: 'YouTube Shorts', bYtShortsD: 'Shorts open as regular videos with the normal player.',
+    bFbReels: 'Facebook Reels', bFbReelsD: 'Reels links open your Facebook feed.',
+    bIgExplore: 'Instagram Explore', bIgExploreD: 'The Explore page redirects to your feed.',
+    sSites: 'Sites', sGroup: 'Grouping', sGroupDesc: 'Subdomains count with their main site unless you split them here.',
+    countSeparately: 'Counted separately', countWith: 'Counted with {d}',
+    sIgnore: 'Never record', sIgnoreDesc: 'Time on these sites is never written down.', add: 'Add', remove: 'Remove {d}',
+    badDomain: 'Enter a domain such as example.com.', already: '{d} is already on the list.',
+    sCats: 'Categories', sCatsDesc: 'Choose where each site is counted in the category breakdown.',
+    sData: 'Data', sRetention: 'Keep history for', sRetentionDesc: 'Days older than this are deleted automatically each night.', days90: '90 days',
+    sExport: 'Export', sExportDesc: 'A JSON file with every stored number and your settings.', exportBtn: 'Export JSON',
+    exported: 'Prepared {f} ({k} KB, {n} days).',
+    sImport: 'Import', sImportDesc: 'Load a file made with Export. Days in the file replace the same days here.', importBtn: 'Choose file',
+    imported: 'Read {n} days from {f}. In this prototype nothing is replaced.', importBad: '{f} isn’t a Dwell export.',
+    sDelete: 'Delete all data', sDeleteDesc: 'Removes every recorded day from this Chrome profile. Settings stay.',
+    deleteBtn: 'Delete all data', deleteQ: 'Delete {n} days of history from this Chrome profile? This can’t be undone.',
+    deleteYes: 'Delete all data', deleteNo: 'Keep data', deleted: 'All history deleted. Use Reseed on the stage to bring the sample back.',
+    sLang: 'Language',
+    pTitle: 'What Dwell keeps, and where',
+    pLead: 'Dwell records how long each site is in front of you while you are active, and nothing about what you do there. For every hour it keeps one number per site: the domain and the seconds it was in focus. It also counts visits, where a visit starts when you arrive on a site from somewhere else. Page addresses, page titles, search terms and anything you type are never stored.',
+    pKept: 'Stored', pNever: 'Never stored',
+    k1: 'Domain, such as youtube.com', k2: 'Seconds per domain, per hour', k3: 'Visits per domain, per day', k4: 'Reels and Shorts redirects per day', k5: 'Your settings',
+    n1: 'Full addresses or paths', n2: 'Page titles or content', n3: 'Searches and form input', n4: 'Cookies or account details', n5: 'Anything from background tabs',
+    pWhereT: 'Where it lives', pWhere: 'Everything stays in this Chrome profile’s extension storage. It is not synced to your Google account, and it is gone when you remove Dwell or delete all data in Settings.',
+    pNetT: 'No network access', pNet: 'Dwell cannot make network requests. Its manifest sets the content security policy {csp}, so even its own pages are blocked from contacting a server. There is no account, no analytics and no sync.',
+    pPermT: 'Permissions', pPermD: 'What Chrome asks you to allow, and why.',
+    perm_storage: 'Keeps your totals and settings in this profile.', perm_tabs: 'Reads the domain of the tab in front, so time goes to the right site.',
+    perm_idle: 'Stops the timer after your idle threshold.', perm_alarms: 'Saves the running total once a minute.',
+    perm_dnr: 'Redirects Reels and Shorts addresses before the page loads.', perm_hosts: 'Hides Reels and Shorts links inside these three sites.'
+  },
+  fr: {
+    today: 'Aujourd’hui', todaySoFar: 'Aujourd’hui jusqu’ici', usually: 'D’habitude {d} à cette heure-ci',
+    avg7: 'Moyenne sur 7 jours : {d} par jour', avg7few: 'Moyenne des {n} jours enregistrés : {d}',
+    last7: '7 derniers jours', dotIs30: 'chaque point vaut 30 minutes', topToday: 'Sites les plus visités aujourd’hui',
+    thisSite: 'Ce site', visits1: '1 visite', visitsN: '{n} visites',
+    reelsOff: 'Reels désactivés', reelsOn: 'Reels activés', shortsOff: 'Shorts désactivés', shortsOn: 'Shorts activés',
+    reelsOffSub: 'Les liens Reels ouvrent votre fil à la place', reelsOnSub: 'Activez pour envoyer les liens Reels vers votre fil',
+    shortsOffSub: 'Les Shorts s’ouvrent comme des vidéos normales', shortsOnSub: 'Activez pour ouvrir les Shorts en vidéos normales',
+    openDash: 'Ouvrir le tableau de bord', pause: 'Mettre en pause', paused: 'En pause',
+    pausedTitle: 'Le suivi est en pause', pausedSub: 'Rien n’est enregistré jusqu’à la reprise.', resume: 'Reprendre',
+    pausedSite: 'Aucun enregistrement pendant la pause', pausedHero: 'Enregistré aujourd’hui avant la pause',
+    firstTitle: 'Rien d’enregistré pour l’instant', firstBody: 'Dwell compte le temps quand un onglet est au premier plan et que vous êtes actif. Les premières minutes d’aujourd’hui apparaîtront ici.',
+    firstTop: 'Vos sites principaux apparaissent après quelques minutes de navigation.', firstCap: 'Votre semaine se remplit au fil de la navigation',
+    justStarted: 'Vient de commencer',
+    untrackTitle: 'Nouvel onglet', untrackBody: 'Les pages du navigateur, comme les nouveaux onglets et les paramètres, ne sont pas enregistrées.',
+    navActivity: 'Activité', navSettings: 'Paramètres', navPrivacy: 'Confidentialité',
+    recording: 'Enregistrement en cours', pausedPill: 'Suivi en pause',
+    thisWeek: 'Cette semaine', lastWeek: 'Semaine dernière', weeksAgo: 'Il y a {n} semaines',
+    prevWeek: 'Semaine précédente', nextWeek: 'Semaine suivante', olderGone: 'Les semaines plus anciennes dépassent la limite de 90 jours',
+    weekTotal: 'Cette semaine jusqu’ici', weekTotalPast: 'Total de la semaine', dailyAvg: 'Moyenne quotidienne', dailyAvgFull: 'Moyenne quotidienne, jours complets', spanNote: 'Les \u00e9carts comparent {a}\u2013{b} aux m\u00eames jours de la semaine pr\u00e9c\u00e9dente',
+    deltaLess: 'La moyenne quotidienne est inférieure de {p} % à celle de la semaine précédente ({d}).', deltaMore: 'La moyenne quotidienne est supérieure de {p} % à celle de la semaine précédente ({d}).',
+    deltaSame: 'La moyenne quotidienne est à peu près la même que la semaine précédente ({d}).', deltaNone: 'Aucune donnée la semaine précédente pour comparer.',
+    quietBusy: 'Journée la plus calme : {q}. La plus chargée : {b}.',
+    gapNote: 'Aucune donnée pour {days}. Chrome était fermé ou le suivi en pause ; les moyennes utilisent les {n} jours enregistrés.',
+    emptyWeek: 'Rien n’a été enregistré cette semaine. Les jours se remplissent dès que vous naviguez avec le suivi activé.',
+    chartTitle: 'Temps actif par jour', chartAside: 'Chaque point vaut 15 minutes. Choisissez un jour pour voir ses heures.',
+    avg: 'moy.', noData: 'Aucune donnée', notKept: 'Non conservé',
+    mostUsed: 'Les plus utilisés', site: 'Site', category: 'Catégorie', time: 'Temps', share: 'Part', vsLast: 'vs sem. préc.', visits: 'Visites',
+    showAll: 'Afficher les {n} sites', showFewer: 'Afficher les 10 premiers', newSite: 'nouveau', same: 'stable',
+    categories: 'Catégories', blocked: 'Bloqués', blockedLine: 'Redirections Reels et Shorts cette semaine',
+    blockedNote: 'Chaque point est une redirection. Comptées seulement quand un bloqueur est actif.',
+    igName: 'Instagram', ytName: 'YouTube', fbName: 'Facebook',
+    backWeek: 'Retour à {r}', prevDay: 'Jour précédent', nextDay: 'Jour suivant', dayTotal: 'Total',
+    hourlyTitle: 'Temps actif par heure', hourlyAside: 'Chaque point vaut 5 minutes. Une heure en contient au plus 60.',
+    busiestHour: 'Heure la plus chargée : {h}, {d}.', dayTop: 'Sites ce jour-là', dayEmpty: 'Rien n’a été enregistré ce jour-là.',
+    sitesCount: '{n} sites', visitsTotal: '{n} visites',
+    cat_Social: 'Réseaux sociaux', cat_Video: 'Vidéo', cat_Work: 'Travail', cat_Shopping: 'Achats', cat_News: 'Actualités', cat_Other: 'Autre',
+    sTracking: 'Suivi', sIdle: 'Arrêter de compter après une inactivité de', sIdleDesc: 'Sans souris ni clavier pendant ce délai, la visite en cours se termine.',
+    sMedia: 'Les médias gardent le chronomètre en marche', sMediaDesc: 'Compter le temps pendant la lecture audio ou vidéo, même sans interaction.',
+    sPause: 'Mettre le suivi en pause', sPauseDesc: 'Pendant la pause, rien n’est enregistré. Les bloqueurs continuent de fonctionner.',
+    sBlockers: 'Bloqueurs', bIgReels: 'Reels Instagram', bIgReelsD: 'Les liens Reels ouvrent votre fil Instagram.',
+    bYtShorts: 'Shorts YouTube', bYtShortsD: 'Les Shorts s’ouvrent comme des vidéos normales avec le lecteur habituel.',
+    bFbReels: 'Reels Facebook', bFbReelsD: 'Les liens Reels ouvrent votre fil Facebook.',
+    bIgExplore: 'Explorer sur Instagram', bIgExploreD: 'La page Explorer redirige vers votre fil.',
+    sSites: 'Sites', sGroup: 'Regroupement', sGroupDesc: 'Les sous-domaines comptent avec leur site principal, sauf si vous les séparez ici.',
+    countSeparately: 'Compté séparément', countWith: 'Compté avec {d}',
+    sIgnore: 'Ne jamais enregistrer', sIgnoreDesc: 'Le temps passé sur ces sites n’est jamais noté.', add: 'Ajouter', remove: 'Retirer {d}',
+    badDomain: 'Entrez un domaine comme exemple.com.', already: '{d} est déjà dans la liste.',
+    sCats: 'Catégories', sCatsDesc: 'Choisissez où chaque site est compté dans la répartition.',
+    sData: 'Données', sRetention: 'Conserver l’historique', sRetentionDesc: 'Les jours plus anciens sont supprimés automatiquement chaque nuit.', days90: '90 jours',
+    sExport: 'Exporter', sExportDesc: 'Un fichier JSON avec chaque nombre enregistré et vos paramètres.', exportBtn: 'Exporter en JSON',
+    exported: '{f} prêt ({k} Ko, {n} jours).',
+    sImport: 'Importer', sImportDesc: 'Charger un fichier créé avec Exporter. Les jours du fichier remplacent les mêmes jours ici.', importBtn: 'Choisir un fichier',
+    imported: '{n} jours lus dans {f}. Dans ce prototype, rien n’est remplacé.', importBad: '{f} n’est pas une exportation Dwell.',
+    sDelete: 'Supprimer toutes les données', sDeleteDesc: 'Retire chaque jour enregistré de ce profil Chrome. Les paramètres restent.',
+    deleteBtn: 'Supprimer toutes les données', deleteQ: 'Supprimer {n} jours d’historique de ce profil Chrome ? C’est irréversible.',
+    deleteYes: 'Supprimer toutes les données', deleteNo: 'Garder les données', deleted: 'Tout l’historique est supprimé. Utilisez Reseed pour retrouver l’exemple.',
+    sLang: 'Langue',
+    pTitle: 'Ce que Dwell conserve, et où',
+    pLead: 'Dwell enregistre combien de temps chaque site est devant vous pendant que vous êtes actif, et rien de ce que vous y faites. Pour chaque heure, il garde un nombre par site : le domaine et les secondes au premier plan. Il compte aussi les visites, une visite commençant quand vous arrivez sur un site depuis ailleurs. Les adresses, les titres de pages, les recherches et ce que vous tapez ne sont jamais enregistrés.',
+    pKept: 'Enregistré', pNever: 'Jamais enregistré',
+    k1: 'Le domaine, comme youtube.com', k2: 'Les secondes par domaine et par heure', k3: 'Les visites par domaine et par jour', k4: 'Les redirections Reels et Shorts par jour', k5: 'Vos paramètres',
+    n1: 'Les adresses complètes ou chemins', n2: 'Les titres ou le contenu des pages', n3: 'Les recherches et la saisie', n4: 'Les témoins ou infos de compte', n5: 'Ce qui se passe dans les onglets en arrière-plan',
+    pWhereT: 'Où c’est conservé', pWhere: 'Tout reste dans le stockage d’extension de ce profil Chrome. Rien n’est synchronisé avec votre compte Google, et tout disparaît quand vous retirez Dwell ou supprimez les données dans les paramètres.',
+    pNetT: 'Aucun accès réseau', pNet: 'Dwell ne peut faire aucune requête réseau. Son manifeste fixe la politique de sécurité {csp}, donc même ses propres pages ne peuvent joindre aucun serveur. Pas de compte, pas d’analytique, pas de synchronisation.',
+    pPermT: 'Autorisations', pPermD: 'Ce que Chrome vous demande d’autoriser, et pourquoi.',
+    perm_storage: 'Garde vos totaux et paramètres dans ce profil.', perm_tabs: 'Lit le domaine de l’onglet au premier plan pour attribuer le temps au bon site.',
+    perm_idle: 'Arrête le chronomètre après votre délai d’inactivité.', perm_alarms: 'Enregistre le total en cours une fois par minute.',
+    perm_dnr: 'Redirige les adresses Reels et Shorts avant le chargement de la page.', perm_hosts: 'Masque les liens Reels et Shorts dans ces trois sites.'
+  }
+};
+function t(key, vars) {
+  let s = (STR[S.lang] && STR[S.lang][key]) || STR.en[key] || key;
+  if (vars) for (const k in vars) s = s.split('{' + k + '}').join(String(vars[k]));
+  return s;
+}
+const LOC = () => (S.lang === 'fr' ? 'fr-CA' : 'en-US');
+
+/* ================= Formatting ================= */
+function durParts(sec) {
+  if (sec < 60) return [['<1', S.lang === 'fr' ? '\u00a0min' : 'm']];
+  const m = Math.round(sec / 60), hh = Math.floor(m / 60), r = m % 60;
+  const H = S.lang === 'fr' ? '\u00a0h' : 'h', M = S.lang === 'fr' ? '\u00a0min' : 'm';
+  if (!hh) return [[String(r), M]];
+  return r ? [[String(hh), H], [String(r), M]] : [[String(hh), H]];
+}
+function dur(sec) { return durParts(sec).map(p => p[0] + p[1]).join('\u00a0'); }
+function durNode(sec, cls) {
+  const el = h('span', { class: cls });
+  durParts(sec).forEach(([n, u]) => { el.append(n); el.append(h('span', { class: 'unit', text: u.trim() })); });
+  el.setAttribute('aria-label', dur(sec));
+  return el;
+}
+function fmtDate(d, opts) { return new Intl.DateTimeFormat(LOC(), opts).format(d); }
+function fmtRange(a, b) {
+  const f = new Intl.DateTimeFormat(LOC(), { month: 'short', day: 'numeric', year: 'numeric' });
+  return f.formatRange ? f.formatRange(a, b) : f.format(a) + ' – ' + f.format(b);
+}
+function hourLabel(hr) {
+  if (S.lang === 'fr') return hr + ' h';
+  const x = hr % 12 === 0 ? 12 : hr % 12; return x + (hr < 12 ? ' AM' : ' PM');
+}
+function hourRange(hr) {
+  if (S.lang === 'fr') return hr + ' h – ' + ((hr + 1) % 24) + ' h';
+  const a = hr % 12 === 0 ? 12 : hr % 12, nb = (hr + 1) % 24, b = nb % 12 === 0 ? 12 : nb % 12;
+  const sa = hr < 12 ? 'AM' : 'PM', sb = nb < 12 ? 'AM' : 'PM';
+  return sa === sb ? `${a} – ${b} ${sb}` : `${a} ${sa} – ${b} ${sb}`;
+}
+function pct(x) { return Math.round(x * 100); }
+
+/* ================= DOM helpers (text always via textContent) ================= */
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  if (props) for (const [k, v] of Object.entries(props)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v; else if (k === 'text') el.textContent = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) { if (c == null || c === false) continue; el.append(c.nodeType ? c : document.createTextNode(String(c))); }
+  return el;
+}
+const SVGNS = 'http://www.w3.org/2000/svg';
+function sv(tag, attrs, text) {
+  const el = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) if (attrs[k] != null) el.setAttribute(k, attrs[k]);
+  if (text != null) el.textContent = text;
+  return el;
+}
+function glyph() {
+  const g = sv('svg', { width: 14, height: 14, viewBox: '0 0 14 14', 'aria-hidden': 'true' });
+  [2.5, 5.5].forEach(y => g.append(sv('circle', { cx: 7, cy: y, r: 1, fill: 'var(--dot)' })));
+  g.append(sv('path', { d: 'M4.5 13V9.5a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5V13Z', fill: 'var(--accent)' }));
+  return g;
+}
+function wordmark() { return h('span', { class: 'wordmark' }, glyph(), 'dwell'); }
+function letterMark(domain) { return h('span', { class: 'mark', 'aria-hidden': 'true', text: domain.replace(/^www\./, '')[0].toUpperCase() }); }
+function track(frac, accent) {
+  const tr = h('div', { class: 'track' + (accent ? ' is-accent' : ''), 'aria-hidden': 'true' });
+  const i = h('i'); i.style.width = Math.max(0.6, Math.min(100, frac * 100)) + '%'; tr.append(i); return tr;
+}
+function switchBtn(on, label, onChange) {
+  return h('button', { class: 'switch', role: 'switch', 'aria-checked': String(!!on), 'aria-label': label, onclick: onChange });
+}
+
+/* ================= Simulation engine (seeded, reproducible) ================= */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let x = Math.imul(a ^ a >>> 15, 1 | a); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; }; }
+const NOW = new Date(2026, 9, 14, 16, 40, 0);
+const KEEP = 90, TODAY = KEEP - 1;
+const CATS = ['Social', 'Video', 'Work', 'Shopping', 'News', 'Other'];
+const SITES = [
+  ['github.com', 'Work', 58, 'work', 12, 0.95], ['docs.google.com', 'Work', 30, 'work', 9, 0.9], ['mail.google.com', 'Work', 16, 'work', 3, 0.97],
+  ['stackoverflow.com', 'Work', 12, 'work', 4, 0.8], ['notion.so', 'Work', 15, 'work', 8, 0.8],
+  ['instagram.com', 'Social', 32, 'evening', 4, 0.95], ['facebook.com', 'Social', 11, 'evening', 5, 0.8], ['messenger.com', 'Social', 8, 'spread', 2, 0.85],
+  ['reddit.com', 'Social', 18, 'evening', 6, 0.85], ['x.com', 'Social', 9, 'spread', 4, 0.7],
+  ['youtube.com', 'Video', 34, 'evening', 10, 0.92], ['music.youtube.com', 'Other', 14, 'work', 40, 0.55],
+  ['netflix.com', 'Video', 40, 'night', 45, 0.35], ['twitch.tv', 'Video', 26, 'night', 30, 0.2],
+  ['amazon.ca', 'Shopping', 9, 'spread', 5, 0.45], ['lapresse.ca', 'News', 11, 'morning', 5, 0.85], ['nytimes.com', 'News', 7, 'morning', 4, 0.6]
+];
+const WEEKEND = { Work: 0.12, Social: 1.4, Video: 1.6, Shopping: 1.8, News: 1.15, Other: 0.5 };
+function shape(name, weekend) {
+  const sh = weekend ? 1.5 : 0;
+  const B = { work: [[10, 1, 1.4], [14.5, 1.1, 1.8], [21, 0.25, 1]], evening: [[8, 0.25, 0.8], [12.5, 0.45, 0.8], [20.5, 1.2, 1.6]],
+    night: [[21.5, 1, 1.3]], morning: [[7.5, 1, 0.9], [12.5, 0.4, 0.7], [18, 0.2, 1]], spread: [[10, 0.5, 2.5], [16, 0.5, 2.5], [21, 0.6, 1.5]] }[name];
+  const a = new Array(24).fill(0.004);
+  for (const [c, w, s] of B) for (let x = 0; x < 24; x++) a[x] += w * Math.exp(-((x - (c + sh)) ** 2) / (2 * s * s));
+  for (let x = 0; x < 7; x++) a[x] *= 0.04;
+  return a;
+}
+function dayKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function addDays(d, n) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); return x; }
+function generate(seed) {
+  const rnd = mulberry32(seed);
+  const gauss = () => { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  const pois = (l) => { let L = Math.exp(-l), k = 0, p = 1; do { k++; p *= rnd(); } while (p > L); return k - 1; };
+  const start = addDays(new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate()), -TODAY);
+  const nearEmpty = new Set(['2026-08-22', '2026-09-09']), gap = new Set(['2026-09-26', '2026-09-27']);
+  const days = [];
+  for (let i = 0; i < KEEP; i++) {
+    const date = addDays(start, i), key = dayKey(date), dow = date.getDay(), we = dow === 0 || dow === 6;
+    const day = { key, date, hours: Array.from({ length: 24 }, () => ({})), visits: {}, blocked: { instagram: 0, youtube: 0, facebook: 0 } };
+    days.push(day);
+    if (gap.has(key)) continue;
+    let dayF = Math.exp(gauss() * 0.22) * 0.82;
+    if (nearEmpty.has(key)) dayF = 0.03;
+    const mins = {};
+    for (const [d, cat, mean, shp, sess, p] of SITES) {
+      if (rnd() > p) continue;
+      mins[d] = mean * (we ? WEEKEND[cat] : 1) * dayF * Math.exp(gauss() * 0.45);
+    }
+    let tot = Object.values(mins).reduce((a, b) => a + b, 0);
+    if (!nearEmpty.has(key)) { const lo = 125 + rnd() * 20, hi = 400 + rnd() * 15; const k = tot < lo ? lo / tot : tot > hi ? hi / tot : 1; for (const d in mins) mins[d] *= k; }
+    for (const [d, cat, , shp, sess] of SITES) {
+      const m = mins[d]; if (!m) continue;
+      const w = shape(shp, we).map(x => x * (0.55 + rnd() * 0.9)); const ws = w.reduce((a, b) => a + b, 0);
+      for (let x = 0; x < 24; x++) { const s = Math.round(m * 60 * w[x] / ws); if (s >= 15) day.hours[x][d] = s; }
+      day.visits[d] = Math.max(1, Math.round(m / sess * Math.exp(gauss() * 0.3)));
+    }
+    for (let x = 0; x < 24; x++) {
+      const hs = day.hours[x], sum = Object.values(hs).reduce((a, b) => a + b, 0);
+      if (sum > 3300) for (const d in hs) hs[d] = Math.round(hs[d] * 3300 / sum);
+    }
+    if (i === TODAY) {
+      for (let x = 17; x < 24; x++) day.hours[x] = {};
+      for (const d in day.hours[16]) day.hours[16][d] = Math.round(day.hours[16][d] * 40 / 60);
+      for (const d in day.visits) { const has = day.hours.some(hh => hh[d]); if (!has) delete day.visits[d]; else day.visits[d] = Math.max(1, Math.round(day.visits[d] * 0.7)); }
+    }
+    if (!nearEmpty.has(key)) {
+      day.blocked.instagram = pois(we ? 1.7 : 1.1) * (i === TODAY ? 1 : 1);
+      day.blocked.youtube = pois(we ? 1.0 : 0.6);
+      day.blocked.facebook = pois(0.18);
+    }
+  }
+  return days;
+}
+
+/* ================= State ================= */
+const DEFAULT_CATS = Object.fromEntries(SITES.map(s => [s[0], s[1]]));
+const S = {
+  view: BOOT.view, pstate: BOOT.state, lang: BOOT.lang, tab: 'activity', week: 0, day: null, showAll: false,
+  seed: BOOT.seed, deleted: false, confirmDelete: false, notice: {}, ignoreErr: '',
+  settings: {
+    idle: 60, media: true, paused: BOOT.state === 'paused',
+    blockers: { igReels: true, ytShorts: true, fbReels: true, igExplore: false },
+    overrides: [{ from: 'music.youtube.com', to: 'youtube.com', separate: true }, { from: 'docs.google.com', to: 'google.com', separate: true }, { from: 'mail.google.com', to: 'google.com', separate: true }],
+    ignore: ['desjardins.com', 'portal.cra-arc.gc.ca'], cats: Object.assign({}, DEFAULT_CATS)
+  }
+};
+let DB = generate(S.seed);
+let VER = 0; const CACHE = new Map();
+function bump() { VER++; CACHE.clear(); }
+function groupOf(d) { const o = S.settings.overrides.find(x => x.from === d); return o && !o.separate ? o.to : d; }
+function catOf(d) { return S.settings.cats[d] || 'Other'; }
+function isIgnored(d) { return S.settings.ignore.includes(d); }
+function agg(i) {
+  if (i < 0 || i > TODAY || S.deleted) return { total: 0, sites: new Map(), visits: new Map(), hours: new Array(24).fill(0), hourSites: Array.from({ length: 24 }, () => new Map()), blocked: { instagram: 0, youtube: 0, facebook: 0 } };
+  const key = i; if (CACHE.has(key)) return CACHE.get(key);
+  const day = DB[i]; const sites = new Map(), visits = new Map(), hours = new Array(24).fill(0), hourSites = Array.from({ length: 24 }, () => new Map());
+  let total = 0;
+  day.hours.forEach((hs, x) => { for (const d in hs) { if (isIgnored(d)) continue; const g = groupOf(d), s = hs[d]; sites.set(g, (sites.get(g) || 0) + s); hourSites[x].set(g, (hourSites[x].get(g) || 0) + s); hours[x] += s; total += s; } });
+  for (const d in day.visits) { if (isIgnored(d)) continue; const g = groupOf(d); visits.set(g, (visits.get(g) || 0) + day.visits[d]); }
+  const r = { total, sites, visits, hours, hourSites, blocked: day.blocked };
+  CACHE.set(key, r); return r;
+}
+function sorted(map) { return [...map.entries()].sort((a, b) => b[1] - a[1]); }
+const TODAY_DATE = new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate());
+function mondayOf(d) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const k = (x.getDay() + 6) % 7; return addDays(x, -k); }
+function idxOf(date) { return TODAY - Math.round((TODAY_DATE - date) / 86400000); }
+const MAX_WEEK = 12;
+function weekDays(w) {
+  const start = addDays(mondayOf(TODAY_DATE), -7 * w);
+  return Array.from({ length: 7 }, (_, k) => {
+    const date = addDays(start, k), i = idxOf(date);
+    const status = i > TODAY ? 'future' : i < 0 ? 'old' : (agg(i).total > 0 ? 'data' : 'empty');
+    return { date, i, status, total: status === 'data' ? agg(i).total : 0 };
+  });
+}
+function weekAgg(w, span) {
+  const days = weekDays(w), sites = new Map(), visits = new Map(), cats = new Map(CATS.map(c => [c, 0]));
+  const blocked = { instagram: 0, youtube: 0, facebook: 0 }; let total = 0, rec = 0, full = 0, fullTotal = 0;
+  for (const [k, d] of days.entries()) {
+    if (d.i < 0 || d.i > TODAY || (span != null && k > span)) continue;
+    const a = agg(d.i); if (a.total > 0) { rec++; if (d.i !== TODAY) { full++; fullTotal += a.total; } }
+    total += a.total;
+    a.sites.forEach((s, k) => { sites.set(k, (sites.get(k) || 0) + s); cats.set(catOf(k), cats.get(catOf(k)) + s); });
+    a.visits.forEach((v, k) => visits.set(k, (visits.get(k) || 0) + v));
+    if (!S.deleted) for (const k in blocked) blocked[k] += a.blocked[k];
+  }
+  return { days, total, rec, full, avg: full ? fullTotal / full : (rec ? total / rec : 0), sites, visits, cats, blocked };
+}
+/* ================= Charts: bars in channels of time-dots ================= */
+function barPath(x, base, w, hgt) {
+  if (hgt <= 0) return '';
+  const r = Math.min(4, w / 2, hgt);
+  return `M${x} ${base}V${base - hgt + r}Q${x} ${base - hgt} ${x + r} ${base - hgt}H${x + w - r}Q${x + w} ${base - hgt} ${x + w} ${base - hgt + r}V${base}Z`;
+}
+function dotChannel(g, cx, base, rows, step, majorEvery, faint) {
+  for (let r = 1; r <= rows; r++) {
+    const major = r % majorEvery === 0;
+    g.append(sv('circle', { cx: cx.toFixed(1), cy: (base - r * step).toFixed(1), r: major ? 1.5 : 0.9, fill: faint ? 'var(--dot-faint)' : 'var(--dot)' }));
+  }
+}
+/* Tooltip: one per chart wrapper; content built with textContent only. */
+function showTip(wrap, x, y, title, value, rows, foot) {
+  let tip = wrap.querySelector('.tip');
+  if (!tip) { tip = h('div', { class: 'tip', role: 'status' }); wrap.append(tip); }
+  tip.replaceChildren(h('div', { class: 'tip-head' }, h('strong', { text: value }), h('span', { class: 'muted', text: title })),
+    ...rows.map(([a, b]) => h('div', { class: 'tip-row' }, h('span', { class: 'mono', text: a }), h('span', { class: 'num', text: b }))),
+    ...(foot ? [h('div', { class: 'tip-foot', text: foot })] : []));
+  tip.hidden = false;
+  const W = wrap.clientWidth, tw = tip.offsetWidth, th = tip.offsetHeight;
+  let left = Math.max(0, Math.min(W - tw, x - tw / 2)), top = y - th - 10;
+  if (top < -40) top = y + 12;
+  tip.style.left = left + 'px'; tip.style.top = top + 'px';
+}
+function hideTip(wrap) { const tip = wrap.querySelector('.tip'); if (tip) tip.hidden = true; }
+
+function drawPopupWeek(wrap, opts) {
+  const W = 326, H = 90, base = 68, plotH = 52;
+  const days = Array.from({ length: 7 }, (_, k) => { const i = TODAY - 6 + k; return { i, date: addDays(TODAY_DATE, k - 6), total: opts.empty ? 0 : agg(i).total }; });
+  const maxH = Math.max(4, Math.ceil(Math.max(...days.map(d => d.total)) / 3600));
+  const rows = maxH * 2, step = plotH / rows, band = W / 7, bw = 18;
+  const svg = sv('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': t('last7') + ': ' + days.map(d => fmtDate(d.date, { weekday: 'short' }) + ' ' + (d.total ? dur(d.total) : '0')).join(', ') });
+  days.forEach((d, k) => {
+    const cx = band * (k + 0.5), isToday = d.i === TODAY;
+    const g = sv('g', {}); svg.append(g);
+    dotChannel(g, cx, base, rows, step, 2, false);
+    const hgt = d.total / 3600 * (plotH / maxH);
+    if (hgt > 0) g.append(sv('path', { d: barPath(cx - bw / 2, base, bw, Math.max(2, hgt)), fill: isToday ? (opts.paused ? 'var(--bar)' : 'var(--accent)') : 'var(--bar)' }));
+    const lbl = isToday ? t('today') : fmtDate(d.date, { weekday: 'narrow' });
+    g.append(sv('text', { x: cx, y: base + 18, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': isToday ? 650 : 450, fill: isToday ? 'var(--accent-text)' : 'var(--ink-3)', 'font-family': 'var(--f-sans)' }, lbl));
+    const hit = sv('rect', { class: 'hit', x: cx - band / 2, y: 0, width: band, height: base + 24, fill: 'transparent', tabindex: d.total ? 0 : null, 'aria-label': fmtDate(d.date, { weekday: 'long' }) + ', ' + dur(d.total) });
+    const tipOn = () => { if (!d.total) return; const top3 = sorted(agg(d.i).sites).slice(0, 3).map(([a, b]) => [a, dur(b)]); showTip(wrap, cx, base - hgt, fmtDate(d.date, { weekday: 'short', month: 'short', day: 'numeric' }), dur(d.total), top3); };
+    hit.addEventListener('pointerenter', tipOn); hit.addEventListener('focus', tipOn);
+    hit.addEventListener('pointerleave', () => hideTip(wrap)); hit.addEventListener('blur', () => hideTip(wrap));
+    g.append(hit);
+  });
+  svg.append(sv('text', { x: 0, y: 10, 'font-size': 12, fill: 'var(--ink-3)', 'font-family': 'var(--f-sans)' }, opts.empty ? t('firstCap') : t('last7') + ' \u00b7 ' + t('dotIs30')));
+  svg.append(sv('text', { x: W, y: 9, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--ink-3)', 'font-family': 'var(--f-sans)' }, opts.empty ? '' : maxH + (S.lang === 'fr' ? '\u00a0h' : 'h')));
+  wrap.replaceChildren(svg);
+}
+
+function drawWeekChart(wrap, w) {
+  const W = Math.max(280, wrap.clientWidth || 720), H = 256, padL = 34, padR = 8, top = 14, plotH = 196, base = top + plotH;
+  const days = weekDays(w), wa = weekAgg(w);
+  const maxH = Math.max(4, Math.ceil(Math.max(...days.map(d => d.total)) / 3600));
+  const rows = maxH * 4, step = plotH / rows, band = (W - padL - padR) / 7, bw = Math.min(24, band * 0.4);
+  const svg = sv('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'group', 'aria-label': t('chartTitle') });
+  for (let hh = 2; hh <= maxH; hh += 2) svg.append(sv('text', { x: padL - 10, y: base - hh * 4 * step + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--ink-3)', 'font-family': 'var(--f-sans)' }, hh + (S.lang === 'fr' ? ' h' : 'h')));
+  const narrow = band < 74;
+  days.forEach((d, k) => {
+    const cx = padL + band * (k + 0.5), isToday = d.i === TODAY, g = sv('g', {}); svg.append(g);
+    dotChannel(g, cx, base, rows, step, 4, d.status === 'future' || d.status === 'old');
+    const hgt = d.total / 3600 * (plotH / maxH);
+    const bar = hgt > 0 ? sv('path', { d: barPath(cx - bw / 2, base, bw, Math.max(2, hgt)), fill: isToday ? 'var(--accent)' : 'var(--bar)' }) : null;
+    if (bar) g.append(bar);
+    const name = isToday ? t('today') : fmtDate(d.date, narrow ? { weekday: 'narrow' } : { weekday: 'short', day: 'numeric' });
+    g.append(sv('text', { x: cx, y: base + 22, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': isToday ? 650 : 500, fill: isToday ? 'var(--accent-text)' : 'var(--ink-2)', 'font-family': 'var(--f-sans)' }, narrow && isToday ? fmtDate(d.date, { weekday: 'narrow' }) : name));
+    const val = d.status === 'data' ? dur(d.total) : d.status === 'empty' ? (narrow ? '–' : t('noData')) : d.status === 'old' ? (narrow ? '' : t('notKept')) : '';
+    g.append(sv('text', { x: cx, y: base + 40, 'text-anchor': 'middle', 'font-size': 12, fill: 'var(--ink-3)', 'font-family': 'var(--f-sans)', 'font-variant-numeric': 'tabular-nums' }, val));
+    if (d.status !== 'data') return;
+    const hit = sv('rect', { class: 'hit', x: cx - band / 2 + 2, y: 0, width: band - 4, height: H, fill: 'transparent', tabindex: 0, role: 'button', 'aria-label': fmtDate(d.date, { weekday: 'long', month: 'long', day: 'numeric' }) + ', ' + dur(d.total) });
+    const on = () => { if (bar) bar.setAttribute('fill', isToday ? 'var(--accent)' : 'var(--bar-hover)'); const top3 = sorted(agg(d.i).sites).slice(0, 3).map(([a, b]) => [a, dur(b)]); showTip(wrap, cx, base - hgt, fmtDate(d.date, { weekday: 'short', month: 'short', day: 'numeric' }), dur(d.total), top3, S.lang === 'fr' ? 'Cliquez pour voir les heures' : 'Click for the hourly view'); };
+    const off = () => { if (bar) bar.setAttribute('fill', isToday ? 'var(--accent)' : 'var(--bar)'); hideTip(wrap); };
+    hit.addEventListener('pointerenter', on); hit.addEventListener('focus', on);
+    hit.addEventListener('pointerleave', off); hit.addEventListener('blur', off);
+    hit.addEventListener('click', () => { S.day = d.i; render(); });
+    hit.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); S.day = d.i; render(); } });
+    g.append(hit);
+  });
+  if (wa.full >= 2) {
+    const y = base - wa.avg / 3600 * (plotH / maxH);
+    svg.insertBefore(sv('line', { x1: padL, x2: W - padR, y1: y, y2: y, stroke: 'var(--ink-3)', 'stroke-width': 1 }), svg.firstChild);
+    svg.append(sv('text', { x: W - padR, y: y - 6, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--ink-2)', stroke: 'var(--surface)', 'stroke-width': 4, 'paint-order': 'stroke', 'font-family': 'var(--f-sans)' }, t('avg') + ' ' + dur(wa.avg)));
+  }
+  wrap.replaceChildren(svg);
+}
+
+function drawDayChart(wrap, i) {
+  const W = Math.max(280, wrap.clientWidth || 720), H = 236, padL = 34, padR = 8, top = 12, plotH = 168, base = top + plotH;
+  const a = agg(i), rows = 12, step = plotH / rows, band = (W - padL - padR) / 24, bw = Math.min(16, band * 0.56);
+  const peak = a.hours.indexOf(Math.max(...a.hours));
+  const svg = sv('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'group', 'aria-label': t('hourlyTitle') });
+  [[6, '30m'], [12, '60m']].forEach(([r, l]) => svg.append(sv('text', { x: padL - 10, y: base - r * step + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--ink-3)', 'font-family': 'var(--f-sans)' }, S.lang === 'fr' ? l.replace('m', ' min') : l)));
+  for (let x = 0; x < 24; x++) {
+    const cx = padL + band * (x + 0.5), future = i === TODAY && x > NOW.getHours(), g = sv('g', {}); svg.append(g);
+    dotChannel(g, cx, base, rows, step, 3, future);
+    const s = a.hours[x], hgt = s / 3600 * plotH;
+    const isPeak = x === peak && s > 0;
+    if (hgt > 0) g.append(sv('path', { d: barPath(cx - bw / 2, base, bw, Math.max(2, hgt)), fill: isPeak ? 'var(--accent)' : 'var(--bar)' }));
+    if (x % 6 === 0) g.append(sv('text', { x: padL + band * x, y: base + 22, 'text-anchor': 'start', 'font-size': 12, fill: 'var(--ink-2)', 'font-family': 'var(--f-sans)' }, hourLabel(x)));
+    if (s > 0) {
+      const hit = sv('rect', { class: 'hit', x: cx - band / 2, y: 0, width: band, height: base + 4, fill: 'transparent', tabindex: 0, 'aria-label': hourRange(x) + ', ' + dur(s) });
+      const on = () => showTip(wrap, cx, base - hgt, hourRange(x), dur(s), sorted(a.hourSites[x]).slice(0, 3).map(([d, v]) => [d, dur(v)]));
+      hit.addEventListener('pointerenter', on); hit.addEventListener('focus', on);
+      hit.addEventListener('pointerleave', () => hideTip(wrap)); hit.addEventListener('blur', () => hideTip(wrap));
+      g.append(hit);
+    }
+  }
+  if (i === TODAY) {
+    const nx = padL + band * (NOW.getHours() + NOW.getMinutes() / 60);
+    svg.append(sv('line', { x1: nx, x2: nx, y1: top - 4, y2: base, stroke: 'var(--accent)', 'stroke-width': 1 }));
+    svg.append(sv('text', { x: nx + 4, y: top + 4, 'font-size': 11, fill: 'var(--accent-text)', 'font-family': 'var(--f-sans)' }, S.lang === 'fr' ? 'maintenant' : 'now'));
+  }
+  wrap.replaceChildren(svg);
+}
+
+/* ================= Popup ================= */
+const BLOCKABLE = { 'instagram.com': ['igReels', 'reels'], 'youtube.com': ['ytShorts', 'shorts'], 'facebook.com': ['fbReels', 'reels'] };
+const POPUP_SITE = { normal: 'instagram.com', paused: 'instagram.com', first: 'github.com', untrackable: null, noblocker: 'github.com' };
+function sevenDayStats() {
+  let tot = 0, rec = 0, byNow = 0;
+  for (let i = TODAY - 7; i < TODAY; i++) { const a = agg(i); if (!a.total) continue; rec++; tot += a.total; for (let x = 0; x < NOW.getHours(); x++) byNow += a.hours[x]; byNow += a.hours[NOW.getHours()] * NOW.getMinutes() / 60; }
+  return { rec, avg: rec ? tot / rec : 0, byNow: rec ? byNow / rec : 0 };
+}
+function renderPopup() {
+  const st = S.pstate, paused = st === 'paused', first = st === 'first' || S.deleted, site = POPUP_SITE[st];
+  const a = agg(TODAY), stats = sevenDayStats();
+  const pop = h('div', { class: 'popup' + (paused ? ' is-paused' : ''), 'data-state': st });
+  if (paused) pop.append(h('div', { class: 'pp-paused', role: 'status' },
+    h('svg', {}),
+    h('div', { class: 'txt', title: t('pausedSub') }, h('strong', { text: t('pausedTitle') }), h('span', { class: 'sr', text: t('pausedSub') })),
+    h('button', { text: t('resume'), onclick: () => { S.pstate = 'normal'; S.settings.paused = false; render(); } })));
+  if (paused) { const ic = pop.querySelector('.pp-paused svg'); ic.replaceWith(pauseIcon()); }
+  const body = h('div', { class: 'pp-body' }); pop.append(body);
+  const dateEl = () => h('span', { class: 'date', text: fmtDate(TODAY_DATE, { weekday: 'short', month: 'short', day: 'numeric' }) });
+  const hero = h('section', { class: 'pp-hero', 'aria-label': t('today') });
+  if (first) {
+    hero.append(h('p', { class: 'label' }, h('span', { text: t('today') }), dateEl()), h('h1', { class: 'hero-num', style: 'font-size:var(--t-28);font-weight:500;letter-spacing:-0.02em', text: t('firstTitle') }),
+      h('p', { class: 'pp-compare', text: t('firstBody') }));
+  } else {
+    hero.append(h('p', { class: 'label' }, h('span', { text: paused ? t('pausedHero') : t('todaySoFar') }), dateEl()), durNode(a.total, 'hero-num' + (paused ? ' is-quiet' : '')));
+    const cmp = h('p', { class: 'pp-compare' });
+    if (!paused) cmp.append(...rich('usually', { d: h('b', { text: dur(stats.byNow) }) }), h('br'), stats.rec === 7 ? t('avg7', { d: dur(stats.avg) }) : t('avg7few', { n: stats.rec, d: dur(stats.avg) }));
+    if (!paused) hero.append(cmp);
+  }
+  body.append(hero);
+  const fig = h('figure', { class: 'pp-week' }); const cw = h('div', { class: 'chart-wrap' }); fig.append(cw);
+  drawPopupWeek(cw, { empty: first, paused }); body.append(fig);
+  const top = h('section', { class: 'pp-top' }, h('h2', { class: 'pp-section-title', text: t('topToday') }));
+  if (first) top.append(h('p', { class: 'empty-note', text: t('firstTop') }));
+  else {
+    const list = sorted(a.sites).slice(0, 3), max = list.length ? list[0][1] : 1, ol = h('ol');
+    list.forEach(([d, s]) => ol.append(h('li', { class: 'site-row' }, letterMark(d), h('span', { class: 'name', text: d }), h('span', { class: 'time', text: dur(s) }), track(s / max))));
+    top.append(ol);
+  }
+  body.append(top);
+  body.append(renderThisSite(site, st, a));
+  const foot = h('footer', { class: 'pp-foot' },
+    h('button', { class: 'btn btn-quiet', onclick: () => { if (BOOT.artboard) return; S.view = 'dashboard'; render(); } }, t('openDash'), arrowIcon()),
+    h('span', { class: 'pause-ctl' }, h('span', { id: 'pause-lbl', text: paused ? t('paused') : t('pause') }),
+      h('button', { class: 'switch', role: 'switch', 'aria-checked': String(paused), 'aria-labelledby': 'pause-lbl', onclick: () => { S.pstate = paused ? 'normal' : 'paused'; S.settings.paused = !paused; render(); } })));
+  pop.append(foot);
+  return pop;
+}
+function renderThisSite(site, st, a) {
+  const card = h('section', { class: 'pp-site', 'aria-label': t('thisSite') });
+  if (!site) {
+    card.append(h('div', { class: 'pp-site-top' }, h('span', { class: 'mark', 'aria-hidden': 'true', style: 'background:var(--surface)' }, '–'),
+      h('div', { class: 'meta' }, h('div', { class: 'pp-site-label', text: t('thisSite') }), h('div', { style: 'font-weight:600', text: t('untrackTitle') }), h('div', { class: 'facts', text: t('untrackBody') }))));
+    return card;
+  }
+  const secs = st === 'first' ? 20 : (a.sites.get(site) || 0), v = st === 'first' ? 1 : (a.visits.get(site) || 0);
+  const vtxt = v === 1 ? t('visits1') : t('visitsN', { n: v });
+  const right = st === 'paused' ? h('div', { class: 'facts-r' }, h('span', { text: t('pausedSite') })) : st === 'first' ? h('div', { class: 'facts-r' }, dur(secs), h('span', { text: t('justStarted') })) : h('div', { class: 'facts-r' }, dur(secs), h('span', { text: vtxt }));
+  card.append(h('div', { class: 'pp-site-top' }, letterMark(site), h('div', { class: 'meta' }, h('div', { class: 'pp-site-label', text: t('thisSite') }), h('div', { class: 'dom', text: site })), right));
+  const b = BLOCKABLE[site];
+  if (b && st !== 'noblocker') {
+    const on = S.settings.blockers[b[0]], kind = b[1];
+    const label = on ? t(kind + 'Off') : t(kind + 'On'), sub = on ? t(kind + 'OffSub') : t(kind + 'OnSub');
+    card.append(h('div', { class: 'blocker-row' }, h('div', { class: 'txt' }, h('div', { class: 'state', id: 'blk-lbl', text: label }), h('div', { class: 'sub', text: sub })),
+      h('button', { class: 'switch', role: 'switch', 'aria-checked': String(on), 'aria-labelledby': 'blk-lbl', onclick: () => { S.settings.blockers[b[0]] = !on; render(); } })));
+  }
+  return card;
+}
+function pauseIcon() { const g = sv('svg', { width: 20, height: 20, viewBox: '0 0 20 20', 'aria-hidden': 'true' }); g.append(sv('rect', { x: 5, y: 4, width: 3.5, height: 12, rx: 1, fill: 'currentColor' }), sv('rect', { x: 11.5, y: 4, width: 3.5, height: 12, rx: 1, fill: 'currentColor' })); return g; }
+function arrowIcon(dir) { const g = sv('svg', { width: 14, height: 14, viewBox: '0 0 14 14', 'aria-hidden': 'true' }); g.append(sv('path', { d: dir === 'left' ? 'M8.5 3 4.5 7l4 4' : dir === 'back' ? 'M11 7H3m3.5-3.5L3 7l3.5 3.5' : 'M5.5 3l4 4-4 4', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })); return g; }
+/* rich(key, {x: Node|string}) -> nodes; keeps translated sentence order intact */
+function rich(key, vars) {
+  const raw = (STR[S.lang] && STR[S.lang][key]) || STR.en[key];
+  return raw.split(/(\{\w+\})/).filter(Boolean).map(p => { const m = p.match(/^\{(\w+)\}$/); if (!m) return p; const v = vars[m[1]]; return v == null ? '' : v; });
+}
+
+/* ================= Dashboard ================= */
+function renderDashboard() {
+  const root = h('div', { class: 'dash' });
+  const paused = S.settings.paused;
+  const navBtn = (id, key) => h('button', { 'aria-current': S.tab === id ? 'page' : null, onclick: () => { S.tab = id; S.day = null; render(); } }, t(key));
+  root.append(h('header', { class: 'dash-top' }, wordmark(), h('nav', { 'aria-label': 'Dwell' }, navBtn('activity', 'navActivity'), navBtn('settings', 'navSettings'), navBtn('privacy', 'navPrivacy')),
+    h('span', { class: 'status-pill' + (paused ? ' is-paused' : ''), role: 'status' }, h('span', { class: 'led', 'aria-hidden': 'true' }), paused ? t('pausedPill') : t('recording'))));
+  const main = h('main', { class: 'dash-main' }); root.append(main);
+  if (S.tab === 'settings') renderSettings(main);
+  else if (S.tab === 'privacy') renderPrivacy(main);
+  else if (S.day != null) renderDay(main, S.day);
+  else renderWeek(main);
+  return root;
+}
+function relWeek(w) { return w === 0 ? t('thisWeek') : w === 1 ? t('lastWeek') : t('weeksAgo', { n: w }); }
+function weekRangeText(w) { const s = addDays(mondayOf(TODAY_DATE), -7 * w); return fmtRange(s, addDays(s, 6)); }
+function renderWeek(main) {
+  const w = S.week, wa = weekAgg(w), prev = weekAgg(w + 1), todayK = (TODAY_DATE.getDay() + 6) % 7, prevSpan = w === 0 ? weekAgg(1, todayK) : prev;
+  main.append(h('div', { class: 'weeknav' },
+    h('button', { class: 'icon-btn', 'aria-label': t('prevWeek'), title: w >= MAX_WEEK ? t('olderGone') : t('prevWeek'), disabled: w >= MAX_WEEK, onclick: () => { S.week++; render(); } }, arrowIcon('left')),
+    h('button', { class: 'icon-btn', 'aria-label': t('nextWeek'), disabled: w === 0, onclick: () => { S.week--; render(); } }, arrowIcon()),
+    h('h1', { class: 'range', text: weekRangeText(w) }), h('span', { class: 'rel', text: relWeek(w) })));
+  const hl = h('section', { class: 'headline', 'aria-label': t('weekTotalPast') });
+  const st = (label, sec, hero) => h('div', { class: 'stat' + (hero ? ' is-hero' : '') }, h('div', { class: 'label', text: label }), durNode(sec, 'value'));
+  hl.append(st(w === 0 ? t('weekTotal') : t('weekTotalPast'), wa.total, true), st(w === 0 ? t('dailyAvgFull') : t('dailyAvg'), wa.avg));
+  const notes = h('div', { class: 'headline-notes' });
+  if (!wa.rec) notes.append(h('p', { text: t('emptyWeek') }));
+  else {
+    if (prev.rec) {
+      const r = (wa.avg - prev.avg) / prev.avg, p = Math.abs(pct(r));
+      notes.append(h('p', {}, ...rich(p < 3 ? 'deltaSame' : r < 0 ? 'deltaLess' : 'deltaMore', { p: h('b', { text: String(p) }), d: dur(prev.avg) })));
+    } else notes.append(h('p', { text: t('deltaNone') }));
+    const rec = wa.days.filter(d => d.status === 'data' && d.i !== TODAY);
+    if (rec.length >= 2) {
+      const q = rec.reduce((a, b) => (b.total < a.total ? b : a)), b = rec.reduce((a, c) => (c.total > a.total ? c : a));
+      const nm = d => fmtDate(d.date, { weekday: 'long' }) + ' ' + dur(d.total);
+      notes.append(h('p', {}, ...rich('quietBusy', { q: h('b', { text: nm(q) }), b: h('b', { text: nm(b) }) })));
+    }
+    const gaps = wa.days.filter(d => d.status === 'empty');
+    if (gaps.length) notes.append(h('p', { text: t('gapNote', { days: gaps.map(d => fmtDate(d.date, { weekday: 'short', month: 'short', day: 'numeric' })).join(', '), n: wa.full }) }));
+  }
+  hl.append(notes); main.append(hl);
+  const grid = h('div', { class: 'grid' }); main.append(grid);
+  const chartPanel = h('section', { class: 'panel', 'aria-label': t('chartTitle') }, h('div', { class: 'panel-head' }, h('h2', { text: t('chartTitle') }), h('span', { class: 'aside', text: t('chartAside') })));
+  const cw = h('div', { class: 'chart-wrap', 'data-chart': 'week' }); chartPanel.append(cw); grid.append(chartPanel);
+  grid.append(renderCategories(wa));
+  grid.append(renderMostUsed(wa, prevSpan, w === 0 ? todayK : 6));
+  grid.append(renderBlocked(wa));
+  queueMicrotask(() => drawWeekChart(cw, w));
+}
+function renderCategories(wa) {
+  const p = h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', { text: t('categories') }), h('span', { class: 'aside', text: dur(wa.total) })));
+  const rows = [...wa.cats.entries()].sort((a, b) => b[1] - a[1]), max = Math.max(1, rows[0][1]);
+  rows.forEach(([c, s]) => p.append(h('div', { class: 'cat-row' }, h('span', { class: 'n', text: t('cat_' + c) }), track(s / max), h('span', { class: 'v' }, s ? dur(s) : '–', h('span', { text: wa.total ? pct(s / wa.total) + '%' : '' })))));
+  return p;
+}
+function renderMostUsed(wa, prev, span) {
+  const spanTxt = span < 6 ? t('spanNote', { a: fmtDate(wa.days[0].date, { weekday: 'short' }), b: fmtDate(wa.days[span].date, { weekday: 'short' }) }) : t('sitesCount', { n: wa.sites.size });
+  const p = h('section', { class: 'panel mu' }, h('div', { class: 'panel-head' }, h('h2', { text: t('mostUsed') }), h('span', { class: 'aside', text: spanTxt })));
+  const list = sorted(wa.sites);
+  if (!list.length) { p.append(h('p', { class: 'empty-note', text: t('emptyWeek') })); return p; }
+  const max = list[0][1], shown = S.showAll ? list : list.slice(0, 10);
+  p.append(h('div', { class: 'mu-row is-head', 'aria-hidden': 'true' }, h('span'), h('span'), h('span', { text: t('site') }), h('span', { text: t('category') }), h('span', { class: 't', style: 'font-weight:500', text: t('time') }), h('span', { class: 'sh', text: t('share') }), h('span', { class: 'dl', text: t('vsLast') }), h('span', { class: 'vi', text: t('visits') })));
+  const ol = h('ol'); p.append(ol);
+  shown.forEach(([d, s], k) => {
+    const before = prev.sites.get(d) || 0, diff = s - before;
+    const delta = !before ? t('newSite') : Math.abs(diff) < 60 ? t('same') : (diff > 0 ? '+' : '−') + dur(Math.abs(diff));
+    const v = wa.visits.get(d) || 0, share = pct(s / wa.total) + '%';
+    ol.append(h('li', { class: 'mu-row' }, h('span', { class: 'rank', text: k + 1 }), letterMark(d),
+      h('div', { class: 'site' }, h('span', { class: 'd', text: d }), track(s / max), h('span', { class: 'meta', text: [t('cat_' + catOf(d)), share, delta, (v === 1 ? t('visits1') : t('visitsN', { n: v }))].join(' · ') })),
+      h('span', { class: 'cat' }, h('span', { class: 'chip', text: t('cat_' + catOf(d)) })), h('span', { class: 't', text: dur(s) }), h('span', { class: 'sh', text: share }), h('span', { class: 'dl', text: delta }), h('span', { class: 'vi', text: v })));
+  });
+  if (list.length > 10) p.append(h('div', { class: 'mu-more' }, h('button', { class: 'btn btn-quiet', onclick: () => { S.showAll = !S.showAll; render(); } }, S.showAll ? t('showFewer') : t('showAll', { n: list.length }))));
+  return p;
+}
+function renderBlocked(wa) {
+  const b = wa.blocked, total = b.instagram + b.youtube + b.facebook;
+  const p = h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', { text: t('blocked') })));
+  p.append(h('div', { class: 'blk-total' }, h('span', { class: 'n num', text: total }), h('p', { text: t('blockedLine') })));
+  [['igName', 'instagram'], ['ytName', 'youtube'], ['fbName', 'facebook']].forEach(([k, id]) => {
+    const dots = h('div', { class: 'blk-dots', 'aria-hidden': 'true' }); for (let i = 0; i < b[id]; i++) dots.append(h('i'));
+    p.append(h('div', { class: 'blk-row' }, h('span', { class: 'n', text: t(k) }), h('span', { class: 'c', text: b[id] }), dots));
+  });
+  p.append(h('p', { class: 'blk-note', text: t('blockedNote') }));
+  return p;
+}
+function renderDay(main, i) {
+  const a = agg(i), date = DB[i].date, wk = Math.floor((idxOf(mondayOf(TODAY_DATE)) - idxOf(mondayOf(date))) / 7);
+  const canPrev = i > 0, canNext = i < TODAY;
+  main.append(h('div', { class: 'dayhead' },
+    h('button', { class: 'btn', onclick: () => { S.week = wk; S.day = null; render(); } }, arrowIcon('back'), t('backWeek', { r: weekRangeText(wk) })),
+    h('span', { class: 'spacer' }),
+    h('button', { class: 'icon-btn', 'aria-label': t('prevDay'), disabled: !canPrev, onclick: () => { S.day = i - 1; render(); } }, arrowIcon('left')),
+    h('button', { class: 'icon-btn', 'aria-label': t('nextDay'), disabled: !canNext, onclick: () => { S.day = i + 1; render(); } }, arrowIcon())));
+  const v = [...a.visits.values()].reduce((x, y) => x + y, 0);
+  const hl = h('section', { class: 'headline' },
+    h('div', { class: 'stat is-hero' }, h('h1', { class: 'label', text: fmtDate(date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) }), durNode(a.total, 'value')));
+  const notes = h('div', { class: 'headline-notes' });
+  if (a.total) {
+    const pk = a.hours.indexOf(Math.max(...a.hours));
+    notes.append(h('p', {}, ...rich('busiestHour', { h: h('b', { text: hourRange(pk) }), d: dur(a.hours[pk]) })));
+    notes.append(h('p', { text: t('sitesCount', { n: a.sites.size }) + ' · ' + t('visitsTotal', { n: v }) }));
+  } else notes.append(h('p', { text: t('dayEmpty') }));
+  hl.append(notes); main.append(hl);
+  const grid = h('div', { class: 'grid' }); main.append(grid);
+  const cp = h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', { text: t('hourlyTitle') }), h('span', { class: 'aside', text: t('hourlyAside') })));
+  const cw = h('div', { class: 'chart-wrap', 'data-chart': 'day' }); cp.append(cw); grid.append(cp);
+  const tp = h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', { text: t('dayTop') }), h('span', { class: 'aside', text: dur(a.total) })));
+  const list = sorted(a.sites).slice(0, 8), max = list.length ? list[0][1] : 1, ol = h('ol');
+  list.forEach(([d, s]) => ol.append(h('li', { class: 'site-row' }, letterMark(d), h('span', { class: 'name', text: d }), h('span', { class: 'time', text: dur(s) }), track(s / max))));
+  tp.append(list.length ? ol : h('p', { class: 'empty-note', text: t('dayEmpty') })); grid.append(tp);
+  queueMicrotask(() => drawDayChart(cw, i));
+}
+
+/* ================= Settings ================= */
+function setRow(title, desc, ctl, extra) {
+  return h('div', { class: 'set-row' }, h('div', { class: 'txt' }, h('div', { class: 'ttl', text: title }), desc ? h('div', { class: 'desc', text: desc }) : null), h('div', { class: 'ctl' }, ctl), extra || null);
+}
+function segRadios(name, options, value, onPick) {
+  return h('div', { class: 'seg', role: 'radiogroup', 'aria-label': name }, ...options.map(([v, l]) => h('button', { role: 'radio', 'aria-checked': String(v === value), onclick: () => onPick(v) }, l)));
+}
+function renderSettings(main) {
+  const s = S.settings, wrap = h('div', { class: 'settings' });
+  const idx = h('nav', { class: 'set-index', 'aria-label': t('navSettings') }, ...[['set-tracking', 'sTracking'], ['set-blockers', 'sBlockers'], ['set-sites', 'sSites'], ['set-data', 'sData'], ['set-lang', 'sLang']].map(([id, k]) => h('a', { href: '#' + id, text: t(k) })));
+  const groups = h('div', { class: 'set-groups' }); wrap.append(idx, groups); main.append(h('h1', { class: 'sr', text: t('navSettings') }), wrap);
+  const grp = (id, key) => { const g = h('section', { class: 'panel set-group', id }, h('h2', { text: t(key) })); groups.append(g); return g; };
+  const sw = (on, label, fn) => switchBtn(on, label, () => { fn(); bump(); render(); });
+  const tr = grp('set-tracking', 'sTracking');
+  tr.append(setRow(t('sIdle'), t('sIdleDesc'), segRadios(t('sIdle'), [[30, S.lang === 'fr' ? '30 s' : '30 s'], [60, S.lang === 'fr' ? '1 min' : '60 s'], [120, S.lang === 'fr' ? '2 min' : '120 s']], s.idle, v => { s.idle = v; render(); })));
+  tr.append(setRow(t('sMedia'), t('sMediaDesc'), sw(s.media, t('sMedia'), () => { s.media = !s.media; })));
+  tr.append(setRow(t('sPause'), t('sPauseDesc'), sw(s.paused, t('sPause'), () => { s.paused = !s.paused; S.pstate = s.paused ? 'paused' : 'normal'; })));
+  const bl = grp('set-blockers', 'sBlockers');
+  [['igReels', 'bIgReels'], ['ytShorts', 'bYtShorts'], ['fbReels', 'bFbReels'], ['igExplore', 'bIgExplore']].forEach(([k, l]) => bl.append(setRow(t(l), t(l + 'D'), sw(s.blockers[k], t(l), () => { s.blockers[k] = !s.blockers[k]; }))));
+  const si = grp('set-sites', 'sSites');
+  const ov = h('div', { style: 'display:flex;flex-direction:column;gap:8px;width:100%' }, ...s.overrides.map(o => h('label', { style: 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap' },
+    h('span', {}, h('span', { class: 'mono', text: o.from }), h('span', { class: 'muted', text: ' · ' + (o.separate ? t('countSeparately') : t('countWith', { d: o.to })) })),
+    switchBtn(o.separate, o.from + ': ' + t('countSeparately'), () => { o.separate = !o.separate; bump(); render(); }))));
+  si.append(setRow(t('sGroup'), t('sGroupDesc'), null, ov));
+  const input = h('input', { class: 'field', id: 'ignore-input', type: 'text', placeholder: 'example.com', 'aria-label': t('sIgnore'), autocomplete: 'off', spellcheck: 'false' });
+  const addIgnore = () => {
+    const v = input.value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(v)) S.ignoreErr = t('badDomain');
+    else if (s.ignore.includes(v)) S.ignoreErr = t('already', { d: v });
+    else { s.ignore.push(v); S.ignoreErr = ''; bump(); }
+    render(); const f = document.getElementById('ignore-input'); if (f) f.focus();
+  };
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') addIgnore(); });
+  const chips = h('div', { class: 'chips' }, ...s.ignore.map(d => h('span', { class: 'chip-x' }, d, h('button', { 'aria-label': t('remove', { d }), onclick: () => { s.ignore = s.ignore.filter(x => x !== d); bump(); render(); } }, '×'))));
+  si.append(setRow(t('sIgnore'), t('sIgnoreDesc'), [input, h('button', { class: 'btn', onclick: addIgnore }, t('add'))], h('div', { style: 'display:flex;flex-direction:column;gap:6px;width:100%' }, S.ignoreErr ? h('p', { class: 'field-err', role: 'alert', text: S.ignoreErr }) : null, chips)));
+  const domains = [...new Set(DB.flatMap(d => d.hours.flatMap(hh => Object.keys(hh))))].sort();
+  const ed = h('div', { class: 'cat-editor' }, ...domains.map(d => {
+    const sel = h('select', { class: 'field', 'aria-label': d, onchange: e => { s.cats[d] = e.target.value; bump(); } }, ...CATS.map(c => h('option', { value: c, selected: catOf(d) === c ? true : null }, t('cat_' + c))));
+    return h('label', {}, h('span', { class: 'd', text: d }), sel);
+  }));
+  si.append(setRow(t('sCats'), t('sCatsDesc'), null, ed));
+  const da = grp('set-data', 'sData');
+  da.append(setRow(t('sRetention'), t('sRetentionDesc'), h('span', { class: 'chip', style: 'font-size:var(--t-13)', text: t('days90') })));
+  const exportIt = () => {
+    const payload = { format: 'dwell-export', version: 1, exported: dayKey(TODAY_DATE), settings: s, days: S.deleted ? [] : DB.map(d => ({ day: d.key, hours: d.hours, visits: d.visits, blocked: d.blocked })) };
+    const json = JSON.stringify(payload), f = 'dwell-export-' + dayKey(TODAY_DATE) + '.json';
+    try { const url = URL.createObjectURL(new Blob([json], { type: 'application/json' })); const a = h('a', { href: url, download: f }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000); } catch (e) { console.warn('Export download unavailable here', e); }
+    S.notice.export = t('exported', { f, k: Math.round(json.length / 1024), n: payload.days.length }); render();
+  };
+  da.append(setRow(t('sExport'), t('sExportDesc'), h('button', { class: 'btn', onclick: exportIt }, t('exportBtn')), S.notice.export ? h('p', { class: 'notice', role: 'status', text: S.notice.export }) : null));
+  const file = h('input', { type: 'file', accept: 'application/json,.json', id: 'import-file', class: 'sr' });
+  file.addEventListener('change', () => {
+    const fl = file.files[0]; if (!fl) return;
+    const rd = new FileReader();
+    rd.onload = () => { try { const j = JSON.parse(rd.result); S.notice.import = j.format === 'dwell-export' ? t('imported', { n: (j.days || []).length, f: fl.name }) : t('importBad', { f: fl.name }); } catch (e) { S.notice.import = t('importBad', { f: fl.name }); } render(); };
+    rd.readAsText(fl);
+  });
+  da.append(setRow(t('sImport'), t('sImportDesc'), [file, h('label', { class: 'btn', for: 'import-file', tabindex: 0, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click(); } } }, t('importBtn'))], S.notice.import ? h('p', { class: 'notice', role: 'status', text: S.notice.import }) : null));
+  const recDays = S.deleted ? 0 : DB.filter((d, i) => agg(i).total > 0).length;
+  const conf = S.confirmDelete ? h('div', { class: 'confirm', role: 'alertdialog', 'aria-label': t('sDelete') }, h('p', { text: t('deleteQ', { n: recDays }) }),
+    h('button', { class: 'btn btn-ink', onclick: () => { S.deleted = true; S.confirmDelete = false; S.notice.del = t('deleted'); bump(); render(); } }, t('deleteYes')),
+    h('button', { class: 'btn', onclick: () => { S.confirmDelete = false; render(); } }, t('deleteNo'))) : (S.notice.del ? h('p', { class: 'notice', role: 'status', text: S.notice.del }) : null);
+  da.append(setRow(t('sDelete'), t('sDeleteDesc'), h('button', { class: 'btn', disabled: S.deleted || S.confirmDelete ? true : null, onclick: () => { S.confirmDelete = true; render(); } }, t('deleteBtn')), conf));
+  const lg = grp('set-lang', 'sLang');
+  lg.append(setRow(t('sLang'), null, segRadios(t('sLang'), [['en', 'English'], ['fr', 'Français']], S.lang, v => { S.lang = v; document.documentElement.lang = v; render(); })));
+}
+
+/* ================= Privacy ================= */
+function renderPrivacy(main) {
+  const wrap = h('div', { class: 'privacy' });
+  const prose = h('article', { class: 'prose' }, h('h1', { text: t('pTitle') }), h('p', { class: 'lead', id: 'privacy-lead', text: t('pLead') }));
+  prose.append(h('div', { class: 'kept' },
+    h('div', {}, h('h2', { text: t('pKept') }), h('ul', {}, ...['k1', 'k2', 'k3', 'k4', 'k5'].map(k => h('li', { text: t(k) })))),
+    h('div', {}, h('h2', { text: t('pNever') }), h('ul', {}, ...['n1', 'n2', 'n3', 'n4', 'n5'].map(k => h('li', { text: t(k) }))))));
+  prose.append(h('h2', { text: t('pWhereT') }), h('p', { text: t('pWhere') }), h('h2', { text: t('pNetT') }), h('p', {}, ...rich('pNet', { csp: h('code', { text: "connect-src 'none'" }) })));
+  const perms = [['storage', 'perm_storage'], ['tabs', 'perm_tabs'], ['idle', 'perm_idle'], ['alarms', 'perm_alarms'], ['declarativeNetRequest', 'perm_dnr'], ['instagram.com, youtube.com, facebook.com', 'perm_hosts']];
+  const side = h('aside', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', { text: t('pPermT') })), h('p', { class: 'desc', style: 'color:var(--ink-2);font-size:var(--t-13);margin-bottom:var(--s-3)', text: t('pPermD') }),
+    h('ul', { class: 'perm' }, ...perms.map(([c, k]) => h('li', {}, h('code', { text: c }), h('span', { text: t(k) })))));
+  wrap.append(prose, side); main.append(wrap);
+}
+
+/* ================= Stage + boot ================= */
+const OMNI = { normal: 'instagram.com/', paused: 'instagram.com/', first: 'github.com/', untrackable: 'chrome://newtab', noblocker: 'github.com/' };
+function applyTheme(v) { const r = document.documentElement; if (v === 'light' || v === 'dark') r.setAttribute('data-theme', v); else r.removeAttribute('data-theme'); S.theme = v || 'system'; }
+function renderStage() {
+  const bar = document.getElementById('stagebar'); bar.hidden = false;
+  const seg = (label, opts, cur, fn) => h('div', { class: 'stage-group' }, h('span', { class: 'stage-label', text: label }), h('div', { class: 'seg' }, ...opts.map(([v, l]) => h('button', { 'aria-pressed': String(v === cur), onclick: () => fn(v) }, l))));
+  bar.replaceChildren(...[
+    seg('View', [['popup', 'Popup'], ['dashboard', 'Dashboard']], S.view, v => { S.view = v; render(); }),
+    S.view === 'popup' ? seg('State', [['normal', 'Normal'], ['first', 'First run'], ['paused', 'Paused'], ['untrackable', 'Not trackable'], ['noblocker', 'No blocker']], S.pstate, v => { S.pstate = v; S.settings.paused = v === 'paused'; render(); }) : null,
+    seg('Theme', [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']], S.theme, v => { applyTheme(v); render(); }),
+    h('div', { class: 'stage-group stage-seed' }, h('span', { class: 'stage-label', text: 'Seed' }), h('span', { class: 'mono', text: String(S.seed) }),
+      h('button', { class: 'btn', style: 'padding:2px 8px;font-size:var(--t-12)', onclick: () => { S.seed = (S.seed * 48271 + 11) % 2147483647; DB = generate(S.seed); S.deleted = false; S.notice = {}; bump(); render(); } }, 'Reseed'))].filter(Boolean));
+}
+function render() {
+  const app = document.getElementById('app');
+  const sx = window.scrollX, sy = window.scrollY, focusId = document.activeElement && document.activeElement.id;
+  if (!BOOT.artboard) renderStage();
+  if (S.view === 'popup') {
+    const pop = renderPopup();
+    if (BOOT.artboard) app.replaceChildren(pop);
+    else {
+      const ext = h('button', { class: 'ext-btn', 'aria-label': 'Dwell' }, glyph());
+      app.replaceChildren(h('div', { class: 'stage' }, h('div', { class: 'browser' }, h('div', { class: 'toolbar' }, h('div', { class: 'omnibox', text: OMNI[S.pstate] }), ext), h('div', { class: 'popup-anchor' }, pop))));
+    }
+  } else app.replaceChildren(renderDashboard());
+  window.scrollTo(sx, sy);
+  if (focusId) { const f = document.getElementById(focusId); if (f) f.focus(); }
+}
+let rzT; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => { document.querySelectorAll('[data-chart]').forEach(c => { if (c.dataset.chart === 'week') drawWeekChart(c, S.week); else drawDayChart(c, S.day); }); }, 80); });
+applyTheme(BOOT.theme);
+(function deepLink() {
+  const parts = (location.hash || '').slice(1).split('+'), hsh = parts[0];
+  if (BOOT.artboard || !location.hash) return;
+  if (parts.includes('dark') || parts.includes('light')) applyTheme(parts.includes('dark') ? 'dark' : 'light');
+  if (parts.includes('fr')) S.lang = 'fr';
+  if (['dashboard', 'settings', 'privacy', 'day'].includes(hsh)) { S.view = 'dashboard'; if (hsh === 'settings' || hsh === 'privacy') S.tab = hsh; if (hsh === 'day') S.day = TODAY - 1; }
+  if (['normal', 'first', 'paused', 'untrackable', 'noblocker'].includes(hsh)) { S.pstate = hsh; S.settings.paused = hsh === 'paused'; }
+})();
+if (BOOT.artboard) document.body.classList.add('artboard');
+if (BOOT.dash === 'day') S.day = TODAY - 1;
+document.documentElement.lang = S.lang;
+render();
+</script>
+</body>
+</html>

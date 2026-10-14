@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.bak
+.playwright-mcp/
+test-results/
+playwright-report/
+*.zip
+.DS_Store

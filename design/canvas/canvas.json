@@ -1,0 +1,88 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-10-14T22:50:44.019Z"
+ },
+ "title": "Dwell Screen Time Design",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 360,
+   "h": 560,
+   "title": "Popup, light"
+  },
+  "PopupDark.dc.html": {
+   "x": 440,
+   "y": 0,
+   "w": 360,
+   "h": 560,
+   "title": "Popup, dark"
+  },
+  "PopupPaused.dc.html": {
+   "x": 880,
+   "y": 0,
+   "w": 360,
+   "h": 560,
+   "title": "Popup, paused"
+  },
+  "DashboardWeek.dc.html": {
+   "x": 0,
+   "y": 680,
+   "w": 1280,
+   "h": 1296,
+   "title": "Dashboard, week, light"
+  },
+  "DashboardWeekDark.dc.html": {
+   "x": 1360,
+   "y": 680,
+   "w": 1280,
+   "h": 1296,
+   "title": "Dashboard, week, dark"
+  },
+  "DashboardDay.dc.html": {
+   "x": 0,
+   "y": 2096,
+   "w": 1280,
+   "h": 900,
+   "title": "Dashboard, day, light"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "PopupDark.dc.html",
+  "PopupPaused.dc.html",
+  "DashboardWeek.dc.html",
+  "DashboardWeekDark.dc.html",
+  "DashboardDay.dc.html"
+ ],
+ "notes": {
+  "n1": {
+   "x": 0,
+   "y": -260,
+   "text": "Popup, 360 x 560",
+   "kind": "title1",
+   "maxW": 1240
+  },
+  "n2": {
+   "x": 0,
+   "y": 420,
+   "text": "Dashboard, week",
+   "kind": "title1",
+   "maxW": 2640
+  },
+  "n3": {
+   "x": 0,
+   "y": 1836,
+   "text": "Dashboard, day view",
+   "kind": "title1",
+   "maxW": 1280
+  }
+ },
+ "designSystems": []
+}
