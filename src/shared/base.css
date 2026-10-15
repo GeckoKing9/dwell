@@ -82,3 +82,5 @@ button { cursor: pointer; }
 .tip-row { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-2); }
 .tip-row span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tip-foot { margin-top: 6px; color: var(--ink-3); }
+.wordmark .wm-dot { fill: var(--dot); }
+.wordmark .wm-bar { fill: var(--accent); }

@@ -224,5 +224,793 @@
   "loadError": {
     "message": "Dwell couldn’t read its numbers. Close and reopen this window to try again.",
     "description": "Popup message when reading storage fails."
+  },
+  "navActivity": {
+    "message": "Activity",
+    "description": "Dashboard header link to the week and day views."
+  },
+  "navSettings": {
+    "message": "Settings",
+    "description": "Dashboard header link to the settings page; also the settings page heading."
+  },
+  "navPrivacy": {
+    "message": "Privacy",
+    "description": "Dashboard header link to the privacy panel."
+  },
+  "recording": {
+    "message": "Recording",
+    "description": "Dashboard status pill while tracking is on."
+  },
+  "pausedPill": {
+    "message": "Tracking paused",
+    "description": "Dashboard status pill while tracking is paused."
+  },
+  "thisWeek": {
+    "message": "This week",
+    "description": "Pill beside the week range for the current week."
+  },
+  "lastWeek": {
+    "message": "Last week",
+    "description": "Pill beside the week range for the week before the current one."
+  },
+  "weeksAgo": {
+    "message": "$N$ weeks ago",
+    "description": "Pill beside the week range for older weeks.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "prevWeek": {
+    "message": "Previous week",
+    "description": "Accessible name of the previous-week button."
+  },
+  "nextWeek": {
+    "message": "Next week",
+    "description": "Accessible name of the next-week button."
+  },
+  "olderGone": {
+    "message": "Older weeks are past the 90-day limit",
+    "description": "Tooltip of the disabled previous-week button on the oldest week."
+  },
+  "weekTotal": {
+    "message": "This week so far",
+    "description": "Label above the hero total of the current week."
+  },
+  "weekTotalPast": {
+    "message": "Week total",
+    "description": "Label above the hero total of a past week; also the headline section name."
+  },
+  "dailyAvg": {
+    "message": "Daily average",
+    "description": "Label above the daily average of a past week."
+  },
+  "dailyAvgFull": {
+    "message": "Daily average, full days",
+    "description": "Label above the daily average of the current week, which leaves today out."
+  },
+  "spanNote": {
+    "message": "Changes compare $A$–$B$ with the same days last week",
+    "description": "Most-used panel note for a week still running.",
+    "placeholders": {
+      "a": {
+        "content": "$1",
+        "example": "Mon"
+      },
+      "b": {
+        "content": "$2",
+        "example": "Wed"
+      }
+    }
+  },
+  "deltaLess": {
+    "message": "Daily average is $P$% lower than the week before ($D$).",
+    "description": "Week headline: the daily average went down. P is a whole number, D the previous average.",
+    "placeholders": {
+      "p": {
+        "content": "$1",
+        "example": "19"
+      },
+      "d": {
+        "content": "$2",
+        "example": "3h 32m"
+      }
+    }
+  },
+  "deltaMore": {
+    "message": "Daily average is $P$% higher than the week before ($D$).",
+    "description": "Week headline: the daily average went up. P is a whole number, D the previous average.",
+    "placeholders": {
+      "p": {
+        "content": "$1",
+        "example": "19"
+      },
+      "d": {
+        "content": "$2",
+        "example": "3h 32m"
+      }
+    }
+  },
+  "deltaSame": {
+    "message": "Daily average is about the same as the week before ($D$).",
+    "description": "Week headline: the daily average changed by less than 3 percent.",
+    "placeholders": {
+      "d": {
+        "content": "$1",
+        "example": "3h 32m"
+      }
+    }
+  },
+  "deltaNone": {
+    "message": "No data for the week before to compare with.",
+    "description": "Week headline when the week before has no data."
+  },
+  "quietBusy": {
+    "message": "Quietest day: $Q$. Busiest: $B$.",
+    "description": "Week headline naming the quietest and busiest full days with their totals.",
+    "placeholders": {
+      "q": {
+        "content": "$1",
+        "example": "Monday 2h 47m"
+      },
+      "b": {
+        "content": "$2",
+        "example": "Tuesday 5h 36m"
+      }
+    }
+  },
+  "gapNote": {
+    "message": "No data for $DAYS$. Chrome was closed or tracking was paused; averages use the $N$ recorded days.",
+    "description": "Week headline explaining days without data.",
+    "placeholders": {
+      "days": {
+        "content": "$1",
+        "example": "Sat, Sep 26, Sun, Sep 27"
+      },
+      "n": {
+        "content": "$2",
+        "example": "5"
+      }
+    }
+  },
+  "gapNoteOne": {
+    "message": "No data for $DAYS$. Chrome was closed or tracking was paused; averages use the 1 recorded day.",
+    "description": "Week headline explaining days without data when one day was recorded.",
+    "placeholders": {
+      "days": {
+        "content": "$1",
+        "example": "Sat, Sep 26"
+      }
+    }
+  },
+  "emptyWeek": {
+    "message": "Nothing was recorded this week. Days fill in as soon as you browse with tracking on.",
+    "description": "Week headline and most-used panel when the week has no data."
+  },
+  "chartTitle": {
+    "message": "Active time per day",
+    "description": "Week chart panel title."
+  },
+  "chartAside": {
+    "message": "Each dot is 15 minutes. Select a day for its hours.",
+    "description": "Week chart caption stating the dot unit."
+  },
+  "avgLine": {
+    "message": "avg $D$",
+    "description": "Label on the daily-average line in the week chart.",
+    "placeholders": {
+      "d": {
+        "content": "$1",
+        "example": "3h 32m"
+      }
+    }
+  },
+  "noData": {
+    "message": "No data",
+    "description": "Under a week-chart day with nothing recorded."
+  },
+  "notKept": {
+    "message": "Not kept",
+    "description": "Under a week-chart day older than the 90-day limit."
+  },
+  "tipHourly": {
+    "message": "Click for the hourly view",
+    "description": "Week chart tooltip footer."
+  },
+  "mostUsed": {
+    "message": "Most used",
+    "description": "Most-used panel title."
+  },
+  "colSite": {
+    "message": "Site",
+    "description": "Most-used column header."
+  },
+  "colCategory": {
+    "message": "Category",
+    "description": "Most-used column header."
+  },
+  "colTime": {
+    "message": "Time",
+    "description": "Most-used column header."
+  },
+  "colShare": {
+    "message": "Share",
+    "description": "Most-used column header: percent of the week total."
+  },
+  "colVsLast": {
+    "message": "vs last wk",
+    "description": "Most-used column header: change against the week before."
+  },
+  "colVisits": {
+    "message": "Visits",
+    "description": "Most-used column header."
+  },
+  "showAll": {
+    "message": "Show all $N$ sites",
+    "description": "Button under the top 10 sites.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "23"
+      }
+    }
+  },
+  "showFewer": {
+    "message": "Show top 10",
+    "description": "Button that collapses the most-used list again."
+  },
+  "deltaNew": {
+    "message": "new",
+    "description": "Most-used change for a site not seen the week before."
+  },
+  "deltaSameShort": {
+    "message": "same",
+    "description": "Most-used change within a minute of the week before."
+  },
+  "sitesCount": {
+    "message": "$N$ sites",
+    "description": "Count of sites.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "13"
+      }
+    }
+  },
+  "sitesOne": {
+    "message": "1 site",
+    "description": "Count of sites when there is one."
+  },
+  "categories": {
+    "message": "Categories",
+    "description": "Category panel title."
+  },
+  "cat_Social": {
+    "message": "Social",
+    "description": "Category name."
+  },
+  "cat_Video": {
+    "message": "Video",
+    "description": "Category name."
+  },
+  "cat_Work": {
+    "message": "Work",
+    "description": "Category name."
+  },
+  "cat_Shopping": {
+    "message": "Shopping",
+    "description": "Category name."
+  },
+  "cat_News": {
+    "message": "News",
+    "description": "Category name."
+  },
+  "cat_Other": {
+    "message": "Other",
+    "description": "Category name."
+  },
+  "blocked": {
+    "message": "Blocked",
+    "description": "Blocked panel title."
+  },
+  "blockedLine": {
+    "message": "Reels and Shorts redirects this week",
+    "description": "Beside the week total of redirects."
+  },
+  "blockedNote": {
+    "message": "Each dot is one redirect. Counted only while a blocker is on.",
+    "description": "Blocked panel footnote."
+  },
+  "siteInstagram": {
+    "message": "Instagram",
+    "description": "Site name."
+  },
+  "siteYouTube": {
+    "message": "YouTube",
+    "description": "Site name."
+  },
+  "siteFacebook": {
+    "message": "Facebook",
+    "description": "Site name."
+  },
+  "backWeek": {
+    "message": "Back to $R$",
+    "description": "Day view button back to the week holding the day.",
+    "placeholders": {
+      "r": {
+        "content": "$1",
+        "example": "Oct 12 – 18, 2026"
+      }
+    }
+  },
+  "prevDay": {
+    "message": "Previous day",
+    "description": "Accessible name of the previous-day button."
+  },
+  "nextDay": {
+    "message": "Next day",
+    "description": "Accessible name of the next-day button."
+  },
+  "hourlyTitle": {
+    "message": "Active time per hour",
+    "description": "Day chart panel title."
+  },
+  "hourlyAside": {
+    "message": "Each dot is 5 minutes. An hour holds at most 60.",
+    "description": "Day chart caption stating the dot unit."
+  },
+  "busiestHour": {
+    "message": "Busiest hour: $H$, $D$.",
+    "description": "Day headline naming the busiest hour and its time.",
+    "placeholders": {
+      "h": {
+        "content": "$1",
+        "example": "9 – 10 PM"
+      },
+      "d": {
+        "content": "$2",
+        "example": "31m"
+      }
+    }
+  },
+  "dayTop": {
+    "message": "Sites this day",
+    "description": "Day view panel title."
+  },
+  "dayEmpty": {
+    "message": "Nothing was recorded on this day.",
+    "description": "Day view when the day has no data."
+  },
+  "nowMark": {
+    "message": "now",
+    "description": "Label on the current-time line in today’s hourly chart."
+  },
+  "sTracking": {
+    "message": "Tracking",
+    "description": "Settings group title."
+  },
+  "sIdle": {
+    "message": "Stop counting when idle for",
+    "description": "Settings row: idle threshold."
+  },
+  "sIdleDesc": {
+    "message": "No mouse or keyboard activity for this long ends the current visit.",
+    "description": "Settings row description."
+  },
+  "idle30": {
+    "message": "30 s",
+    "description": "Idle threshold choice."
+  },
+  "idle60": {
+    "message": "60 s",
+    "description": "Idle threshold choice."
+  },
+  "idle120": {
+    "message": "120 s",
+    "description": "Idle threshold choice."
+  },
+  "idle300": {
+    "message": "300 s",
+    "description": "Idle threshold choice."
+  },
+  "sMedia": {
+    "message": "Media keeps the timer running",
+    "description": "Settings row: media override."
+  },
+  "sMediaDesc": {
+    "message": "Count time while audio or video plays, even when you are not touching anything.",
+    "description": "Settings row description."
+  },
+  "sPauseDesc": {
+    "message": "While paused, nothing is recorded. Blockers keep working.",
+    "description": "Settings row description for Pause tracking."
+  },
+  "sBlockers": {
+    "message": "Blockers",
+    "description": "Settings group title."
+  },
+  "bIgReels": {
+    "message": "Instagram Reels",
+    "description": "Settings row: Instagram Reels blocker."
+  },
+  "bIgReelsD": {
+    "message": "Reels links open your Instagram feed.",
+    "description": "Settings row description."
+  },
+  "bYtShorts": {
+    "message": "YouTube Shorts",
+    "description": "Settings row: YouTube Shorts blocker."
+  },
+  "bYtShortsD": {
+    "message": "Shorts open as regular videos with the normal player.",
+    "description": "Settings row description."
+  },
+  "bFbReels": {
+    "message": "Facebook Reels",
+    "description": "Settings row: Facebook Reels blocker."
+  },
+  "bFbReelsD": {
+    "message": "Reels links open your Facebook feed.",
+    "description": "Settings row description."
+  },
+  "bIgExplore": {
+    "message": "Instagram Explore",
+    "description": "Settings row: Instagram Explore blocker."
+  },
+  "bIgExploreD": {
+    "message": "The Explore page redirects to your feed.",
+    "description": "Settings row description."
+  },
+  "sSites": {
+    "message": "Sites",
+    "description": "Settings group title."
+  },
+  "sGroup": {
+    "message": "Grouping",
+    "description": "Settings row: subdomain grouping overrides."
+  },
+  "sGroupDesc": {
+    "message": "Subdomains count with their main site unless you split them here.",
+    "description": "Settings row description."
+  },
+  "countSeparately": {
+    "message": "Counted separately",
+    "description": "Grouping override state: the subdomain is its own site."
+  },
+  "countWith": {
+    "message": "Counted with $D$",
+    "description": "Grouping override state: the subdomain counts with its main site.",
+    "placeholders": {
+      "d": {
+        "content": "$1",
+        "example": "google.com"
+      }
+    }
+  },
+  "splitLabel": {
+    "message": "Subdomain to count separately",
+    "description": "Accessible name of the grouping input."
+  },
+  "badSubdomain": {
+    "message": "Enter a subdomain such as mail.google.com.",
+    "description": "Grouping input error."
+  },
+  "sIgnore": {
+    "message": "Never record",
+    "description": "Settings row: ignore list."
+  },
+  "sIgnoreDesc": {
+    "message": "Time on these sites is never written down.",
+    "description": "Settings row description."
+  },
+  "add": {
+    "message": "Add",
+    "description": "Button that adds the typed domain to a list."
+  },
+  "remove": {
+    "message": "Remove $D$",
+    "description": "Accessible name of a chip’s remove button.",
+    "placeholders": {
+      "d": {
+        "content": "$1",
+        "example": "example.com"
+      }
+    }
+  },
+  "badDomain": {
+    "message": "Enter a domain such as example.com.",
+    "description": "Ignore input error."
+  },
+  "already": {
+    "message": "$D$ is already on the list.",
+    "description": "Input error for a duplicate domain.",
+    "placeholders": {
+      "d": {
+        "content": "$1",
+        "example": "example.com"
+      }
+    }
+  },
+  "sCats": {
+    "message": "Categories",
+    "description": "Settings row: category editor."
+  },
+  "sCatsDesc": {
+    "message": "Choose where each site is counted in the category breakdown.",
+    "description": "Settings row description."
+  },
+  "sData": {
+    "message": "Data",
+    "description": "Settings group title."
+  },
+  "sRetention": {
+    "message": "Keep history for",
+    "description": "Settings row: retention."
+  },
+  "sRetentionDesc": {
+    "message": "Days older than this are deleted automatically each night.",
+    "description": "Settings row description."
+  },
+  "days90": {
+    "message": "90 days",
+    "description": "Retention value."
+  },
+  "sExport": {
+    "message": "Export",
+    "description": "Settings row: export."
+  },
+  "sExportDesc": {
+    "message": "A JSON file with every stored number and your settings.",
+    "description": "Settings row description."
+  },
+  "exportBtn": {
+    "message": "Export JSON",
+    "description": "Button that downloads the export file."
+  },
+  "exported": {
+    "message": "Prepared $F$ ($K$ KB, $N$ days).",
+    "description": "Notice after an export.",
+    "placeholders": {
+      "f": {
+        "content": "$1",
+        "example": "dwell-export-2026-10-14.json"
+      },
+      "k": {
+        "content": "$2",
+        "example": "84"
+      },
+      "n": {
+        "content": "$3",
+        "example": "90"
+      }
+    }
+  },
+  "sImport": {
+    "message": "Import",
+    "description": "Settings row: import."
+  },
+  "sImportDesc": {
+    "message": "Load a file made with Export. Larger numbers in the file replace the same days here.",
+    "description": "Settings row description."
+  },
+  "importBtn": {
+    "message": "Choose file",
+    "description": "Button that opens the file picker for import."
+  },
+  "imported": {
+    "message": "Read $F$: $N$ days added or updated.",
+    "description": "Notice after a successful import.",
+    "placeholders": {
+      "f": {
+        "content": "$1",
+        "example": "dwell-export.json"
+      },
+      "n": {
+        "content": "$2",
+        "example": "90"
+      }
+    }
+  },
+  "importFailed": {
+    "message": "$F$ wasn’t imported. $R$",
+    "description": "Notice after a rejected import; R is the reason.",
+    "placeholders": {
+      "f": {
+        "content": "$1",
+        "example": "notes.json"
+      },
+      "r": {
+        "content": "$2",
+        "example": "The file is not valid JSON."
+      }
+    }
+  },
+  "sLog": {
+    "message": "Event log",
+    "description": "Settings row: event log toggle."
+  },
+  "sLogDesc": {
+    "message": "Keeps the last 24 hours of tracking events (time, kind and site, never an address) so a miscounted day can be replayed and checked.",
+    "description": "Settings row description."
+  },
+  "exportLogBtn": {
+    "message": "Export event log",
+    "description": "Button that downloads the event log."
+  },
+  "logExported": {
+    "message": "Prepared $F$ ($N$ events).",
+    "description": "Notice after exporting the event log.",
+    "placeholders": {
+      "f": {
+        "content": "$1",
+        "example": "dwell-events-2026-10-14.json"
+      },
+      "n": {
+        "content": "$2",
+        "example": "840"
+      }
+    }
+  },
+  "sDelete": {
+    "message": "Delete all data",
+    "description": "Settings row: delete all."
+  },
+  "sDeleteDesc": {
+    "message": "Removes every recorded day from this Chrome profile. Settings stay. You have 10 seconds to undo.",
+    "description": "Settings row description."
+  },
+  "deleteBtn": {
+    "message": "Delete all data",
+    "description": "Button that deletes all history."
+  },
+  "deletedToast": {
+    "message": "All history deleted.",
+    "description": "Toast shown for 10 seconds after delete all."
+  },
+  "undo": {
+    "message": "Undo",
+    "description": "Toast button that restores the deleted history."
+  },
+  "restored": {
+    "message": "History restored.",
+    "description": "Notice after undo."
+  },
+  "undoExpired": {
+    "message": "The undo window had passed, so the history stays deleted.",
+    "description": "Notice when undo arrives too late."
+  },
+  "changeFailed": {
+    "message": "Dwell couldn’t apply that change. $R$",
+    "description": "Notice when the worker refuses a change; R is its reason.",
+    "placeholders": {
+      "r": {
+        "content": "$1",
+        "example": "Settings must be an object."
+      }
+    }
+  },
+  "pTitle": {
+    "message": "What Dwell keeps, and where",
+    "description": "Privacy panel heading."
+  },
+  "pLead": {
+    "message": "Dwell records how long each site is in front of you while you are active, and nothing about what you do there. For every hour it keeps one number per site: the domain and the seconds it was in focus. It also counts visits, where a visit starts when you arrive on a site from somewhere else. Page addresses, page titles, search terms and anything you type are never stored.",
+    "description": "Privacy panel lead paragraph."
+  },
+  "pKept": {
+    "message": "Stored",
+    "description": "Privacy list heading."
+  },
+  "pNever": {
+    "message": "Never stored",
+    "description": "Privacy list heading."
+  },
+  "k1": {
+    "message": "Domain, such as youtube.com",
+    "description": "Privacy: stored item."
+  },
+  "k2": {
+    "message": "Seconds per domain, per hour",
+    "description": "Privacy: stored item."
+  },
+  "k3": {
+    "message": "Visits per domain, per day",
+    "description": "Privacy: stored item."
+  },
+  "k4": {
+    "message": "Reels and Shorts redirects per day",
+    "description": "Privacy: stored item."
+  },
+  "k5": {
+    "message": "Your settings",
+    "description": "Privacy: stored item."
+  },
+  "k6": {
+    "message": "With the event log on: 24 hours of event times, kinds and domains",
+    "description": "Privacy: stored item."
+  },
+  "n1": {
+    "message": "Full addresses or paths",
+    "description": "Privacy: never-stored item."
+  },
+  "n2": {
+    "message": "Page titles or content",
+    "description": "Privacy: never-stored item."
+  },
+  "n3": {
+    "message": "Searches and form input",
+    "description": "Privacy: never-stored item."
+  },
+  "n4": {
+    "message": "Cookies or account details",
+    "description": "Privacy: never-stored item."
+  },
+  "n5": {
+    "message": "Anything from background tabs",
+    "description": "Privacy: never-stored item."
+  },
+  "pWhereT": {
+    "message": "Where it lives",
+    "description": "Privacy section heading."
+  },
+  "pWhere": {
+    "message": "Everything stays in this Chrome profile’s extension storage. It is not synced to your Google account, and it is gone when you remove Dwell or delete all data in Settings.",
+    "description": "Privacy paragraph."
+  },
+  "pNetT": {
+    "message": "No network requests of its own",
+    "description": "Privacy section heading. Must not claim more than the tests check."
+  },
+  "pNet": {
+    "message": "Dwell’s own pages and background worker are configured to refuse network requests: the manifest sets the content security policy $CSP$, and the test suite checks it. Its scripts run only on Instagram, YouTube and Facebook and send nothing off the device. Reels and Shorts redirects stay within those sites. There is no account, no analytics and no sync.",
+    "description": "Privacy paragraph; CSP is the policy shown as code.",
+    "placeholders": {
+      "csp": {
+        "content": "$1",
+        "example": "default-src 'none'"
+      }
+    }
+  },
+  "pAudit": {
+    "message": "Each claim on this page is auditable in the source code and its test suite.",
+    "description": "Privacy closing line. Say auditable, never provable."
+  },
+  "pPermT": {
+    "message": "Permissions",
+    "description": "Privacy permission list title."
+  },
+  "pPermD": {
+    "message": "What Chrome asks you to allow, and why.",
+    "description": "Privacy permission list caption."
+  },
+  "perm_storage": {
+    "message": "Keeps your totals and settings in this profile.",
+    "description": "Why the storage permission exists."
+  },
+  "perm_tabs": {
+    "message": "Reads the domain of the tab in front, so time goes to the right site.",
+    "description": "Why the tabs permission exists."
+  },
+  "perm_idle": {
+    "message": "Stops the timer after your idle threshold.",
+    "description": "Why the idle permission exists."
+  },
+  "perm_alarms": {
+    "message": "Saves the running total once a minute.",
+    "description": "Why the alarms permission exists."
+  },
+  "perm_dnr": {
+    "message": "Redirects Reels and Shorts addresses before the page loads.",
+    "description": "Why the declarativeNetRequest permission exists."
+  },
+  "perm_hosts": {
+    "message": "Hides Reels and Shorts links on these three sites and notices when a video is playing.",
+    "description": "Why the site access exists."
+  },
+  "catsEmpty": {
+    "message": "Sites appear here once Dwell has recorded them.",
+    "description": "Category editor when no site has been recorded yet."
   }
 }

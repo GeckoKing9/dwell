@@ -53,7 +53,7 @@ test('fetch from the service worker is refused by the CSP', async () => {
 test('fetch from the dashboard page is refused and a remote image never loads', async () => {
   const page = await context.newPage();
   await page.goto(`chrome-extension://${extensionId}/src/dashboard/index.html`);
-  await expect(page.locator('h1')).toHaveText('Dwell');
+  await expect(page.locator('.dash[data-view]')).toBeVisible();
 
   const outcome: Outcome = await page.evaluate(async () => {
     const violated: string[] = [];
