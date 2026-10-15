@@ -19,9 +19,18 @@ const MARK = 'data-dwell-hidden';
  * would otherwise be taken for the post's own page in between.
  */
 const LOADED_CODE = singlePostCode(location.pathname);
+/** The page is checked at most this often while it changes: marks and the pop-up are cosmetic, and Instagram changes the page constantly. */
+const CHECK_MS = 120;
 
+/** The post Dwell last opened as a page in this document through Instagram's router (`markInAppPost`). */
+let inAppCode: string | null = null;
 let observer: MutationObserver | null = null;
-let frame: number | null = null;
+let timer: ReturnType<typeof setTimeout> | null = null;
+
+/** Records that the guard opened `code` as a page in this document, so it gets the same treatment as a loaded one. */
+export function markInAppPost(code: string): void {
+  inAppCode = code;
+}
 
 /** Links inside `main` that open another post. */
 function otherPostLinks(main: Element, code: string): HTMLAnchorElement[] {
@@ -104,14 +113,18 @@ function postInPopUp(code: string): boolean {
   );
 }
 
-/** The loaded post's code while the address still shows that post, else null. */
-function loadedPostCode(): string | null {
-  return LOADED_CODE !== null && singlePostCode(location.pathname) === LOADED_CODE ? LOADED_CODE : null;
+/**
+ * The post on screen when it is one of this document's own post pages (the one it was loaded on, or one Dwell
+ * opened in it), else null: an in-app move Instagram makes itself opens its pop-up over another page.
+ */
+function ownPageCode(): string | null {
+  const code = singlePostCode(location.pathname);
+  return code !== null && (code === LOADED_CODE || code === inAppCode) ? code : null;
 }
 
 function run(): void {
-  frame = null;
-  const code = loadedPostCode();
+  timer = null;
+  const code = ownPageCode();
   const main = document.querySelector('main');
   // The post in a pop-up over another page: that page is not this post's page, so it is left alone.
   if (code === null || main === null || postInPopUp(code)) {
@@ -124,19 +137,20 @@ function run(): void {
   const otherSet = new Set<Element>(others);
   mark(morePosts(main, others, otherSet));
   // A video post on its own page is shown the way Instagram's pop-up shows one (`instagram-pop-up.ts`).
-  syncPopUp(ownVideo(main, otherSet), main);
+  syncPopUp(ownVideo(main, otherSet), main, code !== LOADED_CODE);
 }
 
 function schedule(): void {
-  if (frame === null) frame = requestAnimationFrame(run);
+  if (timer === null) timer = setTimeout(run, CHECK_MS);
 }
 
 /**
- * Watches the page while `on` and the address still shows the post the page was loaded on; otherwise stops
- * watching, removes every mark and lifts the pop-up. The guard calls it whenever the URL or the settings change, and with `on` false when it stops.
+ * Watches the page while `on` and the address shows one of this document's own post pages; otherwise stops
+ * watching, removes every mark and lifts the pop-up. The guard calls it whenever the URL or the settings
+ * change, and with `on` false when it stops.
  */
 export function syncPostPage(on: boolean): void {
-  if (on && loadedPostCode() !== null) {
+  if (on && ownPageCode() !== null) {
     if (observer === null) {
       // The whole document: Instagram may replace `main` itself while the page loads.
       observer = new MutationObserver(schedule);
@@ -147,8 +161,8 @@ export function syncPostPage(on: boolean): void {
   }
   observer?.disconnect();
   observer = null;
-  if (frame !== null) cancelAnimationFrame(frame);
-  frame = null;
+  if (timer !== null) clearTimeout(timer);
+  timer = null;
   mark([]);
   resetPopUp();
 }

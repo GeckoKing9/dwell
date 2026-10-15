@@ -6,12 +6,15 @@
  * around the page Instagram already drew.
  *
  * Closing (the button, Escape, or a click on the dimmed page) goes back to the Instagram page the post was
- * opened from, or, with none to go back to, lifts the pop-up for as long as this post is open. Dialogs and
+ * opened from (within the same document when Dwell opened it there, so nothing reloads), or, with none to
+ * go back to, lifts the pop-up for as long as this post is open. Dialogs and
  * menus Instagram opens from the post are never dimmed. Only attributes and custom properties are added to
  * Instagram's page, plus one button; `instagram.css` does the rest. Called by `instagram-post.ts`; nothing is
  * stored or sent.
  */
 import { DIM_FACTOR, dimColor, leaveBy, popUpBox } from '../blocker/post.ts';
+import { usesInput } from '../blocker/scroll.ts';
+import { editable } from './viewer-lock.ts';
 
 const POST = 'data-dwell-post';
 const SIDE = 'data-dwell-post-side';
@@ -31,6 +34,8 @@ const REDIM_MS = 1000;
 interface Shown {
   readonly card: Element;
   readonly video: HTMLVideoElement;
+  /** Opened in this document by Dwell: the page it came from is one Back away, with no load. */
+  readonly inApp: boolean;
   redimmedAt: number;
 }
 
@@ -119,7 +124,7 @@ function canGoBack(): boolean {
 }
 
 function leave(): void {
-  if (leaveBy(canGoBack(), document.referrer) === 'back') {
+  if (shown?.inApp === true || leaveBy(canGoBack(), document.referrer) === 'back') {
     history.back();
     return;
   }
@@ -155,15 +160,10 @@ function onClick(event: MouseEvent): void {
   leave();
 }
 
-function typing(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || target.getAttribute('role') === 'textbox' || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
-}
-
-/** Escape closes it, unless the user is typing or one of Instagram's own dialogs or menus takes the key. */
+/** Escape closes it, unless the focused element takes keys itself or one of Instagram's own dialogs or menus is open. */
 function onKeyDown(event: KeyboardEvent): void {
   if (shown === null || event.key !== 'Escape' || !document.documentElement.hasAttribute(OPEN)) return;
-  if (typing(event.target) || document.querySelector(OVERLAY) !== null) return;
+  if (usesInput(editable(event.target)) || document.querySelector(OVERLAY) !== null) return;
   event.preventDefault();
   leave();
 }
@@ -189,7 +189,7 @@ export function resetPopUp(): void {
  * Shows the post around `video` as a pop-up, or lifts it while `video` is null (the post redrawing, an image
  * slide), keeping a close the user made. Called on every check of the post page; cheap when nothing changed.
  */
-export function syncPopUp(video: HTMLVideoElement | null, main: Element | null): void {
+export function syncPopUp(video: HTMLVideoElement | null, main: Element | null, inApp = false): void {
   if (video === null || main === null) {
     lift();
     return;
@@ -208,7 +208,7 @@ export function syncPopUp(video: HTMLVideoElement | null, main: Element | null):
   const found = findCard(video, main);
   lift();
   if (found === null) return;
-  shown = { card: found.card, video, redimmedAt: Date.now() };
+  shown = { card: found.card, video, inApp, redimmedAt: Date.now() };
   found.card.setAttribute(POST, '');
   found.side.setAttribute(SIDE, '');
   setBackdrop();

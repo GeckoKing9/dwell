@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { isPopUpPath } from '../src/blocker/bridge.ts';
 import { DIM_FACTOR, MIN_OTHER_POSTS, popUpPath, POP_UP_EDGE_PX, POP_UP_MARGIN_PX, POP_UP_SIDE_PX, dimColor, isOtherPostLink, leaveBy, popUpBox, singlePostCode } from '../src/blocker/post.ts';
 
 const CODE = 'DeewiSPpCrm';
@@ -159,14 +158,5 @@ describe('popUpPath: the post address a link opens in Instagram\'s pop-up', () =
     'not a url',
   ])('leaves %s to Instagram', (url) => {
     expect(popUpPath(url)).toBeNull();
-  });
-});
-
-describe('isPopUpPath: what the page-world bridge accepts', () => {
-  it('accepts only a post path in the form popUpPath builds', () => {
-    expect(isPopUpPath(`/p/${CODE}/`)).toBe(true);
-    for (const bad of [`/p/${CODE}`, `/reel/${CODE}/`, `/p/${CODE}/?x=1`, `//evil.example/p/${CODE}/`, `/p/ab/`, `/p/${CODE}/../x/`, `https://www.instagram.com/p/${CODE}/`]) {
-      expect(isPopUpPath(bad)).toBe(false);
-    }
   });
 });

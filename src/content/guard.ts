@@ -39,12 +39,12 @@ import {
   type NavigationInfo,
 } from '../blocker/decide.ts';
 import { classify, siteForHost } from '../blocker/patterns.ts';
-import { singlePostCode } from '../blocker/post.ts';
+import { popUpPath, singlePostCode } from '../blocker/post.ts';
 import { TARGET_FRAGMENT, instagramPostTarget, isAllowedTarget } from '../blocker/targets.ts';
 import { VIEWER_TOGGLE, decideViewerMove, viewerLocked, type ViewerMove } from '../blocker/viewer.ts';
 import { DEFAULT_SETTINGS, SETTINGS_KEY, type BlockedSite, type Settings } from '../store/schema.ts';
-import { watchPostTaps } from './instagram-open.ts';
-import { syncPostPage } from './instagram-post.ts';
+import { askBridge, watchReelTaps } from './instagram-open.ts';
+import { markInAppPost, syncPostPage } from './instagram-post.ts';
 import { extensionAlive, sendToWorker } from './runtime.ts';
 import { setInputLock, startKeyLock } from './viewer-lock.ts';
 
@@ -68,7 +68,7 @@ let markerPending = false;
 let lastCountAt = 0;
 let lastHref = '';
 let watchesPosts = false;
-/** The post an Instagram pop-up opened on from a tap on a Reel's own link; its arrows are a Reels feed too. */
+/** The post a Reel opened on through Instagram's router (pop-up or page); a move from it to another post is a Reels feed too. */
 let reelPopUp: string | null = null;
 /** The latest navigation the Navigation API reported, so the poll can tell a push from anything else. */
 let lastNav: { url: string; nav: NavigationInfo } | null = null;
@@ -175,9 +175,28 @@ function withoutFragment(url: string): string {
  * reel) would be a same-document jump that leaves the blocked screen drawn, so the page is then replaced
  * and reloaded on that target.
  */
+/**
+ * On Instagram, a post page opens through Instagram's own router in the same document (its pop-up when the
+ * page hosts one), so nothing reloads and closing it goes back without a load. True when the router took it;
+ * counted here, since no landing marker will be.
+ */
+function openInSameDocument(target: string): boolean {
+  const path = popUpPath(target);
+  if (path === null) return false;
+  const answer = askBridge('page', path);
+  if (answer === 'refused') return false;
+  const code = singlePostCode(path);
+  // A Reel opened this way is one video: a move from it to another post is undone, as in a Reels viewer.
+  reelPopUp = code;
+  if (answer === 'page' && code !== null) markInAppPost(code);
+  count('instagram');
+  return true;
+}
+
 function go(target: string, mode: 'assign' | 'replace'): void {
   if (!alive || !isAllowedTarget(target)) return;
   const sameDocument = withoutFragment(target) === withoutFragment(location.href);
+  if (watchesPosts && !sameDocument && openInSameDocument(target)) return;
   if (mode === 'replace' || sameDocument) location.replace(target);
   else location.assign(target);
   if (sameDocument) location.reload();
@@ -415,7 +434,7 @@ function main(site: BlockedSite): void {
   if (watchesPosts) {
     // Taps stay Instagram's until the stored settings are known: a switch turned off is never overridden.
     const enabled = (): boolean => alive && loaded && blockers.instagramReels;
-    cleanups.push(watchPostTaps(enabled, (path, reel) => (reelPopUp = reel ? singlePostCode(path) : null)));
+    cleanups.push(watchReelTaps(enabled, (path) => (reelPopUp = singlePostCode(path))));
   }
 
   if ('navigation' in window) {
