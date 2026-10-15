@@ -16,3 +16,4 @@ Branch: feature/mvp (one branch per milestone). No AI attribution anywhere.
 - [ ] Gates: typecheck, lint, test, test:tz, check:privacy, build, test:e2e, npm audit, impeccable, !/security-check, !/code-review
 - [ ] Manual checklist recorded in docs/project_status.md
 - [ ] Merge feature/mvp into main, delete branch, push
+- [x] U11 theme setting, real-day replay test, recorded-traffic spec
