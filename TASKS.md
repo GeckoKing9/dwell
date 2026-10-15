@@ -5,7 +5,7 @@ Branch: feature/mvp (one branch per milestone). No AI attribution anywhere.
 
 - [x] U1 scaffold, manifest, privacy floor, CI
 - [x] U2 pure engine + simulation suite (test-first, oracle)
-- [ ] U3 storage layer, hardened import, undo
+- [x] U3 storage layer, hardened import, undo
 - [ ] U4 service worker wiring, startup, heartbeat, e2e tracking
 - [ ] U5 blocker: classifier, guard prototype on live sites, DNR rulesets, hiders, toggles
 - [x] U6 aggregation, formatting, categories, simulator
