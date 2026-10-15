@@ -4,7 +4,7 @@ Finish line: the plan's Definition of Done and Verification Contract, all green.
 Branch: feature/mvp (one branch per milestone). No AI attribution anywhere.
 
 - [x] U1 scaffold, manifest, privacy floor, CI
-- [ ] U2 pure engine + simulation suite (test-first, oracle)
+- [x] U2 pure engine + simulation suite (test-first, oracle)
 - [ ] U3 storage layer, hardened import, undo
 - [ ] U4 service worker wiring, startup, heartbeat, e2e tracking
 - [ ] U5 blocker: classifier, guard prototype on live sites, DNR rulesets, hiders, toggles
