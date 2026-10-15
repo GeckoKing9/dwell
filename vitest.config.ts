@@ -27,6 +27,12 @@ export default defineConfig({
           functions: 90,
           statements: 90,
         },
+        'src/background/**': {
+          lines: 80,
+          branches: 80,
+          functions: 80,
+          statements: 80,
+        },
         'src/shared/settings.ts': {
           lines: 90,
           branches: 90,
