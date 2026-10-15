@@ -21,6 +21,18 @@ export default defineConfig({
           functions: 90,
           statements: 90,
         },
+        'src/store/**': {
+          lines: 90,
+          branches: 90,
+          functions: 90,
+          statements: 90,
+        },
+        'src/shared/settings.ts': {
+          lines: 90,
+          branches: 90,
+          functions: 90,
+          statements: 90,
+        },
       },
     },
   },
