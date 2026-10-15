@@ -14,6 +14,7 @@
  */
 import { DIM_FACTOR, dimColor, leaveBy, popUpBox } from '../blocker/post.ts';
 import { takesText } from '../blocker/scroll.ts';
+import { lowerCurtain, raiseCurtainAfterDraw } from './curtain.ts';
 import { editable } from './viewer-lock.ts';
 
 const POST = 'data-dwell-post';
@@ -22,6 +23,9 @@ const PATH = 'data-dwell-post-path';
 const DIM = 'data-dwell-dim';
 const OPEN = 'data-dwell-post-open';
 const CLOSE = 'data-dwell-close';
+const CLOSING = 'data-dwell-post-closing';
+/** Matches the card's fade-out in `instagram.css`. */
+const EXIT_MS = 120;
 /** A column narrower than this beside the video is a control strip, not the comments. */
 const MIN_SIDE_PX = 150;
 /** Behind the pop-up when neither the body's nor the page's colour can be read. */
@@ -112,6 +116,7 @@ function unmark(): void {
   }
   const root = document.documentElement;
   root.removeAttribute(OPEN);
+  root.removeAttribute(CLOSING);
   for (const name of ['--dwell-post-w', '--dwell-post-h', '--dwell-post-side', '--dwell-post-backdrop', '--dwell-dim']) {
     root.style.removeProperty(name);
   }
@@ -124,19 +129,30 @@ function previousInDocument(): boolean {
   return index > 0 && navigation.entries()[index - 1]?.sameDocument === true;
 }
 
+/** How long the card takes to fade out; nothing waits when the user asks for reduced motion. */
+function exitMs(): number {
+  return matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : EXIT_MS;
+}
+
 function leave(): void {
+  const root = document.documentElement;
+  // Already closing: a second Back would leave the page the post was opened from too.
+  if (shown === null || root.hasAttribute(CLOSING)) return;
   const context = {
-    inApp: shown?.inApp === true,
+    inApp: shown.inApp,
     previousInDocument: previousInDocument(),
     canGoBack: navigation.canGoBack,
     referrer: document.referrer,
   };
+  root.setAttribute(CLOSING, '');
   if (leaveBy(context) === 'back') {
-    history.back();
+    // The card fades out and the curtain covers the page while Instagram draws the one it goes back to.
+    lowerCurtain();
+    setTimeout(() => history.back(), exitMs());
     return;
   }
   dismissed = true;
-  lift();
+  setTimeout(lift, exitMs());
 }
 
 function closeButton(): HTMLButtonElement {
@@ -229,4 +245,6 @@ export function syncPopUp(video: HTMLVideoElement | null, main: Element | null, 
   document.addEventListener('click', onClick, true);
   window.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('resize', resize);
+  // The framed post is drawn: a curtain lowered while Instagram swapped the page in can fade now.
+  raiseCurtainAfterDraw();
 }

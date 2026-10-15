@@ -428,31 +428,58 @@ test('a Reel tapped where the page hosts pop-ups opens in Instagram\'s own pop-u
   await page.waitForTimeout(400);
   expect(await blocked()).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.hasAttribute('data-dwell-opened'))).toBe(false);
+  // Instagram's own pop-up animates itself: no curtain was left behind.
+  await expect(page.locator('html')).not.toHaveAttribute('data-dwell-curtain', /.*/);
   await page.close();
 });
 
-test('where the page hosts no pop-ups, the Reels feed Instagram opens becomes the post in the same page, framed as a pop-up, and closing goes back with no load', async () => {
+test('where the page hosts no pop-ups, a tapped Reel opens as its post in the same page under a curtain, framed as a pop-up, and closes back with no load', async () => {
   const page = await context.newPage();
   await openSearch(page);
   await installRouter(page, false);
   await markPage(page);
 
   await page.locator('#search-reel').click();
+  // Instagram's handler never ran, so its Reels feed was never drawn: the router opened the post directly.
+  expect(await pageState(page)).toEqual({ goCalls: [['/p/EEEEE5/', {}]], siteHandledTap: false });
   await expect(page.locator('#post')).toHaveAttribute('data-dwell-post', '');
   expect(path(page)).toBe('/p/EEEEE5/');
-  // Instagram's own move to the Reels feed committed, then its router replaced that entry with the post.
-  expect(await pageState(page)).toEqual({ goCalls: [['/p/EEEEE5/', { replace: true }]], siteHandledTap: true });
+  // The curtain that covered the swap is gone once the framed post is drawn.
+  await expect(page.locator('html')).not.toHaveAttribute('data-dwell-curtain', /.*/);
   expect(await pageMark(page)).toBe('kept');
   expect(served).toEqual([SEARCH]);
-  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'instagram' }]);
+  await page.waitForTimeout(300);
+  expect(await blocked()).toEqual([]);
 
-  // Closing goes back to the search and stays there: the router has nothing of the Reels feed left to restore.
+  // Closing: the curtain covers the way back, then lifts on the search, in the same document.
   await page.locator('[data-dwell-close]').click();
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-curtain', /.+/);
   await expect.poll(() => path(page)).toBe('/explore/search/keyword/');
+  await expect(page.locator('html')).not.toHaveAttribute('data-dwell-curtain', /.*/);
   await page.waitForTimeout(500);
   expect(path(page)).toBe('/explore/search/keyword/');
   expect(await pageMark(page)).toBe('kept');
   expect(served).toEqual([SEARCH]);
+  await page.close();
+});
+
+test('a move to the Reels feed Instagram makes by itself commits, then its router replaces it with the post, counted once', async () => {
+  const page = await context.newPage();
+  await openSearch(page);
+  await installRouter(page, false);
+  await markPage(page);
+
+  // A synthetic tap is not the user's: Instagram's own handler runs and moves to the Reels feed.
+  await page.evaluate(() => document.getElementById('search-reel')?.click());
+  await expect(page.locator('#post')).toHaveAttribute('data-dwell-post', '');
+  expect(await pageState(page)).toEqual({ goCalls: [['/p/EEEEE5/', { replace: true }]], siteHandledTap: true });
+  expect(await pageMark(page)).toBe('kept');
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'instagram' }]);
+
+  await page.locator('[data-dwell-close]').click();
+  await expect.poll(() => path(page)).toBe('/explore/search/keyword/');
+  await page.waitForTimeout(500);
+  expect(path(page)).toBe('/explore/search/keyword/');
   await page.close();
 });
 
@@ -602,6 +629,8 @@ test('a video post loaded on its own page is shown the way Instagram\'s pop-up s
   await openPostFromInstagram(page);
 
   await expect(page.locator('html')).toHaveAttribute('data-dwell-post-open', '');
+  // The card comes in with a short scale-and-fade, like Instagram's pop-up: measured once it has settled.
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState === 'finished'));
   const box = await page.locator('#post').boundingBox();
   const view = page.viewportSize();
   expect(box).not.toBeNull();

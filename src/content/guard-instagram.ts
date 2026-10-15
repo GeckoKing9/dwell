@@ -6,23 +6,27 @@
  */
 import { postLinkCode, postPath, shownPostCode } from '../blocker/post.ts';
 import { startGuard, type GuardPort } from './guard-core.ts';
+import { lowerCurtain, cancelCurtain } from './curtain.ts';
 import { askBridge, watchReelTaps } from './instagram-open.ts';
 import { markInAppPost, syncPostPage } from './instagram-post.ts';
 
 /**
- * Opens the post `target` names through Instagram's own router in this document (`mode`: `page`, or `swap`
- * in place of the entry on screen), so nothing reloads and closing it goes back without a load. True when
- * the router took it; counted here, since no landing marker will be.
+ * Opens post `code` through Instagram's own router in this document (`mode`: `page`, or `swap` in place of the
+ * entry on screen): Instagram's pop-up when the page hosts one, else the post as a page that Dwell frames. A
+ * curtain covers the page while Instagram swaps it, and is cancelled before it shows when the pop-up opened
+ * instead. True when the router took it. `counted`: the guard stopped a Reels feed to open it.
  */
-function inPlace(guard: GuardPort, target: string, mode: 'page' | 'swap'): boolean {
-  const code = postLinkCode(target);
-  if (code === null) return false;
+function openPost(guard: GuardPort, code: string, mode: 'page' | 'swap', counted: boolean): boolean {
   // Registered before the ask: a router that commits during it already finds the post its own page.
   markInAppPost(code);
+  lowerCurtain();
   const answer = askBridge(mode, postPath(code));
-  if (answer !== 'page') markInAppPost(null);
+  if (answer !== 'page') {
+    markInAppPost(null);
+    cancelCurtain();
+  }
   if (answer === 'refused') return false;
-  guard.count('instagram');
+  if (counted) guard.count('instagram');
   // A Reel opened this way is one video: a move from it to another post is undone, as in a Reels viewer.
   guard.opened(code);
   return true;
@@ -33,8 +37,11 @@ startGuard('instagram', (guard) => ({
   // Taps stay Instagram's until the stored settings are known: a switch turned off is never overridden.
   stop: watchReelTaps(
     () => guard.blockers()?.instagramReels === true,
-    (code) => guard.opened(code),
+    (code) => openPost(guard, code, 'page', false),
   ),
-  openInPlace: (target, mode) => inPlace(guard, target, mode === 'replace' ? 'swap' : 'page'),
+  openInPlace: (target, mode) => {
+    const code = postLinkCode(target);
+    return code !== null && openPost(guard, code, mode === 'replace' ? 'swap' : 'page', true);
+  },
   sync: syncPostPage,
 }));

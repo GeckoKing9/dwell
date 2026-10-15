@@ -11,6 +11,7 @@
  * calls `syncPostPage`; nothing is stored or sent.
  */
 import { MIN_OTHER_POSTS, isOtherPostLink, singlePostCode } from '../blocker/post.ts';
+import { raiseCurtainAfterDraw } from './curtain.ts';
 import { resetPopUp, syncPopUp } from './instagram-pop-up.ts';
 
 const MARK = 'data-dwell-hidden';
@@ -187,4 +188,6 @@ export function syncPostPage(on: boolean): void {
   wait = null;
   mark([]);
   resetPopUp();
+  // Left the post (closed, or Back): a curtain over the swap fades once the page under it is drawn.
+  raiseCurtainAfterDraw();
 }
