@@ -15,3 +15,85 @@ html[data-dwell-instagram="on"] a[href^="/reels"]:not(main a) {
 html[data-dwell-instagram="on"] [data-dwell-hidden] {
   display: none !important;
 }
+
+/*
+ * A video post on its own page, shown the way Instagram's pop-up shows a post (instagram-pop-up.ts marks
+ * the elements; 2026-10-15). The card is fixed in the middle at the size Dwell computes, the comments column
+ * at the pop-up's width, the card's ancestors stop forming stacking contexts or containing blocks so the
+ * fixed card lands in the window, and everything beside them is dimmed and unclickable. The bare page behind
+ * takes the page's own background dimmed by the same 35 % (DIM_FACTOR, computed in instagram-pop-up.ts).
+ */
+html[data-dwell-instagram="on"][data-dwell-post-open],
+html[data-dwell-instagram="on"][data-dwell-post-open] body {
+  overflow: hidden !important;
+  background: var(--dwell-post-backdrop, rgb(18, 18, 18)) !important;
+}
+html[data-dwell-instagram="on"][data-dwell-post-open] [data-dwell-post-path] {
+  background: transparent !important;
+  max-width: none !important;
+  transform: none !important;
+  filter: none !important;
+  contain: none !important;
+  will-change: auto !important;
+  isolation: auto !important;
+  z-index: auto !important;
+}
+html[data-dwell-instagram="on"][data-dwell-post-open] [data-dwell-dim] {
+  filter: brightness(0.35) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+html[data-dwell-instagram="on"][data-dwell-post-open] [data-dwell-post] {
+  position: fixed !important;
+  inset: 50% auto auto 50% !important;
+  translate: -50% -50%;
+  width: var(--dwell-post-w) !important;
+  height: var(--dwell-post-h) !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  z-index: 1 !important;
+  overflow: hidden !important;
+  border-radius: 4px;
+  background: rgb(var(--ig-primary-background, 255, 255, 255));
+}
+html[data-dwell-instagram="on"][data-dwell-post-open] [data-dwell-post-side] {
+  flex: 0 0 405px !important;
+  width: 405px !important;
+  max-width: none !important;
+  height: auto !important;
+  max-height: none !important;
+}
+html[data-dwell-instagram="on"] [data-dwell-close] {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #f5f5f5;
+  cursor: pointer;
+}
+html[data-dwell-instagram="on"] [data-dwell-close] svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+html[data-dwell-instagram="on"] [data-dwell-close]:hover {
+  background: rgb(255 255 255 / 0.1);
+}
+html[data-dwell-instagram="on"] [data-dwell-close]:focus-visible {
+  outline: 2px solid #f5f5f5;
+  outline-offset: 2px;
+}
+html[data-dwell-instagram="off"] [data-dwell-close] {
+  display: none !important;
+}

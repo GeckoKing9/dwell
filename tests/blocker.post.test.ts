@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MIN_OTHER_POSTS, isOtherPostLink, singlePostCode } from '../src/blocker/post.ts';
+import { DIM_FACTOR, MIN_OTHER_POSTS, POP_UP_EDGE_PX, POP_UP_MARGIN_PX, POP_UP_SIDE_PX, dimColor, isOtherPostLink, leaveBy, popUpBox, singlePostCode } from '../src/blocker/post.ts';
 
 const CODE = 'DeewiSPpCrm';
 const IG = 'https://www.instagram.com';
@@ -67,5 +67,63 @@ describe('isOtherPostLink: a link to a post other than the one on screen', () =>
 
   it('needs at least 3 such links before anything is hidden', () => {
     expect(MIN_OTHER_POSTS).toBe(3);
+  });
+});
+
+describe('popUpBox: the size of a post shown the way Instagram\'s pop-up shows it', () => {
+  it('is as tall as the window allows, with the video at its own shape and the comments beside it', () => {
+    const box = popUpBox({ width: 1600, height: 960 }, 9 / 16);
+    expect(box.height).toBe(960 - 2 * POP_UP_MARGIN_PX);
+    expect(box.width).toBe(Math.round(box.height * (9 / 16)) + POP_UP_SIDE_PX);
+  });
+
+  it('gives a landscape video a wider box', () => {
+    expect(popUpBox({ width: 2400, height: 960 }, 16 / 9).width).toBeGreaterThan(popUpBox({ width: 2400, height: 960 }, 9 / 16).width);
+  });
+
+  it('never grows wider than the window less the strip kept clear for the close button', () => {
+    expect(POP_UP_EDGE_PX).toBe(64);
+    const box = popUpBox({ width: 960, height: 1040 }, 16 / 9);
+    expect(box.width).toBe(960 - 2 * POP_UP_EDGE_PX);
+  });
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])('reads an unknown shape (%s) as a vertical video', (ratio) => {
+    expect(popUpBox({ width: 1600, height: 960 }, ratio)).toEqual(popUpBox({ width: 1600, height: 960 }, 9 / 16));
+  });
+
+  it('never reports a negative size in a tiny window', () => {
+    const box = popUpBox({ width: 10, height: 10 }, 9 / 16);
+    expect(box.width).toBeGreaterThanOrEqual(0);
+    expect(box.height).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('leaveBy: where closing the pop-up goes', () => {
+  it('goes back to the Instagram page the post was opened from', () => {
+    expect(leaveBy(3, `${IG}/explore/search/keyword/?q=hugo`)).toBe('back');
+    expect(leaveBy(2, 'https://instagram.com/')).toBe('back');
+  });
+
+  it.each([
+    [1, `${IG}/`],
+    [3, ''],
+    [3, 'https://www.google.com/'],
+    [3, 'https://instagram.com.evil.example/'],
+    [3, 'not a url'],
+  ])('only lifts the pop-up when there is no Instagram page to go back to (%s, %s)', (length, referrer) => {
+    expect(leaveBy(length, referrer)).toBe('stay');
+  });
+});
+
+describe('dimColor: the page colour behind the pop-up, dimmed like the parts of the page around it', () => {
+  it('dims a light page and a dark page by the same factor as the dimmed elements', () => {
+    expect(DIM_FACTOR).toBe(0.35);
+    expect(dimColor('rgb(255, 255, 255)')).toBe('rgb(89, 89, 89)');
+    expect(dimColor('rgb(0, 0, 0)')).toBe('rgb(0, 0, 0)');
+    expect(dimColor('rgba(250, 250, 250, 1)')).toBe('rgb(88, 88, 88)');
+  });
+
+  it.each(['transparent', 'rgba(0, 0, 0, 0)', '', 'red', 'color(srgb 1 1 1)'])('falls back to a dark grey for %j', (color) => {
+    expect(dimColor(color)).toBe('rgb(18, 18, 18)');
   });
 });

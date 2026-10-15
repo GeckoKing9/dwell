@@ -35,3 +35,56 @@ export function isOtherPostLink(url: string, current: string): boolean {
   const code = POST_LINK.exec(parsed.pathname)?.[1];
   return code !== undefined && code !== current;
 }
+
+/** The gap Instagram's own pop-up leaves around a post, in CSS pixels. */
+export const POP_UP_MARGIN_PX = 24;
+/** Kept clear on each side of the post, so the close button at the window's top right never covers it. */
+export const POP_UP_EDGE_PX = 64;
+/** The width of the comments column beside the media in Instagram's pop-up. */
+export const POP_UP_SIDE_PX = 405;
+/** Short videos are vertical: the shape assumed until the video reports its own. */
+const DEFAULT_RATIO = 9 / 16;
+
+/**
+ * The size of a post shown the way Instagram's pop-up shows it: as tall as the window allows less the
+ * margin, the media at the video's own width-to-height `ratio`, the comments column beside it, and never
+ * wider than the window less POP_UP_EDGE_PX on each side.
+ */
+export function popUpBox(view: { width: number; height: number }, ratio: number): { width: number; height: number } {
+  const shape = Number.isFinite(ratio) && ratio > 0 ? ratio : DEFAULT_RATIO;
+  const height = Math.max(0, view.height - 2 * POP_UP_MARGIN_PX);
+  const width = Math.max(0, Math.min(view.width - 2 * POP_UP_EDGE_PX, Math.round(height * shape) + POP_UP_SIDE_PX));
+  return { width, height };
+}
+
+/**
+ * Where closing the pop-up goes: `back` to the Instagram page the post was opened from (a search, a
+ * profile), or `stay` on the post with the pop-up lifted when there is none (a link from another site).
+ */
+export function leaveBy(historyLength: number, referrer: string): 'back' | 'stay' {
+  let from: URL;
+  try {
+    from = new URL(referrer);
+  } catch {
+    // No referrer, or not an address: the post was not opened from Instagram.
+    return 'stay';
+  }
+  return historyLength > 1 && from.protocol === 'https:' && siteForHost(from.hostname) === 'instagram' ? 'back' : 'stay';
+}
+
+/** How much the page around the pop-up is dimmed: `instagram.css` uses the same `brightness()`. */
+export const DIM_FACTOR = 0.35;
+/** Behind the pop-up when the page's own colour cannot be read. */
+const FALLBACK_BACKDROP = 'rgb(18, 18, 18)';
+const OPAQUE_RGB = /^rgba?\(\s*(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})(?:,\s*(1|1\.0+))?\s*\)$/;
+
+/**
+ * The page's computed background colour dimmed by DIM_FACTOR, so the bare page behind the pop-up matches
+ * the dimmed parts of it. Anything other than an opaque `rgb()`/`rgba()` reads as a dark grey.
+ */
+export function dimColor(computed: string): string {
+  const m = OPAQUE_RGB.exec(computed.trim());
+  if (m === null) return FALLBACK_BACKDROP;
+  const [r, g, b] = [m[1], m[2], m[3]].map((v) => Math.round(Number(v) * DIM_FACTOR));
+  return `rgb(${r}, ${g}, ${b})`;
+}

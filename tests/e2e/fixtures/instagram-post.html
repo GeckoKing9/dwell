@@ -3,6 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <title>Instagram single post fixture</title>
+    <style>
+      /* Instagram's full post page: the media and the comments side by side in a fixed-size card. */
+      #page { max-width: 935px; margin: 0 auto; }
+      #post { display: flex; width: 673px; height: 600px; background: #fff; }
+      #media { width: 337px; height: 599px; flex: 0 0 auto; }
+      #post-video { width: 100%; height: 100%; display: block; background: #000; }
+      #comments { width: 335px; overflow-y: auto; }
+    </style>
     <script>
       // Runs after the guard (document_start) and before first paint: records the hash it found.
       document.documentElement.dataset.hashAtHead = location.hash;

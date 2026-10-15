@@ -887,6 +887,10 @@
     "message": "Keeps the last 24 hours of tracking events (time, kind and site, never an address) so a miscounted day can be replayed and checked.",
     "description": "Settings row description."
   },
+  "closePost": {
+    "message": "Close",
+    "description": "Label read by screen readers for the close button of a post Dwell shows as a pop-up on Instagram."
+  },
   "exportLogBtn": {
     "message": "Export event log",
     "description": "Button that downloads the event log."

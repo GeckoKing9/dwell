@@ -3,13 +3,14 @@
  * under it, "More posts from <author>": a grid that is another feed. While the Instagram Reels blocker is
  * on, this marks everything after the post with `data-dwell-hidden`, and `instagram.css` hides it.
  *
- * A post opened in Instagram's pop-up (a `[role="dialog"]` holding the post) over another page leaves that page alone. The
- * rules read link addresses and the document's structure only, never visible text, so they hold in every
+ * A post opened in Instagram's pop-up (a `[role="dialog"]` holding the post) over another page leaves that
+ * page alone. A video post on its own page is drawn as a pop-up too (`instagram-pop-up.ts`). The rules read link addresses and the document's structure only, never visible text, so they hold in every
  * language (`blocker/post.ts`). The grid loads after the post, so the page is checked again on every DOM
  * change, at most once per animation frame. Bundled into the guard, which calls `syncPostPage` on
  * Instagram only; nothing is stored or sent.
  */
 import { MIN_OTHER_POSTS, isOtherPostLink, singlePostCode } from '../blocker/post.ts';
+import { syncPopUp } from './instagram-pop-up.ts';
 
 const MARK = 'data-dwell-hidden';
 /**
@@ -102,12 +103,25 @@ function loadedPostCode(): string | null {
   return LOADED_CODE !== null && singlePostCode(location.pathname) === LOADED_CODE ? LOADED_CODE : null;
 }
 
+/** The post's own video: the first one in `main` that is not inside a link to another post. */
+function ownVideo(main: Element, code: string): HTMLVideoElement | null {
+  const others = new Set<Element>(otherPostLinks(main, code));
+  const own = [...main.querySelectorAll('video')].find((video) => {
+    const link = video.closest('a');
+    return link === null || !others.has(link);
+  });
+  return own ?? null;
+}
+
 function run(): void {
   frame = null;
   const code = loadedPostCode();
   const main = document.querySelector('main');
   // The post in a pop-up over another page: that page is not this post's page, so it is left alone.
-  mark(code === null || main === null || postInPopUp(code) ? [] : morePosts(main, code));
+  const ownPage = code !== null && main !== null && !postInPopUp(code);
+  mark(ownPage ? morePosts(main, code) : []);
+  // A video post on its own page is shown the way Instagram's pop-up shows one (`instagram-pop-up.ts`).
+  syncPopUp(ownPage ? ownVideo(main, code) : null, main);
 }
 
 function schedule(): void {
@@ -115,8 +129,8 @@ function schedule(): void {
 }
 
 /**
- * Watches the page while `on` and the address still shows the post the page was loaded on; otherwise stops watching and removes every
- * mark. The guard calls it whenever the URL or the settings change, and with `on` false when it stops.
+ * Watches the page while `on` and the address still shows the post the page was loaded on; otherwise stops
+ * watching, removes every mark and lifts the pop-up. The guard calls it whenever the URL or the settings change, and with `on` false when it stops.
  */
 export function syncPostPage(on: boolean): void {
   if (on && loadedPostCode() !== null) {
@@ -133,4 +147,5 @@ export function syncPostPage(on: boolean): void {
   if (frame !== null) cancelAnimationFrame(frame);
   frame = null;
   mark([]);
+  syncPopUp(null, null);
 }

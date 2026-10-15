@@ -394,6 +394,83 @@ test('a move to a post address before its pop-up is drawn leaves the page behind
   await page.close();
 });
 
+/** Opens the post from an Instagram page, as a search result does: the referrer and a page to go back to. */
+async function openPostFromInstagram(page: Page): Promise<void> {
+  await page.goto(`${IG}/explore/search/keyword/?q=hugo`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+  await page.evaluate((code) => location.assign(`/p/${code}/`), CODE);
+  await expect(page.locator('#post')).toHaveAttribute('data-dwell-post', '');
+}
+
+test('a video post loaded on its own page is shown the way Instagram\'s pop-up shows it', async () => {
+  const page = await context.newPage();
+  await openPostFromInstagram(page);
+
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-post-open', '');
+  const box = await page.locator('#post').boundingBox();
+  const view = page.viewportSize();
+  expect(box).not.toBeNull();
+  expect(view).not.toBeNull();
+  if (box === null || view === null) return;
+  expect(Math.round(box.height)).toBe(view.height - 48);
+  expect(Math.round(box.y)).toBe(24);
+  expect(Math.round(box.x + box.width / 2)).toBe(Math.round(view.width / 2));
+  await expect(page.locator('[data-dwell-close]')).toBeVisible();
+  await expect(page.locator('nav')).toHaveAttribute('data-dwell-dim', '');
+  for (const id of ['#post-video', '#comments', '#post-time']) await expect(page.locator(id)).toBeVisible();
+  await expect(page.locator('#more-grid')).toBeHidden();
+  await page.close();
+});
+
+test('closing the pop-up goes back to the Instagram page it was opened from', async () => {
+  const page = await context.newPage();
+  await openPostFromInstagram(page);
+  await page.locator('[data-dwell-close]').click();
+  await expect.poll(() => path(page)).toBe('/explore/search/keyword/');
+  await page.close();
+});
+
+test('Escape and a click on the dimmed area close it, a click inside the post does not', async () => {
+  const page = await context.newPage();
+  await openPostFromInstagram(page);
+  await page.locator('#comments').click();
+  await page.waitForTimeout(300);
+  expect(path(page)).toBe(`/p/${CODE}/`);
+  await page.keyboard.press('Escape');
+  await expect.poll(() => path(page)).toBe('/explore/search/keyword/');
+
+  await page.evaluate((code) => location.assign(`/p/${code}/`), CODE);
+  await expect(page.locator('#post')).toHaveAttribute('data-dwell-post', '');
+  await page.mouse.click(5, 300);
+  await expect.poll(() => path(page)).toBe('/explore/search/keyword/');
+  await page.close();
+});
+
+test('a post opened from another site has nothing to go back to: closing lifts the pop-up and stays', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/p/${CODE}/`);
+  await expect(page.locator('#post')).toHaveAttribute('data-dwell-post', '');
+  await page.locator('[data-dwell-close]').click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-dwell-post-open', '');
+  await expect(page.locator('[data-dwell-close]')).toHaveCount(0);
+  expect(path(page)).toBe(`/p/${CODE}/`);
+  await expect(page.locator('#more-grid')).toBeHidden();
+  await page.waitForTimeout(400);
+  await expect(page.locator('#post')).not.toHaveAttribute('data-dwell-post', '');
+  await page.close();
+});
+
+test('with instagramReels off a post page stays as Instagram drew it', async () => {
+  const page = await context.newPage();
+  await openPostFromInstagram(page);
+  await setBlockers({ instagramReels: false });
+  await expect(page.locator('html')).not.toHaveAttribute('data-dwell-post-open', '');
+  await expect(page.locator('#post')).not.toHaveAttribute('data-dwell-post', '');
+  await expect(page.locator('[data-dwell-close]')).toHaveCount(0);
+  await expect(page.locator('[data-dwell-dim]')).toHaveCount(0);
+  await page.close();
+});
+
 test('a post opened in the pop-up over a profile grid leaves the page behind it alone', async () => {
   const page = await context.newPage();
   await page.goto(`${IG}/someuser/`);
@@ -403,6 +480,7 @@ test('a post opened in the pop-up over a profile grid leaves the page behind it 
   await expect(page.locator('[role="dialog"]')).toBeVisible();
   await page.waitForTimeout(600);
   expect(await hiddenMarks(page)).toBe(0);
+  await expect(page.locator('[data-dwell-post], [data-dwell-close], [data-dwell-dim]')).toHaveCount(0);
   for (const id of ['#grid', '#tile-4', '#clip', '#open-feed']) await expect(page.locator(id)).toBeVisible();
   await page.close();
 });
