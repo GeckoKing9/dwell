@@ -9,7 +9,7 @@ Branch: feature/mvp (one branch per milestone). No AI attribution anywhere.
 - [x] U4 service worker wiring, startup, heartbeat, e2e tracking
 - [x] U5 blocker: classifier, guard prototype on live sites, DNR rulesets, hiders, toggles
 - [x] U6 aggregation, formatting, categories, simulator
-- [ ] U7 popup
+- [x] U7 popup
 - [ ] U8 dashboard
 - [ ] U9 README, release workflow, docs
 - [ ] Gates: typecheck, lint, test, test:tz, check:privacy, build, test:e2e, npm audit, impeccable, !/security-check, !/code-review
