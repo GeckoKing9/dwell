@@ -26,6 +26,7 @@ export const LOG_KINDS = [
   'focus-none',
   'activate',
   'url',
+  'url-nav',
   'idle-active',
   'idle-idle',
   'idle-locked',
@@ -50,7 +51,10 @@ const LOG_KEY_RE = /^log:(\d{4})-(\d{2})-(\d{2})T(\d{2})$/;
 const URL_MARKS = ['://', '/', '?'] as const;
 const KINDS: ReadonlySet<string> = new Set(LOG_KINDS);
 /** Version 1 held only `{ at, kind, site? }`, and its seed carried no idle state. Read only, never written. */
-const V1_KINDS: ReadonlySet<string> = new Set([...LOG_KINDS.filter((kind) => kind !== 'start' && !kind.startsWith('seed-')), 'seed']);
+const V1_KINDS: ReadonlySet<string> = new Set([
+  ...LOG_KINDS.filter((kind) => kind !== 'start' && kind !== 'url-nav' && !kind.startsWith('seed-')),
+  'seed',
+]);
 const ENTRY_KEYS: ReadonlySet<string> = new Set(['at', 'kind', 'site', 'win', 'tab', 'a']);
 const V1_ENTRY_KEYS: ReadonlySet<string> = new Set(['at', 'kind', 'site']);
 const FILE_KEYS: ReadonlySet<string> = new Set(['format', 'version', 'entries', 'days', 'settings']);
@@ -148,16 +152,28 @@ function isStale(key: string, cutoff: number): boolean {
   return start + HOUR_MS <= cutoff;
 }
 
+/** Per store, the hour key of `now` at the last sweep: an hour key can only expire when that hour changes. */
+const sweptHour = new WeakMap<KeyValueStore, string>();
+
+/** Removes the log hour keys that ended more than 24 h before `now`, and junk log keys; returns them. */
+export async function pruneLog(store: KeyValueStore, now: number): Promise<string[]> {
+  const cutoff = now - LOG_WINDOW_MS;
+  const stale = (await store.keys()).filter((key) => key.startsWith(LOG_KEY_PREFIX) && isStale(key, cutoff));
+  if (stale.length > 0) await store.remove(stale);
+  sweptHour.set(store, logKey(now));
+  return stale;
+}
+
 /**
- * Appends entries to their hour keys and drops hour keys that ended more than 24 h before `now`.
- * Every entry is checked first; one unsafe entry throws and nothing is written.
+ * Appends entries to their hour keys in arrival order, never sorted: the worker reduced them in that
+ * order, and an exact replay needs it even across a backward clock step. Once per hour of `now` it
+ * also drops hour keys that ended more than 24 h before `now` (listing every key is a full read on
+ * Chrome without `getKeys`). Every entry is checked first; one unsafe entry throws and nothing is written.
  */
 export async function appendLogEntries(store: KeyValueStore, entries: readonly LogEntry[], now: number): Promise<void> {
   for (const entry of entries) assertLogEntrySafe(entry);
   const cutoff = now - LOG_WINDOW_MS;
-
-  const stale = (await store.keys()).filter((key) => key.startsWith(LOG_KEY_PREFIX) && isStale(key, cutoff));
-  if (stale.length > 0) await store.remove(stale);
+  if (sweptHour.get(store) !== logKey(now)) await pruneLog(store, now);
 
   const groups = new Map<string, LogEntry[]>();
   for (const entry of entries) {
@@ -174,7 +190,7 @@ export async function appendLogEntries(store: KeyValueStore, entries: readonly L
   for (const [key, list] of groups) {
     const previous: unknown = stored[key];
     const kept = Array.isArray(previous) ? previous.filter((e): e is LogEntry => entryProblem(e) === null).map(clean) : [];
-    out[key] = [...kept, ...list].sort((a, b) => a.at - b.at).slice(-MAX_ENTRIES_PER_HOUR);
+    out[key] = [...kept, ...list].slice(-MAX_ENTRIES_PER_HOUR);
   }
   await store.set(out);
 }
@@ -199,9 +215,9 @@ async function daysBetween(store: KeyValueStore, first: number, last: number): P
 }
 
 /**
- * Every stored entry in time order plus the day records they cover, for the separate "export event
- * log" action. Never part of the data export. A tampered entry throws; a version 1 entry left from
- * before an upgrade is skipped.
+ * Every stored entry, hour by hour and in arrival order within the hour, plus the day records they
+ * cover, for the separate "export event log" action. Never part of the data export. A tampered
+ * entry throws; a version 1 entry left from before an upgrade is skipped.
  */
 export async function exportLog(store: KeyValueStore): Promise<LogExport> {
   const keys = (await store.keys()).filter((key) => key.startsWith(LOG_KEY_PREFIX)).sort();
@@ -216,10 +232,9 @@ export async function exportLog(store: KeyValueStore): Promise<LogExport> {
       entries.push(clean(entry));
     }
   }
-  entries.sort((a, b) => a.at - b.at);
-  const first = entries[0];
-  const last = entries.at(-1);
-  const days = first && last ? await daysBetween(store, first.at, last.at) : nullRecord<DayRecord>();
+  const first = entries.reduce((min, entry) => Math.min(min, entry.at), Infinity);
+  const last = entries.reduce((max, entry) => Math.max(max, entry.at), -Infinity);
+  const days = entries.length > 0 ? await daysBetween(store, first, last) : nullRecord<DayRecord>();
   const { idleThresholdSec, mediaOverride } = await loadSettings(store);
   return { format: LOG_FORMAT, version: LOG_VERSION, entries, days, settings: { idleThresholdSec, mediaOverride } };
 }

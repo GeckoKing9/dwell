@@ -8,6 +8,7 @@ import {
   assertLogEntrySafe,
   exportLog,
   logKey,
+  pruneLog,
   readLogExport,
 } from '../src/store/log.ts';
 import type { LogEntry } from '../src/store/log.ts';
@@ -57,6 +58,44 @@ describe('appendLogEntries', () => {
     const other = memoryStore({ [logKey(NOW)]: 'not a list' });
     await appendLogEntries(other, [{ at: NOW, kind: 'tick' }], NOW);
     expect(other.dump()).toEqual({ [logKey(NOW)]: [{ at: NOW, kind: 'tick' }] });
+  });
+
+  it('appends in arrival order and never sorts by time, so a backward clock step stays where the worker reduced it', async () => {
+    const store = memoryStore();
+    const arrived: LogEntry[] = [
+      { at: NOW + 30_000, kind: 'tick' },
+      { at: NOW + 20_000, kind: 'url', site: 'a.com', tab: 1 },
+      { at: NOW + 25_000, kind: 'tick' },
+      { at: NOW + 21_000, kind: 'close', tab: 1 },
+    ];
+    await appendLogEntries(store, arrived.slice(0, 1), NOW + 30_000);
+    await appendLogEntries(store, arrived.slice(1, 2), NOW + 20_000);
+    await appendLogEntries(store, arrived.slice(2), NOW + 25_000);
+    expect(store.dump()[logKey(NOW)]).toEqual(arrived);
+    expect((await exportLog(store)).entries).toEqual(arrived);
+  });
+
+  it('lists the storage keys once per hour to sweep old hours, not on every append', async () => {
+    const store = memoryStore({ [logKey(NOW - 30 * HOUR)]: [{ at: NOW - 30 * HOUR, kind: 'tick' }] });
+    for (let i = 0; i < 50; i += 1) await appendLogEntries(store, [{ at: NOW + i * 1000, kind: 'tick' }], NOW + i * 1000);
+    expect(store.keysCalls).toBe(1);
+    expect(store.dump()[logKey(NOW - 30 * HOUR)]).toBeUndefined();
+    expect(store.dump()[logKey(NOW)]).toHaveLength(50);
+    await appendLogEntries(store, [{ at: NOW + HOUR, kind: 'tick' }], NOW + HOUR);
+    expect(store.keysCalls).toBe(2);
+  });
+
+  it('pruneLog drops hour keys older than 24 h and junk log keys, and leaves every other key alone', async () => {
+    const store = memoryStore({
+      [logKey(NOW - 30 * HOUR)]: [],
+      [logKey(NOW - 23 * HOUR)]: [],
+      'log:garbage': [],
+      'd:2026-10-01': { sites: {}, blocked: {} },
+      settings: {},
+    });
+    expect((await pruneLog(store, NOW)).sort()).toEqual([logKey(NOW - 30 * HOUR), 'log:garbage'].sort());
+    expect(Object.keys(store.dump()).sort()).toEqual(['d:2026-10-01', logKey(NOW - 23 * HOUR), 'settings'].sort());
+    expect(await pruneLog(store, NOW)).toEqual([]);
   });
 
   it('caps one hour at 3600 entries, keeping the newest', async () => {

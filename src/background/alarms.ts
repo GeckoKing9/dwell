@@ -3,6 +3,7 @@
  * start but only when missing or wrong: re-creating an alarm reschedules it, and nothing counts ticks.
  */
 import type { KeyValueStore } from '../store/adapter.ts';
+import { pruneLog } from '../store/log.ts';
 import { pruneOldDays } from '../store/prune.ts';
 import { tickEvent } from './events.ts';
 import type { Queue } from './queue.ts';
@@ -23,9 +24,16 @@ export async function ensureAlarms(): Promise<void> {
   }
 }
 
-/** Drops day keys older than the 90-day window (R10), on the queue like every other write. */
+/**
+ * Drops day keys older than the 90-day window (R10), on the queue like every other write, and event
+ * log hours older than 24 h: a backstop for the hourly sweep, which runs only while the log records.
+ */
 export function prune(queue: Queue, local: KeyValueStore): Promise<string[]> {
-  return queue.run((at) => pruneOldDays(local, new Date(at)), []);
+  return queue.run(async (at) => {
+    const days = await pruneOldDays(local, new Date(at));
+    await pruneLog(local, at);
+    return days;
+  }, []);
 }
 
 /** heartbeat -> a `tick` that closes the open interval; prune -> drop expired days; anything else is ignored. */

@@ -22,6 +22,7 @@ export const DEFAULT_TRACKER_SETTINGS: TrackerSettings = {
   idleThresholdSec: 60,
   mediaOverride: true,
   heartbeatSec: 60,
+  gapMultiplier: 3,
   visitGapSec: 60,
 };
 
@@ -92,14 +93,15 @@ function prune(sites: Record<string, SiteMemory>, now: number): Record<string, S
 
 /**
  * Closes the interval [state.lastAt, at) against the state before the event (never lookahead).
- * A jump of more than 1.5 heartbeats either way is a discontinuity (sleep, a dead worker, a
- * clock change): forward it attributes at most one heartbeat (R4), backward nothing, and both
- * resynchronise the clock and ask for a reseed. A smaller backward step is delivery jitter:
+ * A jump of more than `gapMultiplier` heartbeats either way is a discontinuity (sleep, a dead
+ * worker, a clock change): forward it attributes at most one heartbeat (R4), backward nothing,
+ * and both resynchronise the clock and ask for a reseed. A shorter forward step is counted in
+ * full, so a heartbeat Chrome delayed loses nothing. A smaller backward step is delivery jitter:
  * zero seconds and the clock stays where it was.
  */
 function closeInterval(state: EngineState, at: number, settings: TrackerSettings): EngineState & { attributions: Attribution[] } {
   const from = state.lastAt;
-  const gapMs = 1.5 * settings.heartbeatSec * 1000;
+  const gapMs = settings.gapMultiplier * settings.heartbeatSec * 1000;
   if (at <= from) {
     const jumped = from - at > gapMs;
     return { ...state, lastAt: jumped ? at : from, needsReseed: state.needsReseed || jumped, attributions: [] };

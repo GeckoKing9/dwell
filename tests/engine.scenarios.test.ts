@@ -145,10 +145,32 @@ describe('AE8: the service worker is terminated mid-session', () => {
     expect(restarted.buckets).toEqual(uninterrupted.buckets);
   });
 
-  it('stays within one heartbeat when the wake-up tick is lost', () => {
+  it('loses nothing when the wake-up tick is lost: a 120 s gap is a late heartbeat, not a discontinuity', () => {
     const uninterrupted = session({ restart: false, loseTick: false });
     const lost = session({ restart: true, loseTick: true });
-    expect(lost.total(DOCS)).toEqual(uninterrupted.total(DOCS));
-    expect(uninterrupted.total(YT).seconds - lost.total(YT).seconds).toBe(60);
+    expect(lost.buckets).toEqual(uninterrupted.buckets);
+    expect(lost.state.needsReseed).toBe(false);
+  });
+});
+
+describe('a tab leaves a playing video for another site', () => {
+  it('ignores the late stop from the page that left, so Chrome audible still counts the new site', () => {
+    const story = new Story(MORNING)
+      .emit({ type: 'seed', windowId: 1, tabId: 7, site: YT, idle: 'active' }, { type: 'media', tabId: 7, playing: true })
+      .wait(60)
+      // The url event for the next site, then the old page's pagehide stop, then Chrome's audible flag.
+      .emit({ type: 'url', tabId: 7, site: SPOTIFY, audible: false }, { type: 'media', tabId: 7, playing: false })
+      .emit({ type: 'url', tabId: 7, site: SPOTIFY, audible: true }, { type: 'idle', state: 'idle' })
+      .wait(600)
+      .end();
+    expect(story.state.tabs['7']?.media).toEqual({ src: 'audible', on: true });
+    expect(story.total(SPOTIFY).seconds).toBe(600);
+    expect(story.total(YT).seconds).toBe(60);
+  });
+
+  it('ignores a stop for a tab the content script never reported playing', () => {
+    const story = new Story(MORNING).emit({ type: 'seed', windowId: 1, tabId: 7, site: SPOTIFY, audible: true, idle: 'idle' });
+    story.emit({ type: 'media', tabId: 7, playing: false }).wait(120).end();
+    expect(story.total(SPOTIFY).seconds).toBe(120);
   });
 });

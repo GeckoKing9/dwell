@@ -5,6 +5,7 @@
     "idleThresholdSec": 60,
     "mediaOverride": true,
     "heartbeatSec": 60,
+    "gapMultiplier": 3,
     "visitGapSec": 60
   },
   "startAt": 1791961200000,

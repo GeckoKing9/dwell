@@ -9,7 +9,7 @@ import { type Fixture, simulateSession } from './support/simulator.ts';
 const PATH = new URL('./fixtures/sim-session-001.json', import.meta.url);
 const SEED = 1;
 const START_AT = Date.UTC(2026, 9, 14, 7, 0, 0);
-const SETTINGS: TrackerSettings = { idleThresholdSec: 60, mediaOverride: true, heartbeatSec: 60, visitGapSec: 60 };
+const SETTINGS: TrackerSettings = { idleThresholdSec: 60, mediaOverride: true, heartbeatSec: 60, gapMultiplier: 3, visitGapSec: 60 };
 
 function format(fixture: Fixture): string {
   const { events, ...meta } = fixture;

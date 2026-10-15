@@ -4,7 +4,7 @@ import type { Buckets, EngineEvent, EngineState, TrackerSettings } from '../../s
 import type { EventBody } from './arbitraries.ts';
 import { siteTotals, type SiteTotal } from './helpers.ts';
 
-export const DEFAULTS: TrackerSettings = { idleThresholdSec: 60, mediaOverride: true, heartbeatSec: 60, visitGapSec: 60 };
+export const DEFAULTS: TrackerSettings = { idleThresholdSec: 60, mediaOverride: true, heartbeatSec: 60, gapMultiplier: 3, visitGapSec: 60 };
 
 /** A scripted session: events at a moving clock, with the heartbeat alarm firing while time passes. */
 export class Story {

@@ -3,7 +3,8 @@
  * losslessly, so `replayLog` in `src/tracker/replayLog.ts` turns the entries back into the same events.
  * `site` is the grouped site id the event already carries, never a URL; `win` and `tab` are Chrome's
  * integer ids; `a` is the audible flag. Level events fold their value into `kind` (`idle-locked`,
- * `media-on`, `seed-idle`, `focus-none`). A `start` entry opens the job that built a fresh engine state.
+ * `media-on`, `seed-idle`, `focus-none`, `url-nav` for a navigation). A `start` entry opens the job
+ * that built a fresh engine state.
  */
 import type { KeyValueStore } from '../store/adapter.ts';
 import { appendLogEntries, type LogEntry } from '../store/log.ts';
@@ -31,7 +32,7 @@ export function logEntry(event: EngineEvent): LogEntry {
     case 'activate':
       return { at, kind: 'activate', win: event.windowId, tab: event.tabId };
     case 'url':
-      return { at, kind: 'url', ...siteField(event.site), tab: event.tabId, ...audibleField(event.audible) };
+      return { at, kind: event.nav ? 'url-nav' : 'url', ...siteField(event.site), tab: event.tabId, ...audibleField(event.audible) };
     case 'idle':
       return { at, kind: `idle-${event.state}` };
     case 'media':

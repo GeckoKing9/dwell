@@ -25,7 +25,7 @@ export const bodyArb: fc.Arbitrary<EventBody> = fc.oneof(
   {
     weight: 4,
     arbitrary: fc.record(
-      { type: fc.constant('url' as const), tabId: tabArb, site: siteArb, audible: fc.boolean() },
+      { type: fc.constant('url' as const), tabId: tabArb, site: siteArb, audible: fc.boolean(), nav: fc.constant(true as const) },
       { requiredKeys: ['type', 'tabId', 'site'] },
     ),
   },
@@ -50,13 +50,17 @@ export const bodyArb: fc.Arbitrary<EventBody> = fc.oneof(
   },
 );
 
-/** Delay before an event, in ms: mostly heartbeat-sized, sometimes equal timestamps or hours of sleep. */
+/**
+ * Delay before an event, in ms: mostly heartbeat-sized, sometimes a heartbeat Chrome delayed (on
+ * either side of the gap threshold), equal timestamps or hours of sleep.
+ */
 function delayArb(unitMs: 1000 | 100): fc.Arbitrary<number> {
   const seconds = fc.oneof(
     { weight: 2, arbitrary: fc.constant(0) },
     { weight: 6, arbitrary: fc.integer({ min: 1, max: 30 }) },
     { weight: 5, arbitrary: fc.integer({ min: 31, max: 90 }) },
-    { weight: 1, arbitrary: fc.integer({ min: 91, max: 600 }) },
+    { weight: 2, arbitrary: fc.integer({ min: 91, max: 200 }) },
+    { weight: 1, arbitrary: fc.integer({ min: 201, max: 600 }) },
     { weight: 1, arbitrary: fc.integer({ min: 601, max: 6 * 3600 }) },
   );
   if (unitMs === 1000) return seconds.map((s) => s * 1000);
@@ -89,6 +93,7 @@ export const settingsArb: fc.Arbitrary<TrackerSettings> = fc.record({
   idleThresholdSec: fc.constantFrom(30, 60, 120, 300),
   mediaOverride: fc.boolean(),
   heartbeatSec: fc.constant(60),
+  gapMultiplier: fc.constantFrom(3, 1.5),
   visitGapSec: fc.constant(60),
 });
 
@@ -136,7 +141,8 @@ export function sequenceArb(options: { unitMs?: 1000 | 100; maxEvents?: number }
 
 /**
  * A heartbeat stream: a tick at the start of every minute, up to two other events inside the
- * minute, and now and then a sleep with no events at all. `drop` picks one tick to lose.
+ * minute, and now and then a sleep with no events at all, longer than any gap threshold (three
+ * heartbeats). `drop` picks one tick to lose.
  */
 export const heartbeatStreamArb = fc
   .record({
@@ -144,7 +150,7 @@ export const heartbeatStreamArb = fc
     settings: settingsArb,
     minutes: fc.array(
       fc.record({
-        sleepSec: fc.oneof({ weight: 9, arbitrary: fc.constant(0) }, { weight: 1, arbitrary: fc.integer({ min: 91, max: 8 * 3600 }) }),
+        sleepSec: fc.oneof({ weight: 9, arbitrary: fc.constant(0) }, { weight: 1, arbitrary: fc.integer({ min: 181, max: 8 * 3600 }) }),
         extras: fc.array(fc.tuple(fc.integer({ min: 1, max: 59 }), bodyArb), { maxLength: 2 }),
       }),
       { minLength: 2, maxLength: 60, size: 'max' },

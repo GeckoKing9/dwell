@@ -37,6 +37,8 @@ export interface TabLike {
 export interface TabChange {
   readonly url?: string | undefined;
   readonly audible?: boolean | undefined;
+  /** 'loading' when a new document starts loading: a navigation, a reload, a discarded tab coming back. */
+  readonly status?: string | undefined;
 }
 
 /** The site a tab counts as, or null when it is incognito, not http(s), or ignored. */
@@ -54,11 +56,16 @@ export function urlEvent(tab: TabLike & { readonly id: number }, grouping: Group
   return withAudible({ type: 'url', at, tabId: tab.id, site: siteOfTab(tab, grouping) }, tab.audible);
 }
 
-/** `tabs.onUpdated`: a url event when the URL or the audible flag changed, otherwise null. */
+/**
+ * `tabs.onUpdated`: a url event when the URL, the audible flag or the load status changed, otherwise
+ * null. A new URL or a page load is a navigation (`nav`): the page that reported media may be gone.
+ */
 export function updatedEvent(tabId: number, change: TabChange, tab: TabLike, grouping: Grouping, at: number): UrlEvent | null {
-  if (change.url === undefined && change.audible === undefined) return null;
+  const nav = change.url !== undefined || change.status === 'loading';
+  if (!nav && change.audible === undefined) return null;
   const audible = change.audible ?? tab.audible;
-  return withAudible({ type: 'url', at, tabId, site: siteOfTab(tab, grouping, change.url ?? tab.url) }, audible);
+  const event = withAudible({ type: 'url', at, tabId, site: siteOfTab(tab, grouping, change.url ?? tab.url) }, audible);
+  return nav ? { ...event, nav: true } : event;
 }
 
 export function activateEvent(info: { readonly tabId: number; readonly windowId: number }, at: number): ActivateEvent {

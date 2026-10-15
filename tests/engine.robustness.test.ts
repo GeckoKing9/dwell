@@ -6,7 +6,7 @@ import { bodyArb, heartbeatStreamArb, sequenceArb } from './support/arbitraries.
 import { secondsOf, siteTotals, steps, totalSeconds } from './support/helpers.ts';
 import { oracleReplay } from './support/oracle.ts';
 
-const SETTINGS: TrackerSettings = { idleThresholdSec: 60, mediaOverride: true, heartbeatSec: 60, visitGapSec: 60 };
+const SETTINGS: TrackerSettings = { idleThresholdSec: 60, mediaOverride: true, heartbeatSec: 60, gapMultiplier: 3, visitGapSec: 60 };
 
 /** Delivery order: adjacent events whose timestamps differ by at most 200 ms may arrive swapped. */
 function deliver(events: readonly EngineEvent[], swaps: readonly boolean[]): EngineEvent[] {

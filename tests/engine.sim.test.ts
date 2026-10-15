@@ -8,7 +8,11 @@ import { hourLabels, secondsOf, steps, totalSeconds } from './support/helpers.ts
 import { oracleReplay } from './support/oracle.ts';
 
 const HOLD_MS = 30_000;
-const GAP_MS = 90_000;
+
+/** Two events further apart than this are a discontinuity. */
+function gapMs(settings: TrackerSettings): number {
+  return settings.gapMultiplier * settings.heartbeatSec * 1000;
+}
 
 function activeTab(state: EngineState) {
   if (state.focusedWindow === null) return undefined;
@@ -87,7 +91,7 @@ describe('engine invariants over generated sequences', () => {
       fc.property(sequenceArb(), ({ startAt, settings, events }) => {
         for (const step of steps(events, settings, startAt)) {
           if (step.attributions.length === 0) continue;
-          const to = Math.min(step.event.at, step.before.lastAt + GAP_MS);
+          const to = Math.min(step.event.at, step.before.lastAt + gapMs(settings));
           const labels = hourLabels(step.before.lastAt, to);
           for (const a of step.attributions) expect(labels).toContain(`${a.day}@${a.hour}`);
         }
@@ -96,14 +100,14 @@ describe('engine invariants over generated sequences', () => {
     );
   });
 
-  it('splits a continuous session at hour, midnight and DST boundaries without losing a second (AE4)', () => {
+  it('splits a continuous session at hour, midnight and DST boundaries without losing a second, ticks delayed up to 180 s included (AE4)', () => {
     const sessionArb = fc.record({
       startAt: startArb,
-      ticks: fc.array(fc.integer({ min: 1, max: 90 }), { minLength: 1, maxLength: 150, size: 'max' }),
+      ticks: fc.array(fc.integer({ min: 1, max: 180 }), { minLength: 1, maxLength: 150, size: 'max' }),
     });
     fc.assert(
       fc.property(sessionArb, ({ startAt, ticks }) => {
-        const settings: TrackerSettings = { idleThresholdSec: 60, mediaOverride: true, heartbeatSec: 60, visitGapSec: 60 };
+        const settings: TrackerSettings = { idleThresholdSec: 60, mediaOverride: true, heartbeatSec: 60, gapMultiplier: 3, visitGapSec: 60 };
         const events: EngineEvent[] = [{ type: 'seed', at: startAt, windowId: 1, tabId: 1, site: 'alpha.example', idle: 'active' }];
         let at = startAt;
         for (const delay of ticks) events.push({ type: 'tick', at: (at += delay * 1000) });
@@ -123,11 +127,11 @@ describe('engine invariants over generated sequences', () => {
     );
   });
 
-  it('attributes at most one heartbeat across a gap longer than 1.5 heartbeats (AE3)', () => {
+  it('attributes at most one heartbeat across a gap longer than the gap threshold (AE3)', () => {
     fc.assert(
       fc.property(sequenceArb(), ({ startAt, settings, events }) => {
         for (const step of steps(events, settings, startAt)) {
-          if (step.event.at - step.before.lastAt > GAP_MS) {
+          if (step.event.at - step.before.lastAt > gapMs(settings)) {
             expect(secondsOf(step.attributions)).toBeLessThanOrEqual(60);
             expect(step.after.needsReseed).toBe(step.event.type !== 'seed');
           }

@@ -52,6 +52,8 @@ function toEvent(entry: LoggedEvent): EngineEvent | null {
       return win === undefined || tab === undefined ? null : { type: 'activate', at, windowId: win, tabId: tab };
     case 'url':
       return tab === undefined ? null : { type: 'url', at, tabId: tab, site, ...audible(entry) };
+    case 'url-nav':
+      return tab === undefined ? null : { type: 'url', at, tabId: tab, site, ...audible(entry), nav: true };
     case 'media-on':
     case 'media-off':
       return tab === undefined ? null : { type: 'media', at, tabId: tab, playing: kind === 'media-on' };

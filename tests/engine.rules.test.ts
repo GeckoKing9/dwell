@@ -14,12 +14,13 @@ function idleListener(site: string, audible?: boolean): Story {
 }
 
 describe('media signals', () => {
-  it('defaults match the plan: override on, 60 s heartbeat, 60 s visit gap', () => {
+  it('defaults match the plan: override on, 60 s heartbeat, a gap past three heartbeats, 60 s visit gap', () => {
     expect(DEFAULT_TRACKER_SETTINGS).toEqual(DEFAULTS);
   });
 
-  it('lets the content script overrule Chrome audible once it has reported', () => {
-    const story = idleListener(A, true).wait(30).emit({ type: 'media', tabId: 1, playing: false }).wait(120);
+  it('lets the content script overrule Chrome audible once it has reported playback', () => {
+    const story = idleListener(A, true).emit({ type: 'media', tabId: 1, playing: true }).wait(30);
+    story.emit({ type: 'media', tabId: 1, playing: false }).wait(120);
     story.emit({ type: 'url', tabId: 1, site: A, audible: true }).wait(60).end();
     expect(story.total(A).seconds).toBe(60);
   });
@@ -46,6 +47,26 @@ describe('media signals', () => {
     const story = new Story(NOON).emit(...openTab(1, 1, null), { type: 'media', tabId: 1, playing: true });
     story.emit({ type: 'focus', windowId: 1 }, { type: 'idle', state: 'idle' }, { type: 'url', tabId: 1, site: A }).wait(60).end();
     expect(story.total(A).seconds).toBe(60);
+  });
+
+  it('drops the content script state when a new document loads in the tab, even on the same site', () => {
+    const story = idleListener(A).emit({ type: 'media', tabId: 1, playing: true }).wait(60);
+    story.emit({ type: 'url', tabId: 1, site: A, nav: true }).wait(120).end();
+    expect(story.state.tabs['1']?.media).toBeUndefined();
+    expect(story.total(A).seconds).toBe(60);
+  });
+
+  it('trusts Chrome audible after a reload until the new document reports', () => {
+    const story = idleListener(A).emit({ type: 'media', tabId: 1, playing: true }).wait(60);
+    story.emit({ type: 'url', tabId: 1, site: A, audible: true, nav: true }).wait(60);
+    expect(story.state.tabs['1']?.media).toEqual({ src: 'audible', on: true });
+    story.emit({ type: 'media', tabId: 1, playing: true }, { type: 'media', tabId: 1, playing: false }).wait(120).end();
+    expect(story.total(A).seconds).toBe(60 + 60 + 30);
+  });
+
+  it('keeps an audible state across a navigation within the site', () => {
+    const story = idleListener(A, true).wait(60).emit({ type: 'url', tabId: 1, site: A, nav: true }).wait(60).end();
+    expect(story.total(A).seconds).toBe(120);
   });
 
   it('counts nothing for an idle tab with no media signal at all', () => {
@@ -94,7 +115,22 @@ describe('clock and state', () => {
     expect(story.total(A).seconds).toBe(30 + 30);
   });
 
-  it('resynchronises and asks for a reseed when the clock jumps back by more than 1.5 heartbeats', () => {
+  it('credits a heartbeat that Chrome delayed to 120 s in full and asks for no reseed', () => {
+    const seeded = reduce(createInitialState(NOON), { type: 'seed', at: NOON, windowId: 1, tabId: 1, site: A, idle: 'active' }, DEFAULTS);
+    const late = reduce(seeded.state, { type: 'tick', at: NOON + 120_000 }, DEFAULTS);
+    expect(late.attributions.reduce((sum, a) => sum + a.seconds, 0)).toBe(120);
+    expect(late.state.needsReseed).toBe(false);
+  });
+
+  it('credits one heartbeat and asks for a reseed once the gap passes three heartbeats (200 s)', () => {
+    const seeded = reduce(createInitialState(NOON), { type: 'seed', at: NOON, windowId: 1, tabId: 1, site: A, idle: 'active' }, DEFAULTS);
+    const gap = reduce(seeded.state, { type: 'tick', at: NOON + 200_000 }, DEFAULTS);
+    expect(gap.attributions.reduce((sum, a) => sum + a.seconds, 0)).toBe(60);
+    expect(gap.state.needsReseed).toBe(true);
+    expect(gap.state.lastAt).toBe(NOON + 200_000);
+  });
+
+  it('resynchronises and asks for a reseed when the clock jumps back past the gap threshold', () => {
     const story = new Story(NOON).emit({ type: 'seed', windowId: 1, tabId: 1, site: A, idle: 'active' }).wait(30).end();
     story.at -= 3_600_000;
     story.emit({ type: 'tick' });

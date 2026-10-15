@@ -44,6 +44,8 @@ export interface MemoryStore extends KeyValueStore {
   failNextSet(error?: Error): void;
   /** Number of set() calls so far, failed ones included. */
   readonly setCalls: number;
+  /** Number of keys() calls so far: on Chrome without getKeys each one reads the whole area. */
+  readonly keysCalls: number;
   /** A deep copy of everything stored, keys sorted, for byte-level comparisons. */
   dump(): StoredRecord;
 }
@@ -58,6 +60,7 @@ export function memoryStore(initial: StoredRecord = {}): MemoryStore {
   const data = new Map<string, unknown>(Object.entries(clone(initial)));
   let pendingFailure: Error | null = null;
   let setCalls = 0;
+  let keysCalls = 0;
   return {
     async get(keys) {
       const out: StoredRecord = {};
@@ -79,6 +82,7 @@ export function memoryStore(initial: StoredRecord = {}): MemoryStore {
       for (const key of keys) data.delete(key);
     },
     async keys() {
+      keysCalls += 1;
       return [...data.keys()];
     },
     failNextSet(error = new Error('storage write failed')) {
@@ -86,6 +90,9 @@ export function memoryStore(initial: StoredRecord = {}): MemoryStore {
     },
     get setCalls() {
       return setCalls;
+    },
+    get keysCalls() {
+      return keysCalls;
     },
     dump() {
       const out: StoredRecord = {};

@@ -1,7 +1,8 @@
 /**
  * Media state for the tracking engine (KTD2). Reports whether any <video> or <audio> element in the
  * top frame is playing: not paused, not ended, with current data, muted or not. Sends only
- * `{ type: 'media', playing }`, and only when the answer changes. Reads nothing else from the page.
+ * `{ type: 'media', playing }`: the first answer always, so the worker drops a playing state the
+ * previous document left, then only when the answer changes. Reads nothing else from the page.
  */
 import { extensionAlive, sendToWorker } from './runtime.ts';
 
@@ -9,7 +10,8 @@ const FALLBACK_MS = 5000;
 /** Media events do not bubble, so they are captured on the document. */
 const MEDIA_EVENTS = ['play', 'playing', 'pause', 'ended', 'emptied'] as const;
 
-let last = false;
+/** The last answer sent; null until the first one, which is always sent. */
+let last: boolean | null = null;
 let alive = true;
 const cleanups: (() => void)[] = [];
 

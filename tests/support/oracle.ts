@@ -36,6 +36,8 @@ class Browser {
 
   private signal(tab: OracleTab, source: 'msg' | 'audible', playing: boolean, at: number): void {
     if (source === 'audible' && tab.source === 'msg') return;
+    // A stop from a content script ends only playback the content script itself reported.
+    if (source === 'msg' && !playing && tab.source !== 'msg') return;
     tab.source = source;
     if (playing) {
       tab.on = true;
@@ -45,9 +47,10 @@ class Browser {
     }
   }
 
-  private navigate(tabId: number, site: string | null, audible: boolean | undefined, at: number): void {
+  private navigate(tabId: number, site: string | null, audible: boolean | undefined, nav: boolean, at: number): void {
     const tab = this.tab(tabId);
-    if (tab.site !== null && tab.site !== site) {
+    const left = tab.site !== null && tab.site !== site;
+    if (left || (nav && tab.source === 'msg')) {
       tab.source = null;
       tab.on = false;
       tab.offAt = null;
@@ -65,7 +68,7 @@ class Browser {
         this.active.set(event.windowId, event.tabId);
         break;
       case 'url':
-        this.navigate(event.tabId, event.site, event.audible, event.at);
+        this.navigate(event.tabId, event.site, event.audible, event.nav === true, event.at);
         break;
       case 'idle':
         this.idle = event.state;
@@ -88,7 +91,7 @@ class Browser {
         this.focused = event.windowId;
         if (event.windowId !== null && event.tabId !== null) {
           this.active.set(event.windowId, event.tabId);
-          this.navigate(event.tabId, event.site, event.audible, event.at);
+          this.navigate(event.tabId, event.site, event.audible, false, event.at);
         }
         this.idle = event.idle;
         break;
@@ -135,7 +138,7 @@ export function oracleReplay(
   const out: Buckets = {};
   const pendingMs = new Map<string, number>();
   const lastEnd = new Map<string, number>();
-  const gapMs = 1.5 * settings.heartbeatSec * 1000;
+  const gapMs = settings.gapMultiplier * settings.heartbeatSec * 1000;
   let last = startAt;
 
   for (const event of events) {

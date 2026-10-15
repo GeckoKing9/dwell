@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBackground, type Background } from '../src/background/listeners.ts';
 import { createQueue } from '../src/background/queue.ts';
 import { memoryStore } from '../src/store/adapter.ts';
+import { logKey } from '../src/store/log.ts';
 import { DEFAULT_SETTINGS } from '../src/store/schema.ts';
 import { activate, engineState, installFakeChrome, openWindow, totals, type FakeChrome } from './support/fake-chrome.ts';
 
@@ -250,5 +251,36 @@ describe('start and alarms', () => {
     openWindow(fake, 1, [{ id: 10, url: A }]);
     await bg.onStartup();
     expect(fake.local.data.has('d:2026-02-01')).toBe(false);
+  });
+});
+
+describe('the event log sweep', () => {
+  const HOUR = 3_600_000;
+
+  it('lists the storage keys once per hour while the log records, not on every job', async () => {
+    const old = logKey(T0 - 30 * HOUR);
+    fake.local.data.set(old, [{ at: T0 - 30 * HOUR, kind: 'tick' }]);
+    fake.local.data.set('settings', { ...DEFAULT_SETTINGS, eventLog: true });
+    openWindow(fake, 1, [{ id: 10, url: A }]);
+    const bg = createBackground();
+    await bg.onInstalled();
+    expect(fake.local.data.has(old)).toBe(false);
+    const listed = vi.spyOn(fake.local, 'getKeys');
+    for (let minute = 0; minute < 10; minute += 1) {
+      advance(60);
+      await heartbeat(bg);
+    }
+    expect(listed).not.toHaveBeenCalled();
+    expect(fake.local.data.get(logKey(T0))).toHaveLength(13);
+  });
+
+  it('drops log hours older than 24 h on the prune alarm, even with the log off', async () => {
+    const old = logKey(T0 - 30 * HOUR);
+    const recent = logKey(T0 - HOUR);
+    fake.local.data.set(old, [{ at: T0 - 30 * HOUR, kind: 'tick' }]);
+    fake.local.data.set(recent, [{ at: T0 - HOUR, kind: 'tick' }]);
+    await createBackground().onAlarm({ name: 'prune' });
+    expect(fake.local.data.has(old)).toBe(false);
+    expect(fake.local.data.has(recent)).toBe(true);
   });
 });

@@ -51,6 +51,15 @@ describe('media and idle (KTD2)', () => {
     expect(totals(fake, 'youtube.com').seconds).toBe(130);
   });
 
+  it('a reload of the video tab drops the playing state of the page that left and trusts Chrome audible again', async () => {
+    const bg = await watching(true);
+    await bg.onTabUpdated(30, { status: 'loading' }, { url: YT, incognito: false, audible: false });
+    expect(engineState(fake).tabs['30']?.media).toEqual({ src: 'audible', on: false });
+    advance(60);
+    await heartbeat(bg);
+    expect(totals(fake, 'youtube.com').seconds).toBe(130);
+  });
+
   it('stops at idle when the override is off', async () => {
     await watching(false);
     expect(totals(fake, 'youtube.com').seconds).toBe(10);

@@ -74,17 +74,31 @@ describe('url', () => {
 describe('updated', () => {
   const tab = { id: 9, url: 'https://www.youtube.com/watch?v=abc', incognito: false, audible: true };
 
-  it('maps a URL change to a url event for the tab', () => {
+  it('maps a URL change to a url event for the tab, marked as a navigation', () => {
     expect(updatedEvent(9, { url: tab.url }, { ...tab, audible: false }, NONE, AT)).toEqual({
       type: 'url',
       at: AT,
       tabId: 9,
       site: 'youtube.com',
       audible: false,
+      nav: true,
     });
   });
 
-  it('maps an audible change to a url event carrying the change and the current site', () => {
+  it('marks a page load with an unchanged URL (a reload, a discarded tab coming back) as a navigation', () => {
+    expect(updatedEvent(9, { status: 'loading' }, tab, NONE, AT)).toEqual({
+      type: 'url',
+      at: AT,
+      tabId: 9,
+      site: 'youtube.com',
+      audible: true,
+      nav: true,
+    });
+    expect(updatedEvent(9, { status: 'complete' }, tab, NONE, AT)).toBeNull();
+  });
+
+  it('maps an audible change to a url event carrying the change and the current site, not a navigation', () => {
+    expect(updatedEvent(9, { audible: true }, tab, NONE, AT)).not.toHaveProperty('nav');
     expect(updatedEvent(9, { audible: true }, tab, NONE, AT)).toEqual({
       type: 'url',
       at: AT,
@@ -149,6 +163,7 @@ describe('log entries', () => {
     [{ type: 'url', at: AT, tabId: 1, site: 'a.example', audible: true }, { at: AT, kind: 'url', site: 'a.example', tab: 1, a: 1 }],
     [{ type: 'url', at: AT, tabId: 1, site: null, audible: false }, { at: AT, kind: 'url', tab: 1, a: 0 }],
     [{ type: 'url', at: AT, tabId: 1, site: 'localhost' }, { at: AT, kind: 'url', tab: 1 }],
+    [{ type: 'url', at: AT, tabId: 1, site: 'a.example', audible: false, nav: true }, { at: AT, kind: 'url-nav', site: 'a.example', tab: 1, a: 0 }],
     [
       { type: 'seed', at: AT, windowId: 1, tabId: 2, site: 'b.example', audible: true, idle: 'idle' },
       { at: AT, kind: 'seed-idle', site: 'b.example', win: 1, tab: 2, a: 1 },

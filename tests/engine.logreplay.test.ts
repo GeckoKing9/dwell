@@ -14,7 +14,7 @@ import { siteTotals } from './support/helpers.ts';
 import { type Fixture, simulateSession } from './support/simulator.ts';
 
 const HOUR_MS = 3_600_000;
-const SETTINGS: TrackerSettings = { idleThresholdSec: 60, mediaOverride: true, heartbeatSec: 60, visitGapSec: 60 };
+const SETTINGS: TrackerSettings = { idleThresholdSec: 60, mediaOverride: true, heartbeatSec: 60, gapMultiplier: 3, visitGapSec: 60 };
 const T = Date.UTC(2026, 9, 14, 9, 0, 0);
 
 /** What the worker does per job, one event per job: reduce, write the day keys, append the log. */
@@ -44,6 +44,21 @@ describe('the event log round trip', () => {
       }),
       { numRuns: 1500 },
     );
+  });
+
+  it('replays a backward clock step in the order the worker reduced it, not sorted by time', async () => {
+    const events: EngineEvent[] = [
+      { type: 'seed', at: T, windowId: 1, tabId: 1, site: 'alpha.example', idle: 'active' },
+      { type: 'url', at: T + 30_000, tabId: 1, site: 'beta.example' },
+      { type: 'url', at: T + 20_000, tabId: 1, site: 'alpha.example' },
+      { type: 'tick', at: T + 60_000 },
+    ];
+    const store = await record(events, SETTINGS);
+    const file = readLogExport(JSON.parse(JSON.stringify(await exportLog(store))));
+    expect(file.entries).toEqual([{ at: T, kind: START_KIND }, ...events.map(logEntry)]);
+    const direct = replay(events, SETTINGS, createInitialState(T));
+    expect(replayLog(file.entries, SETTINGS).buckets).toEqual(direct.buckets);
+    expect(siteTotals(direct.buckets)).toEqual({ 'alpha.example': { seconds: 60, visits: 1 } });
   });
 
   it('decodes every kind in LOG_KINDS except start, and skips unknown kinds and missing ids without throwing', () => {

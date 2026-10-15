@@ -18,7 +18,8 @@ export interface ActivateEvent {
 
 /**
  * The tab now shows `site` (already grouped; null = not trackable). `audible` is Chrome's
- * `tab.audible`; when omitted the previous value is kept.
+ * `tab.audible`; when omitted the previous value is kept. `nav` marks a navigation (a new URL, a
+ * reload, a discarded tab loading again): the page whose content script reported media may be gone.
  */
 export interface UrlEvent {
   type: 'url';
@@ -26,6 +27,7 @@ export interface UrlEvent {
   tabId: number;
   site: string | null;
   audible?: boolean;
+  nav?: true;
 }
 
 export interface IdleEvent {
@@ -91,6 +93,11 @@ export interface TrackerSettings {
   idleThresholdSec: IdleThresholdSec;
   mediaOverride: boolean;
   heartbeatSec: number;
+  /**
+   * Two events further apart than this many heartbeats are a discontinuity (sleep, a dead worker, a
+   * clock change). Chrome delays alarms to 95 to 120 s under battery saver, so it sits well above 1.
+   */
+  gapMultiplier: number;
   visitGapSec: number;
 }
 
