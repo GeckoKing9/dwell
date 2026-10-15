@@ -68,6 +68,14 @@ describe('source manifest', () => {
     expect(manifestProblems(source)).toEqual([]);
   });
 
+  it('does not count the router bridge as Instagram\'s guard', () => {
+    const m = structuredClone(source) as Record<string, unknown>;
+    m.content_scripts = (m.content_scripts as { matches: string[]; world?: string }[]).filter(
+      (s) => s.world !== undefined || !s.matches.includes('https://www.instagram.com/*'),
+    );
+    expect(manifestProblems(m)).toContain('content_scripts must cover every site pattern');
+  });
+
   it.each([
     ['another file', { js: ['src/content/guard.ts'] }],
     ['two files', { js: ['src/content/instagram-router.ts', 'src/content/media.ts'] }],
@@ -85,8 +93,9 @@ describe('source manifest', () => {
     const scripts = source.content_scripts as { all_frames: boolean; matches: string[] }[];
     expect(scripts.length).toBe(5);
     for (const script of scripts) expect(script.all_frames).toBe(false);
-    // Instagram has two entries: the guard and the router bridge.
-    expect([...new Set(scripts.flatMap((s) => s.matches))].sort()).toEqual([...SITE_PATTERNS].sort());
+    // Every site exactly once among the isolated-world entries; the router bridge is an extra on Instagram.
+    const isolated = (scripts as { matches: string[]; world?: string }[]).filter((s) => s.world === undefined);
+    expect(isolated.flatMap((s) => s.matches).sort()).toEqual([...SITE_PATTERNS].sort());
   });
 
   it('forbids incognito and external connections', () => {

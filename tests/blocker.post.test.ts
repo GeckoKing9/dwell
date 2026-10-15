@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DIM_FACTOR, MIN_OTHER_POSTS, isPopUpPath, popUpPath, POP_UP_EDGE_PX, POP_UP_MARGIN_PX, POP_UP_SIDE_PX, dimColor, isOtherPostLink, leaveBy, popUpBox, singlePostCode } from '../src/blocker/post.ts';
+import { isPopUpPath } from '../src/blocker/bridge.ts';
+import { DIM_FACTOR, MIN_OTHER_POSTS, popUpPath, POP_UP_EDGE_PX, POP_UP_MARGIN_PX, POP_UP_SIDE_PX, dimColor, isOtherPostLink, leaveBy, popUpBox, singlePostCode } from '../src/blocker/post.ts';
 
 const CODE = 'DeewiSPpCrm';
 const IG = 'https://www.instagram.com';

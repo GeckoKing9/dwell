@@ -96,7 +96,8 @@ export function manifestProblems(manifest: unknown): string[] {
       return;
     }
     if (!withinSites(entry.matches)) problems.push(`content_scripts[${i}].matches outside the site list`);
-    asArray(entry.matches).forEach((m) => covered.add(m));
+    // The router bridge is not a guard: only the isolated-world entries count as covering a site.
+    if (!isRouterBridge(entry)) asArray(entry.matches).forEach((m) => covered.add(m));
     if (entry.all_frames !== false) problems.push(`content_scripts[${i}].all_frames must be false`);
     if (entry.match_about_blank !== false) problems.push(`content_scripts[${i}].match_about_blank must be false`);
     if (entry.run_at !== 'document_start') problems.push(`content_scripts[${i}].run_at must be document_start`);

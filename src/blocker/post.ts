@@ -20,20 +20,28 @@ export function singlePostCode(path: string): string | null {
 }
 
 /**
- * True when `url` (an absolute link address) opens an Instagram post other than `current`. Codes compare
- * exactly: Instagram codes are case-sensitive.
+ * The code of the one post or Reel `url` (an absolute link address) opens on Instagram, or null when it opens
+ * something else. Shared by the "More posts" hider and the pop-up, so both read links the same way.
  */
-export function isOtherPostLink(url: string, current: string): boolean {
+export function postLinkCode(url: string): string | null {
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
     // Not an absolute URL: not a link this page resolved to a post.
-    return false;
+    return null;
   }
-  if (parsed.protocol !== 'https:' || siteForHost(parsed.hostname) !== 'instagram') return false;
-  const code = POST_LINK.exec(parsed.pathname)?.[1];
-  return code !== undefined && code !== current;
+  if (parsed.protocol !== 'https:' || siteForHost(parsed.hostname) !== 'instagram') return null;
+  return POST_LINK.exec(parsed.pathname)?.[1] ?? null;
+}
+
+/**
+ * True when `url` (an absolute link address) opens an Instagram post other than `current`. Codes compare
+ * exactly: Instagram codes are case-sensitive.
+ */
+export function isOtherPostLink(url: string, current: string): boolean {
+  const code = postLinkCode(url);
+  return code !== null && code !== current;
 }
 
 /** The gap Instagram's own pop-up leaves around a post, in CSS pixels. */
@@ -101,33 +109,11 @@ export function dimColor(computed: string): string | null {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-/** The event Dwell's guard sends to the page-world bridge (`content/instagram-router.ts`), with a post path. */
-export const OPEN_POST_EVENT = 'dwell:open-post';
-/** Where the bridge answers, on `<html>`: `opened`, or `refused` when Instagram's router could not. */
-export const OPENED_ATTR = 'data-dwell-opened';
-
-/** A link to one post or Reel: `/p/`, `/reel/` or `/reels/` and a code, optionally under one profile segment. */
-const POP_UP_LINK = new RegExp(`^/(?:[^/]+/)?(?:p|reels?)/(${REEL_CODE_SOURCE})/?$`, 'i');
-const POP_UP_PATH = new RegExp(`^/p/${REEL_CODE_SOURCE}/$`);
-
 /**
  * The post address a link opens in Instagram's pop-up, always `/p/<code>/` (Instagram's post route shows a
  * Reel too), or null when the link does not open one post or Reel on Instagram.
  */
 export function popUpPath(url: string): string | null {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    // Not an absolute URL: not a link to a post.
-    return null;
-  }
-  if (parsed.protocol !== 'https:' || siteForHost(parsed.hostname) !== 'instagram') return null;
-  const code = POP_UP_LINK.exec(parsed.pathname)?.[1];
-  return code === undefined ? null : `/p/${code}/`;
-}
-
-/** True only for a path in exactly the form `popUpPath` builds: what the page-world bridge will open. */
-export function isPopUpPath(path: string): boolean {
-  return POP_UP_PATH.test(path);
+  const code = postLinkCode(url);
+  return code === null ? null : `/p/${code}/`;
 }

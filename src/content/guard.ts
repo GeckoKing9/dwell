@@ -39,7 +39,8 @@ import {
   type NavigationInfo,
 } from '../blocker/decide.ts';
 import { classify, siteForHost } from '../blocker/patterns.ts';
-import { TARGET_FRAGMENT, isAllowedTarget } from '../blocker/targets.ts';
+import { singlePostCode } from '../blocker/post.ts';
+import { TARGET_FRAGMENT, instagramPostTarget, isAllowedTarget } from '../blocker/targets.ts';
 import { VIEWER_TOGGLE, decideViewerMove, viewerLocked, type ViewerMove } from '../blocker/viewer.ts';
 import { DEFAULT_SETTINGS, SETTINGS_KEY, type BlockedSite, type Settings } from '../store/schema.ts';
 import { watchPostTaps } from './instagram-open.ts';
@@ -67,6 +68,8 @@ let markerPending = false;
 let lastCountAt = 0;
 let lastHref = '';
 let watchesPosts = false;
+/** The post an Instagram pop-up opened on from a tap on a Reel's own link; its arrows are a Reels feed too. */
+let reelPopUp: string | null = null;
 /** The latest navigation the Navigation API reported, so the poll can tell a push from anything else. */
 let lastNav: { url: string; nav: NavigationInfo } | null = null;
 /** An undo in flight: the page its Back returns to, and until when the poll waits for it. */
@@ -246,6 +249,28 @@ function holdDuringUndo(event: NavigateEvent, from: string): void {
   }
 }
 
+/**
+ * A move from the post a Reel's pop-up shows to another post, as a lock on the first one; null for any other
+ * move. Leaving the pop-up (closing it, opening a profile) forgets it.
+ */
+function reelPopUpMove(destination: string): ViewerMove | null {
+  if (reelPopUp === null) return null;
+  const from = singlePostCode(location.pathname);
+  let to: string | null = null;
+  try {
+    to = singlePostCode(new URL(destination).pathname);
+  } catch {
+    // Not an address: not a move to another post.
+  }
+  if (from !== reelPopUp || to === null || !blockers.instagramReels) {
+    if (from !== reelPopUp || to === null) reelPopUp = null;
+    return null;
+  }
+  if (to === from) return null;
+  const target = instagramPostTarget(from);
+  return target === null ? null : { action: 'lock', site: 'instagram', target };
+}
+
 function onNavigate(event: NavigateEvent): void {
   const nav: NavigationInfo = { type: event.navigationType, sameDocument: event.destination.sameDocument };
   lastNav = { url: event.destination.url, nav };
@@ -253,6 +278,12 @@ function onNavigate(event: NavigateEvent): void {
   if (undoing !== null && Date.now() >= undoing.until) undoing = null;
   if (undoing !== null) {
     holdDuringUndo(event, undoing.from);
+    return;
+  }
+  const popUpMove = reelPopUpMove(event.destination.url);
+  if (popUpMove !== null) {
+    // The next post in a pop-up a Reel opened in: undone by Back, as a move in a Reels viewer is.
+    apply(event, decideLock(popUpMove, context(location.href, nav)), 'replace');
     return;
   }
   const move = decideViewerMove(location.href, event.destination.url, blockers);
@@ -381,7 +412,11 @@ function main(site: BlockedSite): void {
   lastHref = location.href;
   watchesPosts = site === 'instagram';
   // A tap on a post or Reel opens in Instagram's own pop-up while the Reels switch is on (`instagram-open.ts`).
-  if (watchesPosts) cleanups.push(watchPostTaps(() => alive && blockers.instagramReels));
+  if (watchesPosts) {
+    // Taps stay Instagram's until the stored settings are known: a switch turned off is never overridden.
+    const enabled = (): boolean => alive && loaded && blockers.instagramReels;
+    cleanups.push(watchPostTaps(enabled, (path, reel) => (reelPopUp = reel ? singlePostCode(path) : null)));
+  }
 
   if ('navigation' in window) {
     const nav = window.navigation;

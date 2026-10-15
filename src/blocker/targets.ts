@@ -7,6 +7,7 @@
  * it (KTD4b). Fragments never reach a server or a Referer; no target carries a `dwell` query parameter.
  */
 import type { BlockedSite } from '../store/schema.ts';
+import { POST_CODE_SOURCE } from './bridge.ts';
 
 /** A YouTube video id: exactly 11 characters from the URL-safe base64 alphabet. */
 export const SHORTS_ID_SOURCE = '[A-Za-z0-9_-]{11}';
@@ -16,7 +17,7 @@ const SHORTS_ID_RE = new RegExp(`^${SHORTS_ID_SOURCE}$`);
  * RE2 refuses any bounded repetition of this class in the DNR rule (memoryLimitExceeded, even at {5,24}),
  * and the classifier, the allowlist and the rule must agree. The alphabet alone keeps targets inert.
  */
-export const REEL_CODE_SOURCE = '[A-Za-z0-9_-]{5,}';
+export const REEL_CODE_SOURCE = POST_CODE_SOURCE;
 const REEL_CODE_RE = new RegExp(`^${REEL_CODE_SOURCE}$`);
 /** A Facebook reel id: 1 to 32 digits. */
 export const FACEBOOK_REEL_ID_SOURCE = '[0-9]{1,32}';

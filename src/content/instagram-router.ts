@@ -11,7 +11,7 @@
  * page data, has no extension API, and sends nothing anywhere. A page that fires the event itself can only
  * open an Instagram post, which it could do without Dwell.
  */
-import { OPENED_ATTR, OPEN_POST_EVENT, isPopUpPath } from '../blocker/post.ts';
+import { OPENED_ATTR, OPEN_POST_EVENT, isPopUpPath } from '../blocker/bridge.ts';
 
 interface RouteInfo {
   route?: { isCometRootContainer?: boolean };
@@ -38,23 +38,38 @@ function cometRouter(): CometRouter | null {
     : null;
 }
 
-/**
- * Opens `path` in Instagram's pop-up when the page on screen hosts pop-ups (a feed, a search, a profile, the
- * messages); true when the router was asked to.
- */
-function open(path: string): boolean {
+/** The router when the page on screen hosts pop-ups (a feed, a search, a profile, the messages), else null. */
+function hostingRouter(): CometRouter | null {
   try {
     const router = cometRouter();
-    if (router === null) return false;
+    if (router === null) return null;
     const state = router.getCurrentRouterState();
     const stack = state.pushViewStack ?? [];
     const top = stack.length > 0 ? stack[stack.length - 1] : state.main;
-    if (top?.route?.isCometRootContainer !== true) return false;
-    router.dispatcher.go(path, { target: 'content' });
-    return true;
-  } catch {
+    return top?.route?.isCometRootContainer === true ? router : null;
+  } catch (error) {
     // Instagram changed its router: the tap is left to Instagram, as if Dwell were not here.
-    return false;
+    console.error('Dwell: Instagram router not usable, the tap is left to Instagram', error);
+    return null;
+  }
+}
+
+/**
+ * Opens `path` in Instagram's pop-up; true when the router took the navigation. An error after the router
+ * already moved still counts as taken, so Instagram's own handler does not navigate on top of it.
+ */
+function open(path: string): boolean {
+  const router = hostingRouter();
+  if (router === null) return false;
+  try {
+    const result: unknown = router.dispatcher.go(path, { target: 'content' });
+    if (result instanceof Promise) {
+      result.catch((error: unknown) => console.error('Dwell: Instagram router could not open the post', error));
+    }
+    return true;
+  } catch (error) {
+    console.error('Dwell: Instagram router could not open the post', error);
+    return location.pathname === path;
   }
 }
 
