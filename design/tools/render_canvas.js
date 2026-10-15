@@ -1,8 +1,8 @@
 'use strict';
 const path = require('path');
 const fs = require('fs');
-const { chromium } = require('/home/cd/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
-const S = '/tmp/claude-1000/-home-cd-claudeai-code-projects/69017644-d0f3-450b-8f15-8ce4afa7c999/scratchpad';
+const { chromium } = require('playwright-core');
+const S = path.resolve(__dirname, '..');
 const SCREENS = [
   ['popup-light', 'Main', 'Popup, light', 360, 560, 'surface'],
   ['popup-dark', 'PopupDark', 'Popup, dark', 360, 560, 'surface'],
@@ -36,17 +36,17 @@ function transformCss(raw, dark) {
   return '.dc-root {' + vars + '\n}\n' + css;
 }
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/home/cd/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell' });
+  const browser = await chromium.launch();
   const boards = {}, order = [];
   let rowY = 0, rowH = 0, x = 0, lastRow = null;
   for (const [file, name, title, w, minH, bg] of SCREENS) {
     const page = await browser.newPage({ viewport: { width: w, height: minH }, deviceScaleFactor: 1 });
-    await page.goto('file://' + path.join(S, 'design/screens', file + '.html'), { waitUntil: 'networkidle' });
+    await page.goto('file://' + path.join(S, 'screens', file + '.html'), { waitUntil: 'networkidle' });
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(300);
     const r = await page.evaluate(() => ({ html: document.getElementById('app').innerHTML, h: document.getElementById('app').scrollHeight, theme: document.documentElement.getAttribute('data-theme') }));
     await page.close();
-    const src = fs.readFileSync(path.join(S, 'design/screens', file + '.html'), 'utf8');
+    const src = fs.readFileSync(path.join(S, 'screens', file + '.html'), 'utf8');
     const rawCss = src.slice(src.indexOf('<style>') + 7, src.indexOf('</style>'));
     const dark = r.theme === 'dark';
     const h = w === 360 ? 560 : Math.max(minH, r.h);

@@ -12,7 +12,7 @@ _Nothing yet._
 - Reels and Shorts off: Instagram Reels, YouTube Shorts and Facebook Reels each have a switch, on by default. A Reel tap is cancelled before the page changes, a Shorts link opens as the normal video page, and a direct link is redirected before it loads. Instagram Explore can be turned off too (off by default). Reels and Shorts links and shelves are hidden on the three sites.
 - Pause: nothing is recorded while paused, and every screen says so.
 - Settings: idle threshold, the media setting, the four blockers, subdomains to keep apart, sites to ignore, categories, export, import, delete all with 10 seconds to undo, and the event log.
-- Light and dark themes that follow the system.
+- Light and dark themes that follow the system, with a setting to force either.
 - Privacy page: what is stored, where, and why each permission is needed, matching the manifest.
 - Event log (off by default): the last 24 hours of tracking events, exportable on its own, so a day that looks wrong can be replayed through the test suite.
 - Release zip with one SHA-256 per file, so an installed copy can be checked file by file.

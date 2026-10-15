@@ -12,5 +12,4 @@ playwright-report/
 release/
 .DS_Store
 scratch/
-.claude/worktrees/
 tests/fixtures/real/

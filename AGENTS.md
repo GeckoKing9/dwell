@@ -2,7 +2,7 @@
 
 **Current milestone:** MVP — units U1 to U9 of `docs/plans/2026-10-14-001-feat-dwell-screen-time-extension-plan.md` verified, one real day of use matches the owner's recollection, privacy claim backed by named tests, repository public.
 
-The plan is the authority for what to build and why; `design/DESIGN.md` is the authority for how it looks. Group rules (`../CLAUDE.md`, `../.claude/rules/`) apply.
+The plan is the authority for what to build and why; `design/DESIGN.md` is the authority for how it looks. The shared rules of the parent folder apply.
 
 ---
 
@@ -26,7 +26,7 @@ dwell/
 ├── _locales/en/messages.json     # every UI string
 ├── tests/                        # vitest unit + fast-check simulation; e2e/ Playwright specs; fixtures/
 ├── scripts/                      # simulate.ts (seed 90 days), zip.ts
-├── design/                       # DESIGN.md, prototype.html, screens/, canvas/ (Claude Design sources)
+├── design/                       # DESIGN.md, prototype.html, screens/, canvas/ (design canvas sources)
 ├── .env.example                  # documents that there are no secrets
 └── docs/                         # plan, spec, architecture (ADRs), changelog, status, planning notes
 ```
@@ -184,7 +184,6 @@ Update these files after every significant feature:
 - [docs/project_status.md](docs/project_status.md) — milestones, manual checklist results, what's next
 - [docs/architecture.md](docs/architecture.md) — structure, messages, ADRs
 
-Run `/session-end` at the end of every session.
 
 **Links:**
 - [Plan](docs/plans/2026-10-14-001-feat-dwell-screen-time-extension-plan.md) — requirements, decisions, units, verification contract
@@ -195,12 +194,3 @@ Run `/session-end` at the end of every session.
 - [Project Status](docs/project_status.md)
 - [Planning Notes](docs/planning_notes.md)
 
----
-
-## Available Commands
-- `/plan` — think deeply, propose a plan, wait for approval. Use before every feature.
-- `/session-end` — update docs, retro, commit. Always run before closing.
-- `/update-docs-and-commit` — sync docs after a feature
-- `/changelog-entry` — write a changelog entry
-- `/frontend-test` — Playwright pass over popup and dashboard, report only
-- `/graphify .` — build the knowledge graph once the repo passes 20 source files

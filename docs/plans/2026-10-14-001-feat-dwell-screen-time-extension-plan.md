@@ -13,7 +13,7 @@ execution: code
 ## Goal Capsule
 
 - **Objective:** ship a personal, open-source Chrome extension (Manifest V3) that records active time per website like iPhone Screen Time, shows it in a popup and a full dashboard, and blocks Instagram Reels, YouTube Shorts and Facebook Reels with per-site toggles, with every byte staying in the browser.
-- **Authority:** this plan, then the design system in `design/DESIGN.md`, then repo conventions in `code-projects/.claude/rules/`. Product decisions the user has not confirmed are listed under Assumptions and carry a default; implement the default.
+- **Authority:** this plan, then the design system in `design/DESIGN.md`, then the shared rules of the parent folder. Product decisions the user has not confirmed are listed under Assumptions and carry a default; implement the default.
 - **Execution profile:** test-first for the tracking engine, the URL classifier and the aggregation math; smoke-first for manifest, build and UI shell; real-browser proof for tracking and blocking before any unit is called done.
 - **Stop conditions:** a permission beyond the declared list becomes necessary; a privacy claim in the README cannot be backed by a test; Instagram, YouTube or Facebook DOM changes make a hider impossible without JavaScript that reads page content.
 - **Tail ownership:** the executor runs the gates in Verification Contract, then `!/security-check` and `!/code-review` before the first push to `main`, and writes `docs/changelog.md`, `docs/project_status.md`, `docs/architecture.md`.
