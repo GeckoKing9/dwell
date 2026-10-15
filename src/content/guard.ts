@@ -249,18 +249,20 @@ function onNavigate(event: NavigateEvent): void {
   const nav: NavigationInfo = { type: event.navigationType, sameDocument: event.destination.sameDocument };
   lastNav = { url: event.destination.url, nav };
   if (!alive || !event.cancelable) return;
+  if (undoing !== null && Date.now() >= undoing.until) undoing = null;
   if (undoing !== null) {
     holdDuringUndo(event, undoing.from);
     return;
   }
-  const ctx = context(location.href, nav);
   const move = decideViewerMove(location.href, event.destination.url, blockers);
   if (move.action === 'lock') {
     // Next video in the viewer: undone, or cancelled and the first video's page loaded again.
-    apply(event, decideLock(move, ctx), 'replace');
+    apply(event, decideLock(move, context(location.href, nav)), 'replace');
     return;
   }
-  apply(event, decide(classify(event.destination.url, blockers), ctx), 'assign');
+  const hit = classify(event.destination.url, blockers);
+  // Most navigations block nothing: the logs in sessionStorage are read only for one that does.
+  if (hit !== null) apply(event, decide(hit, context(location.href, nav)), 'assign');
 }
 
 /** Fallback: if the current URL is blocked anyway, replace it with its target. */
@@ -297,13 +299,15 @@ function settleMove(move: ViewerMove, from: string): void {
  * a Back that never lands leaves the move to the load path.
  */
 function settleUrl(): void {
-  if (!alive || !loaded) return;
+  if (!alive) return;
+  // Settled before the settings check, so an undo started before they load cannot hold every move after it.
   if (undoing !== null) {
     const landed = location.href === undoing.from;
     if (!landed && Date.now() < undoing.until) return;
     if (!landed) lastNav = null;
     undoing = null;
   }
+  if (!loaded) return;
   const from = lastHref;
   lastHref = location.href;
   const move = decideViewerMove(from, lastHref, blockers);

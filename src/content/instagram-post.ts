@@ -12,6 +12,12 @@
 import { MIN_OTHER_POSTS, isOtherPostLink, singlePostCode } from '../blocker/post.ts';
 
 const MARK = 'data-dwell-hidden';
+/**
+ * The post this document was loaded on. Only that page is Instagram's full post page: an in-app move to a
+ * post address opens the pop-up, and the address changes before the pop-up is drawn, so the page behind it
+ * would otherwise be taken for the post's own page in between.
+ */
+const LOADED_CODE = singlePostCode(location.pathname);
 
 let observer: MutationObserver | null = null;
 let frame: number | null = null;
@@ -91,9 +97,14 @@ function postInPopUp(code: string): boolean {
   );
 }
 
+/** The loaded post's code while the address still shows that post, else null. */
+function loadedPostCode(): string | null {
+  return LOADED_CODE !== null && singlePostCode(location.pathname) === LOADED_CODE ? LOADED_CODE : null;
+}
+
 function run(): void {
   frame = null;
-  const code = singlePostCode(location.pathname);
+  const code = loadedPostCode();
   const main = document.querySelector('main');
   // The post in a pop-up over another page: that page is not this post's page, so it is left alone.
   mark(code === null || main === null || postInPopUp(code) ? [] : morePosts(main, code));
@@ -104,12 +115,13 @@ function schedule(): void {
 }
 
 /**
- * Watches the page while `on` and the URL is a single-post path; otherwise stops watching and removes every
+ * Watches the page while `on` and the address still shows the post the page was loaded on; otherwise stops watching and removes every
  * mark. The guard calls it whenever the URL or the settings change, and with `on` false when it stops.
  */
 export function syncPostPage(on: boolean): void {
-  if (on && singlePostCode(location.pathname) !== null) {
+  if (on && loadedPostCode() !== null) {
     if (observer === null) {
+      // The whole document: Instagram may replace `main` itself while the page loads.
       observer = new MutationObserver(schedule);
       observer.observe(document, { childList: true, subtree: true });
     }

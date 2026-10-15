@@ -43,8 +43,24 @@ function* ancestors(event: Event): Generator<ScrollBox> {
       continue;
     }
     const style = getComputedStyle(node);
-    yield { overflowY: style.overflowY, snapType: style.scrollSnapType, hasVideo: node.querySelector('video') !== null, ...metrics };
+    yield {
+      overflowY: style.overflowY,
+      snapType: style.scrollSnapType,
+      ...metrics,
+      // Read last and only when asked: `absorbs` checks it after every cheaper test has passed.
+      get hasVideo(): boolean {
+        return holdsViewerVideo(node, metrics.clientHeight);
+      },
+    };
   }
+}
+
+/** A video at least half the box's height: the viewer's own video, not a GIF in a comment. */
+function holdsViewerVideo(box: Element, clientHeight: number): boolean {
+  for (const video of box.querySelectorAll('video')) {
+    if (video.getBoundingClientRect().height >= clientHeight / 2) return true;
+  }
+  return false;
 }
 
 function editable(target: EventTarget | undefined): EditableLike | null {

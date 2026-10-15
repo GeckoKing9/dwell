@@ -53,7 +53,7 @@ export const INSTAGRAM_REEL = new RegExp(`^/(?:[^/]+/)?reels?/(${REEL_CODE_SOURC
 /** The Reels scroller opened on one Reel: plural `/reels/<code>`, optionally under one profile segment. */
 const INSTAGRAM_REELS_CODE = new RegExp(`^/(?:[^/]+/)?reels/(${REEL_CODE_SOURCE})/?$`, 'i');
 /** A single Reel: singular `/reel/<code>`, optionally under one profile segment. It loads untouched. */
-const INSTAGRAM_SINGLE_REEL = new RegExp(`^/(?:[^/]+/)?reel/${REEL_CODE_SOURCE}/?$`, 'i');
+export const INSTAGRAM_SINGLE_REEL = new RegExp(`^/(?:[^/]+/)?reel/${REEL_CODE_SOURCE}/?$`, 'i');
 const EXPLORE_SEGMENT = /\/explore(?:\/|$)/i;
 /** `/shorts/<id>` where the id is exactly one 11-character segment. */
 export const SHORTS_SEGMENT = new RegExp(`/shorts/(${SHORTS_ID_SOURCE})(?:/|$)`, 'i');

@@ -91,11 +91,20 @@ describe('lockTarget: where a locked viewer goes back to', () => {
 });
 
 describe('viewerLocked: whether the input lock applies to a URL', () => {
+  it('leaves a single Instagram Reel scrollable: its own page or pop-up has a caption and comments to read', () => {
+    expect(viewerLocked(`https://www.instagram.com/reel/${CODE}/`, ALL_ON)).toBe(false);
+    expect(viewerLocked(`https://www.instagram.com/someuser/reel/${CODE}/`, ALL_ON)).toBe(false);
+  });
+
+  it('still undoes a move from one single Instagram Reel to another', () => {
+    expect(decideViewerMove(`https://www.instagram.com/reel/${CODE}/`, 'https://www.instagram.com/reel/BBBBB2/', ALL_ON).action).toBe('lock');
+  });
+
   it('locks a viewer only while that site’s toggle is on', () => {
     expect(viewerLocked('https://www.facebook.com/reel/111', ALL_ON)).toBe(true);
     expect(viewerLocked('https://www.facebook.com/reel/111', { ...ALL_ON, facebookReels: false })).toBe(false);
-    expect(viewerLocked(`https://www.instagram.com/reel/${CODE}/`, { ...ALL_OFF, instagramReels: true })).toBe(true);
-    expect(viewerLocked(`https://www.instagram.com/reel/${CODE}/`, { ...ALL_ON, instagramReels: false })).toBe(false);
+    expect(viewerLocked(`https://www.instagram.com/reels/${CODE}/`, { ...ALL_OFF, instagramReels: true })).toBe(true);
+    expect(viewerLocked(`https://www.instagram.com/reels/${CODE}/`, { ...ALL_ON, instagramReels: false })).toBe(false);
     expect(viewerLocked(`https://www.youtube.com/shorts/${ID}`, { ...ALL_OFF, youtubeShorts: true })).toBe(true);
     expect(viewerLocked(`https://www.youtube.com/shorts/${ID}`, ALL_OFF)).toBe(false);
     expect(viewerLocked('https://x.com/someuser/status/123/video/1', { ...ALL_OFF, xVideos: true })).toBe(true);

@@ -17,7 +17,10 @@ export interface ScrollBox {
   readonly scrollTop: number;
   readonly scrollHeight: number;
   readonly clientHeight: number;
-  /** True when a `<video>` is inside it; only read for an ancestor that overflows. */
+  /**
+   * True when it holds a video at least half its height: a feed of videos, not a comments panel with a GIF.
+   * Read last, so a content script can work it out only for a box that could otherwise take the scroll.
+   */
   readonly hasVideo: boolean;
 }
 
@@ -73,8 +76,8 @@ function absorbs(box: ScrollBox, direction: Direction): boolean {
     SCROLLABLE.has(box.overflowY) &&
     box.scrollHeight > box.clientHeight + SLACK_PX &&
     !VERTICAL_SNAP.test(box.snapType) &&
-    !box.hasVideo &&
-    hasRoom(box, direction)
+    hasRoom(box, direction) &&
+    !box.hasVideo
   );
 }
 

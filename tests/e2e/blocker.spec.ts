@@ -380,6 +380,20 @@ test('a sign-up prompt or any pop-up without the post in it does not bring the "
   await page.close();
 });
 
+test('a move to a post address before its pop-up is drawn leaves the page behind it alone', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/someuser/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+
+  // Instagram changes the address first and draws the pop-up afterwards; here it never does.
+  await page.evaluate(() => history.pushState(null, '', '/p/AAAAA1/'));
+  await page.waitForTimeout(800);
+  expect(path(page)).toBe('/p/AAAAA1/');
+  expect(await hiddenMarks(page)).toBe(0);
+  for (const id of ['#grid', '#tile-4', '#clip']) await expect(page.locator(id)).toBeVisible();
+  await page.close();
+});
+
 test('a post opened in the pop-up over a profile grid leaves the page behind it alone', async () => {
   const page = await context.newPage();
   await page.goto(`${IG}/someuser/`);
@@ -454,6 +468,25 @@ test('a Facebook viewer moved by replaceState is cancelled and the first reel lo
   await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'facebook' }]);
   await page.waitForTimeout(600);
   expect(await blocked()).toHaveLength(1);
+  await page.close();
+});
+
+test('a push the site then rewrites in place (router state, a tracking query) is still undone by Back, not reloaded', async () => {
+  const page = await context.newPage();
+  await page.goto(`${FB}/reel/111`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+  await markPage(page);
+
+  await page.evaluate(() => {
+    const router = (window as unknown as { router: Record<'push' | 'replace', (path: string) => void> }).router;
+    router.push('/reel/222');
+    router.replace('/reel/222?s=feed');
+  });
+  await expect.poll(() => path(page)).toBe('/reel/111');
+  await expect(page.locator('#viewer')).toHaveAttribute('data-shown', '111');
+  expect(await pageMark(page)).toBe('kept');
+  expect(served).toEqual([`${FB}/reel/111`]);
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'facebook' }]);
   await page.close();
 });
 
@@ -534,6 +567,23 @@ test('the Facebook left-column Reels entry and the feed’s Reels suggestions ar
   await expect(page.locator('#feed-reels-unit')).toBeHidden();
   await expect(page.locator('#left-friends')).toBeVisible();
   await expect(page.locator('#feed-post')).toBeVisible();
+  await page.close();
+});
+
+test('a comments panel holding a small GIF video still scrolls on a Facebook viewer', async () => {
+  const page = await context.newPage();
+  await page.goto(`${FB}/reel/111`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+  await page.locator('#comments-body').evaluate((body) => {
+    const gif = document.createElement('video');
+    gif.style.cssText = 'display:block;width:120px;height:80px';
+    body.prepend(gif);
+  });
+
+  await page.mouse.move(1180, 100);
+  await page.mouse.wheel(0, 200);
+  await expect.poll(() => scrollTop(page, '#comments')).toBeGreaterThan(0);
+  expect(path(page)).toBe('/reel/111');
   await page.close();
 });
 

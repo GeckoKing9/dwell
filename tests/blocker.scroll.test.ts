@@ -118,6 +118,25 @@ describe('wheelSwallowed', () => {
   });
 });
 
+describe('canAbsorb: the video check is the last one read', () => {
+  it('never asks a box that cannot scroll, or has no room, whether it holds a video', () => {
+    const asked: string[] = [];
+    const watch = (name: string, box: ScrollBox): ScrollBox => ({
+      overflowY: box.overflowY,
+      snapType: box.snapType,
+      scrollTop: box.scrollTop,
+      scrollHeight: box.scrollHeight,
+      clientHeight: box.clientHeight,
+      get hasVideo(): boolean {
+        asked.push(name);
+        return false;
+      },
+    });
+    expect(canAbsorb([watch('plain', PLAIN), watch('end', panel(200))], 1)).toBe(false);
+    expect(asked).toEqual([]);
+  });
+});
+
 describe('touchSwallowed', () => {
   const body = { tagName: 'BODY', isContentEditable: false, role: null };
   const up = { dx: 0, dy: 40, touches: 1 };

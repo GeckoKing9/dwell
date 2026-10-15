@@ -8,7 +8,7 @@
  * another inside the viewer is not, and the tab goes back to the first video's single-video page.
  */
 import type { BlockedSite, Settings } from '../store/schema.ts';
-import { INSTAGRAM_REEL, SHORTS_SEGMENT, X_VIDEO, siteForHost } from './patterns.ts';
+import { INSTAGRAM_REEL, INSTAGRAM_SINGLE_REEL, SHORTS_SEGMENT, X_VIDEO, siteForHost } from './patterns.ts';
 import { FACEBOOK_REEL_ID_SOURCE, facebookReelTarget, instagramPostTarget, xTweetTarget, youtubeWatchTarget } from './targets.ts';
 
 type Blockers = Settings['blockers'];
@@ -75,10 +75,13 @@ export function lockTarget(site: BlockedSite, key: string, owner = 'i'): string 
   return facebookReelTarget(key);
 }
 
-/** True while `url` is a viewer route and its site's toggle is on: the input lock applies. */
+/** True while `url` is a viewer route with a feed to swipe through and its site's toggle is on: the input lock applies. */
 export function viewerLocked(url: string, blockers: Blockers): boolean {
   const viewer = viewerKey(url);
-  return viewer !== null && blockers[VIEWER_TOGGLE[viewer.site]];
+  if (viewer === null || !blockers[VIEWER_TOGGLE[viewer.site]]) return false;
+  // A single Instagram Reel is a post (its page or Instagram's pop-up), with a caption and comments to
+  // scroll; only a move to another Reel is stopped there, by `decideViewerMove`.
+  return !(viewer.site === 'instagram' && INSTAGRAM_SINGLE_REEL.test(new URL(url).pathname));
 }
 
 /**
