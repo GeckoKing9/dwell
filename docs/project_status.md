@@ -6,7 +6,7 @@ Last session: 2026-10-15. The MVP is on `main`. One-video mode (ADR-4) and X as 
 
 - Tracking: pure engine with an oracle-checked simulation suite; service worker with one serialised queue, live reseed after gaps, heartbeat and prune alarms, sender authorisation.
 - Storage: day records, 90-day prune, export, hardened import, delete with 10 s undo, optional 24-hour event log that replays exactly (ADR-1).
-- One-video mode (ADR-4 and its amendment): a single Instagram Reel opens in Instagram's own pop-up; one loaded from a link shows on its own with the "More posts" grid hidden; the Reels scroller (`/reels/`) is rewritten to the post page; YouTube Shorts open on the watch page and are hidden everywhere, search included; an X video opens on its tweet; Facebook's viewer is locked to the reel it opened on (wheel, keys and swipes swallowed; a move undone by Back, a reload only as the last resort). Blocked in-app moves never rely on cancelling alone, since a single-page app draws the new screen anyway. One DNR rule set per site (ADR-2), counts from the content script only (ADR-3), hider stylesheets.
+- One-video mode (ADR-4): a Short opens on the watch page, an X video on its tweet, Instagram's Reels scroller on the post; Facebook's viewer is held to its first reel. On Instagram a tapped Reel opens in Instagram's own pop-up, or as the post in the same page framed like it, through Instagram's router via the one page-world script; nothing reloads and closing goes back in the same document. No app navigation is just cancelled. The guard is a pure state machine (ADR-5) with one navigation trigger and no timers; Instagram's pieces load only on Instagram.
 - Sites: Instagram, YouTube, Facebook, and X (`https://x.com/*`, added 2026-10-15). Settings from before X read the missing switch as on.
 - UI: popup and dashboard (week, day, settings, privacy) from the design pass, light and dark.
 - Release: `npm run zip` writes a deterministic zip and a per-file SHA-256 list; `.github/workflows/release.yml` publishes them on a `v*` tag. Screenshots in `docs/screenshots/` come from `npm run screenshots` (they predate the X switch).
@@ -14,21 +14,20 @@ Last session: 2026-10-15. The MVP is on `main`. One-video mode (ADR-4) and X as 
 
 ## Gates
 
-Last run 2026-10-15 on `feature/modal-and-undo` before its merge.
+Last run 2026-10-15 on `refactor/blocker-cleanup` before its merge.
 
 | Gate | Command | Last result |
 |---|---|---|
 | Typecheck | `npm run typecheck` | 0 errors |
 | Lint | `npm run lint` | 0 problems |
-| Unit and simulation | `npm test` | 1316 passed, 1 skipped (the real-day replay, no real export present). Coverage: statements 98.05%, branches 95.98%, lines 98.39% |
-| Time zones | `npm run test:tz` | 1316 of 1316 under each of UTC, America/Toronto, Asia/Kolkata, Australia/Lord_Howe |
-| Privacy bundle | `npm run check:privacy` | passed: 19 files scanned, manifest matches the declared list |
-| Build | `npm run build` | built |
-| Real browser | `npm run test:e2e` | 69 passed, headless Chromium with the extension loaded, site hosts served by fixtures with small routers that draw on push and on Back |
-| Live sites, logged out | scratch probe, 2026-10-15 | Instagram `/p/<code>/` and `/reel/<code>/` show the post alone with "More posts" hidden; `/reels/<code>/` lands on `/p/<code>/`; YouTube `/shorts/<id>` lands on the watch page. Facebook, X and Instagram's logged-in pop-up need a login and were not checked live |
+| Unit and simulation | `npm test` | 1431 passed, 1 skipped (the real-day replay, no real export present). Coverage: statements 98.17%, branches 96.12%, lines 98.49%; `src/content` (DOM adapters) is excluded, the guard's decisions are in `src/blocker/guard-machine.ts` at full line coverage |
+| Time zones | `npm run test:tz` | 1431 of 1431 under each of UTC, America/Toronto, Asia/Kolkata, Australia/Lord_Howe |
+| Privacy bundle | `npm run check:privacy` | passed: 21 files scanned, manifest matches the declared list (one page-world script, Instagram only; Chrome 111+) |
+| Build | `npm run build` | guard.js 16.0 KB (YouTube, Facebook, X), guard-instagram.js 23.7 KB, instagram-router.js 1.6 KB, media.js 0.9 KB |
+| Real browser | `npm run test:e2e` | 87 passed, headless Chromium with the extension loaded, site hosts served by fixtures (Instagram's with a router that remembers each entry's route, as Comet does) |
+| Live sites, signed out | scratch probes, 2026-10-15 | Instagram's router moving to the Reels scroller is replaced by the post in the same document, framed as a pop-up; closing goes back to the profile and stays; one document load end to end. YouTube Shorts land on the watch page. Signed-in Instagram, Facebook and X not checked live |
 | Dependencies | `npm audit --audit-level=high` | 0 vulnerabilities |
-| Code review | `/code-review high` on each branch | one-video mode: 10 findings, 8 fixed; pop-up and undo: 10 findings, 7 fixed, 3 shown not to occur (a test now guards the push-then-replace case) |
-| Security check | `!/security-check` | clean; `eslint-plugin-security` not installed, so that scan was not run |
+| Audit | independent staff-level audit, 2026-10-15 | 9 findings: 8 fixed on `refactor/blocker-cleanup`; one declined (a single redirect limit would leave a third move to a bare cancel) |
 
 ## Manual checklist (owner)
 
