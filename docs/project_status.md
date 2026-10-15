@@ -38,10 +38,11 @@ What only the operating system and the live, logged-in sites can show. Tick each
 - [ ] Lock the screen with a video playing: counting stops
 - [ ] Close the lid 10 min: at most 60 s attributed
 - [ ] Focus an incognito window: nothing recorded
-- [ ] Instagram: tap a Reel in the feed, on a profile, in a message and from search; each opens in Instagram's pop-up over the page you were on, and scrolling does not reach another Reel. A Reel opened from a link shows alone, with no "More posts" under it. The Reels tab goes home
+- [ ] Instagram: tap a Reel in the feed, on a profile, in a message and from search; each opens in a pop-up over a dimmed page (Instagram's own from the feed, a profile or a message; Dwell's look-alike from search or a link, whose close button, Escape or a click outside takes you back), and scrolling does not reach another Reel. The Reels tab goes home
 - [ ] YouTube: no Shorts on home, in search or beside a video; a Short opened from a link plays on the watch page with no Shorts scroller
 - [ ] Facebook: open a reel; the wheel, arrow keys and swipes do not move to another reel; the on-screen next button, if it moves, comes straight back without a page reload. Comments still scroll
 - [ ] X: open a video in a tweet; it plays on the tweet page and X's full-screen video feed never starts
+- [ ] Toolbar: Dwell shows the hourglass, not a grey "D"
 
 ## Next
 
