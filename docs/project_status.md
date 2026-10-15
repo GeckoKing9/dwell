@@ -19,11 +19,11 @@ Last run 2026-10-14 on `feature/mvp` at `b960fab` plus the U9 working tree, befo
 |---|---|---|
 | Typecheck | `npm run typecheck` | 0 errors |
 | Lint | `npm run lint` | 0 problems |
-| Unit and simulation | `npm test` | 40 files, 863 tests passed. Coverage: lines 98.36%, branches 96.23%, functions 97.05%, statements 97.98%; `src/tracker` 100% on all four. Lowest directory: `src/popup` (lines 81.6%, functions 73.8%) |
-| Time zones | `npm run test:tz` | 863 of 863 under each of UTC, America/Toronto, Asia/Kolkata, Australia/Lord_Howe |
+| Unit and simulation | `npm test` | 41 files, 876 tests passed and 1 skipped (the real-day replay, no real export present). Coverage: lines 98.38%, branches 96.3%; `src/tracker` 100% on all four. Lowest directory: `src/popup` (lines 81.6%, functions 73.8%) |
+| Time zones | `npm run test:tz` | 876 of 876 under each of UTC, America/Toronto, Asia/Kolkata, Australia/Lord_Howe |
 | Privacy bundle | `npm run check:privacy` | passed: 19 files scanned, manifest matches the declared list |
 | Build | `npm run build` | built; `dist/` holds 31 files |
-| Real browser | `npm run test:e2e` | 34 passed in 1.1 min (tracking 6, blocker 9, privacy 3, ui 16), headless Chromium with the extension loaded |
+| Real browser | `npm run test:e2e` | 36 passed in 1.2 min (tracking 6, blocker 9, privacy 4, ui 17), headless Chromium with the extension loaded |
 | Dependencies | `npm audit --audit-level=high` | 0 vulnerabilities |
 | Release | `npm run zip` | `release/dwell-0.1.0.zip`, 31 files, 303,321 bytes, same SHA-256 on two consecutive builds; every line of the hash list verified with `sha256sum -c` against the unzipped files |
 | Screenshots | `npm run screenshots` | 7 PNGs, 86 to 329 KB |
