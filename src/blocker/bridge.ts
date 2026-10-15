@@ -20,13 +20,15 @@ export function isPopUpPath(path: string): boolean {
 
 /**
  * How the guard asks. `pop-up`: only Instagram's own pop-up over the page, else nothing. `page`: the pop-up
- * when the page hosts one, else the post opened as a page in the same document (no page load).
+ * when the page hosts one, else the post opened as a page in the same document (no page load). `swap`: the
+ * post replaces the entry on screen (one Instagram itself just navigated to), so its router's history and
+ * the browser's stay the same and Back leaves the post.
  */
-export type OpenMode = 'pop-up' | 'page';
+export type OpenMode = 'pop-up' | 'page' | 'swap';
 /** How the bridge opened the post, or `refused` when Instagram's router could not. */
 export type OpenAnswer = 'pop-up' | 'page' | 'refused';
 
-const MODES: ReadonlySet<string> = new Set<OpenMode>(['pop-up', 'page']);
+const MODES: ReadonlySet<string> = new Set<OpenMode>(['pop-up', 'page', 'swap']);
 
 /** The event detail for one request: a primitive string, since it crosses from the isolated world to the page's. */
 export function openRequest(mode: OpenMode, path: string): string {

@@ -336,13 +336,16 @@ test('an in-app tap on a single Reel, also under a profile, opens in the pop-up 
   await page.close();
 });
 
-test('an in-app move to the Reels scroller on one Reel lands on its post page, counted once on landing', async () => {
+test('with no router to swap it, an in-app move to the Reels scroller on one Reel is replaced by its post page, counted once on landing', async () => {
   const page = await context.newPage();
   await page.goto(`${IG}/`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
 
-  expect(await tapReelsCode(page)).toEqual({ path: '/', added: 0 });
+  // Instagram's own move commits (not cancelled, so its router's history stays true), then a load replaces it.
+  expect(await tapReelsCode(page)).toEqual({ path: `/reels/${CODE}/`, added: 1 });
   await expect.poll(() => page.url()).toBe(`${IG}/p/${CODE}/`);
+  // The Reels entry was replaced, not stacked under the post: Back from the post is the home page.
+  expect(await page.evaluate(() => navigation.entries().map((entry) => new URL(entry.url ?? '').pathname))).toEqual(['/', `/p/${CODE}/`]);
   expect(served.some((url) => url.includes('/reels/'))).toBe(false);
   await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'instagram' }]);
   await page.waitForTimeout(600);
@@ -359,7 +362,12 @@ test('an in-app move to the Reels scroller on one Reel lands on its post page, c
 async function installRouter(page: Page, root: boolean, throwAfterPush = false): Promise<void> {
   await page.evaluate(
     ({ isRoot, fail }) => {
-      const w = window as unknown as { goCalls: unknown[]; require: (name: string) => unknown; openDialog: () => void };
+      const w = window as unknown as {
+        goCalls: unknown[];
+        require: (name: string) => unknown;
+        openDialog: () => void;
+        navigateTo: (path: string, replace: boolean) => void;
+      };
       w.goCalls = [];
       const drawPostPage = (): void => {
         const main = document.querySelector('main');
@@ -375,9 +383,9 @@ async function installRouter(page: Page, root: boolean, throwAfterPush = false):
               get_THIS_IS_NOT_WHAT_YOU_WANT: () => ({
                 getCurrentRouterState: () => ({ main: { route: { isCometRootContainer: isRoot } } }),
                 dispatcher: {
-                  go: (path: string, options: { target?: string }) => {
+                  go: (path: string, options: { target?: string; replace?: boolean }) => {
                     w.goCalls.push([path, options]);
-                    history.pushState({}, '', path);
+                    w.navigateTo(path, options.replace === true);
                     if (fail) throw new Error('hosted view failed to render');
                     if (options.target === 'content') w.openDialog();
                     else drawPostPage();
@@ -432,13 +440,17 @@ test('where the page hosts no pop-ups, the Reels feed Instagram opens becomes th
   await page.locator('#search-reel').click();
   await expect(page.locator('#post')).toHaveAttribute('data-dwell-post', '');
   expect(path(page)).toBe('/p/EEEEE5/');
-  expect(await pageState(page)).toEqual({ goCalls: [['/p/EEEEE5/', {}]], siteHandledTap: true });
+  // Instagram's own move to the Reels feed committed, then its router replaced that entry with the post.
+  expect(await pageState(page)).toEqual({ goCalls: [['/p/EEEEE5/', { replace: true }]], siteHandledTap: true });
   expect(await pageMark(page)).toBe('kept');
   expect(served).toEqual([SEARCH]);
   await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'instagram' }]);
 
+  // Closing goes back to the search and stays there: the router has nothing of the Reels feed left to restore.
   await page.locator('[data-dwell-close]').click();
   await expect.poll(() => path(page)).toBe('/explore/search/keyword/');
+  await page.waitForTimeout(500);
+  expect(path(page)).toBe('/explore/search/keyword/');
   expect(await pageMark(page)).toBe('kept');
   expect(served).toEqual([SEARCH]);
   await page.close();
@@ -894,8 +906,7 @@ test('arrow keys on a viewer entered in-app never reach a window listener the pa
   await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
 
   expect(await routeTo(page, '/reel/111')).toEqual({ path: '/reel/111', added: 1 });
-  // The guard's poll turns the input lock on for the viewer it now shows.
-  await page.waitForTimeout(600);
+  // The input lock follows the URL as it commits: no wait before the first key.
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('PageDown');
   await page.keyboard.press('a');

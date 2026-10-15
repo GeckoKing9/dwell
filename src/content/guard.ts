@@ -1,119 +1,131 @@
 /**
- * In-page navigation guard for short-video routes (KTD4, KTD4b). Isolated world, document_start,
- * top frame, on the four sites only (Instagram, YouTube, Facebook, X). It reads `location`, its own settings
- * and its own loop-guard and undo keys, and sends only `{ type: 'blocked', site }`. Nothing else from the
- * page is read or sent.
+ * In-page navigation guard for short-video routes (KTD4, KTD4b): the adapter on every site. Isolated world,
+ * document_start, top frame, on the four sites only (Instagram, YouTube, Facebook, X). It hands the page's
+ * navigations (`navigate`), its URL commits (`currententrychange`), its own settings and the timers the
+ * machine asks for to the pure state machine (`blocker/guard-machine.ts`), and carries out what comes back.
+ * It reads `location`, its own settings and its own loop-guard and undo logs (`guard-logs.ts`), and sends
+ * only `{ type: 'blocked', site }`. Nothing else from the page is read or sent.
  *
- * Cancelling a navigation alone does not stop a single-page app: the URL stays, but the app's router has
- * usually drawn the new route already, so the blocked screen would show under the old URL. So every block
- * here ends in a page load or an undo (`blocker/decide.ts`); a bare cancel is the last resort.
- *
- * 1. Navigation API: a cancelable `navigate` to a blocked URL is cancelled and a page loaded instead. A Reels
- *    feed or Explore loads the site's home page. A Short, the Instagram Reels scroller on one Reel or X's
- *    video viewer loads its single-video page (AE6), and is cancelled only when the loop guard allows that
- *    load; otherwise the tap goes through untouched. A single Instagram Reel is not blocked: it opens in
- *    Instagram's own pop-up.
- * 2. Undo: a same-document push that must be taken back (a viewer moving to its next video, or a rewrite to
- *    the page already open) is let through, then `history.back()` on the next task makes the site's own
- *    router draw the page it left, with nothing reloaded; at most 2 undos per tab in 5 s. A replace, a
- *    traverse, a cross-document move or a refused undo is cancelled and the first video's page loaded
- *    instead, reloaded when only the fragment differs.
- * 3. One-video mode: on a viewer route (`blocker/viewer.ts`) the input lock (`viewer-lock.ts`) swallows the
- *    wheel, keys and touch moves that would advance the viewer.
- * 4. Fallbacks (`popstate`, `yt-navigate-finish`, a 250 ms poll, a settings change): a viewer that moved
- *    to another video anyway is undone when the Navigation API reported that move as a same-document push,
- *    and otherwise sent back to the first video's page; a blocked URL that is current is replaced by its
- *    allowlisted target; at most 2 redirects per tab in 5 s.
- * 5. A landing that carries `#dwell=<site>` (DNR or a redirect from here) is stripped at once, and counted
- *    once after the settings load, only while that site's blocker is on.
- * 6. On Instagram, the "More posts" under a full single-post page are hidden (`instagram-post.ts`).
+ * Instagram starts it from `guard-instagram.ts`, with the pieces only Instagram needs; the other sites start
+ * it here and never load them.
  */
-import {
-  admitRedirect,
-  decide,
-  decideLock,
-  markerCounts,
-  type Decision,
-  type Fallback,
-  type GuardContext,
-  type NavigationInfo,
-} from '../blocker/decide.ts';
-import { classify, siteForHost } from '../blocker/patterns.ts';
-import { popUpPath, singlePostCode } from '../blocker/post.ts';
-import { TARGET_FRAGMENT, instagramPostTarget, isAllowedTarget } from '../blocker/targets.ts';
-import { VIEWER_TOGGLE, decideViewerMove, viewerLocked, type ViewerMove } from '../blocker/viewer.ts';
-import { DEFAULT_SETTINGS, SETTINGS_KEY, type BlockedSite, type Settings } from '../store/schema.ts';
-import { askBridge, watchReelTaps } from './instagram-open.ts';
-import { markInAppPost, syncPostPage } from './instagram-post.ts';
+import { samePage } from '../blocker/decide.ts';
+import { start, step, type Effect, type GuardState, type Input, type Moment } from '../blocker/guard-machine.ts';
+import { siteForHost } from '../blocker/patterns.ts';
+import { TARGET_FRAGMENT, isAllowedTarget } from '../blocker/targets.ts';
+import { SETTINGS_KEY, type BlockedSite, type Settings } from '../store/schema.ts';
+import { readLogs, saveLog } from './guard-logs.ts';
 import { extensionAlive, sendToWorker } from './runtime.ts';
 import { setInputLock, startKeyLock } from './viewer-lock.ts';
 
-type Blockers = Settings['blockers'];
-type Undo = Extract<Decision, { action: 'undo' }>;
+/** What the guard lends a site's own pieces. */
+export interface GuardPort {
+  /** The blockers once the stored settings are known; null before that and after the guard stops. */
+  blockers(): Settings['blockers'] | null;
+  /** Reports one block, at most once a second. */
+  count(site: BlockedSite): void;
+  /** A post Instagram's router opened (`code`, the post it shows): a move from it to another post is undone. */
+  opened(code: string | null): void;
+}
 
-const POLL_MS = 250;
+/** What a site adds to the guard (Instagram: `guard-instagram.ts`). */
+export interface SiteHooks {
+  /** Opens an allowlisted target in this document instead of loading it; true when it did. */
+  openInPlace(target: string): boolean;
+  /** Replaces the entry on screen with an allowlisted target in this document; true when it did. */
+  swapInPlace(target: string): boolean;
+  /** Follows the URL and the settings: on while the site's own pieces apply, off once the guard stops. */
+  sync(on: boolean): void;
+  stop(): void;
+}
+
 const COUNT_DEDUPE_MS = 1000;
-/** How long the poll waits for an undo's Back to land before it treats the move like any other. */
-const UNDO_SETTLE_MS = 1000;
-/** sessionStorage is per tab and per origin, so the loop guard survives the redirect it caused. */
-const LOOP_KEY = 'dwell:redirects';
-/** The undo guard's own log, kept like the loop guard's. */
-const UNDO_KEY = 'dwell:undos';
 
-let blockers: Blockers = { ...DEFAULT_SETTINGS.blockers };
-let loaded = false;
-let changedSinceStart = false;
+let state: GuardState;
+let hooks: SiteHooks | null = null;
 let alive = true;
-let markerPending = false;
 let lastCountAt = 0;
-let lastHref = '';
-let watchesPosts = false;
-/** The post a Reel opened on through Instagram's router (pop-up or page); a move from it to another post is a Reels feed too. */
-let reelPopUp: string | null = null;
-/** The latest navigation the Navigation API reported, so the poll can tell a push from anything else. */
-let lastNav: { url: string; nav: NavigationInfo } | null = null;
-/** An undo in flight: the page its Back returns to, and until when the poll waits for it. */
-let undoing: { from: string; until: number } | null = null;
-/** In-memory copies of the two logs, for a page where sessionStorage is blocked. */
-const memoryLogs = new Map<string, number[]>();
 const cleanups: (() => void)[] = [];
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+function moment(): Moment {
+  return { here: location.href, now: Date.now(), logs: readLogs };
 }
 
-/**
- * Blocker flags from stored settings; a missing or malformed flag falls back to its default, so settings
- * stored before a toggle existed (v0.1.0 has no `xVideos`) read that toggle as on.
- */
-function readBlockers(stored: unknown): Blockers {
-  const raw: Record<string, unknown> = isRecord(stored) && isRecord(stored.blockers) ? stored.blockers : {};
-  const out: Blockers = { ...DEFAULT_SETTINGS.blockers };
-  for (const key of Object.keys(out) as (keyof Blockers)[]) {
-    const flag = raw[key];
-    if (typeof flag === 'boolean') out[key] = flag;
+/** Reports one block: at most once a second, except a landing's marker, which is reported as it is. */
+function count(site: BlockedSite, landing = false): void {
+  if (!landing) {
+    const now = Date.now();
+    if (now - lastCountAt < COUNT_DEDUPE_MS) return;
+    lastCountAt = now;
   }
-  return out;
-}
-
-/** The site's hider stylesheet follows its one-video toggle; X has no stylesheet, its attribute is set all the same. */
-function setHiderAttribute(site: BlockedSite): void {
-  document.documentElement.setAttribute(`data-dwell-${site}`, blockers[VIEWER_TOGGLE[site]] ? 'on' : 'off');
+  sendToWorker({ type: 'blocked', site }, stop);
 }
 
 /**
- * The input lock is on exactly while the current URL is a viewer route and its site's toggle is on. On
- * Instagram the single-post page hider follows the Reels toggle and the URL the same way.
+ * Every load the guard makes goes through here, and only to an allowlisted target. A target on the page
+ * already open (`samePage`: a feed tapped on the home page, Facebook's viewer locked on its own reel) would
+ * be a jump within this document that leaves the blocked screen drawn, so the address is set to the target
+ * and the page reloaded on it. A site may open the target in this document instead (Instagram's router).
  */
-function syncPage(): void {
-  setInputLock(alive && viewerLocked(location.href, blockers));
-  if (watchesPosts) syncPostPage(alive && blockers.instagramReels);
+function go(target: string, mode: 'assign' | 'replace'): void {
+  if (!alive || !isAllowedTarget(target)) return;
+  if (samePage(target, location.href)) {
+    history.replaceState(history.state, '', target);
+    location.reload();
+  } else if (hooks?.openInPlace(target) !== true) {
+    if (mode === 'replace') location.replace(target);
+    else location.assign(target);
+  }
 }
 
-function stop(site: BlockedSite): void {
+function perform(effect: Effect, event: NavigateEvent | undefined): void {
+  switch (effect.type) {
+    case 'cancel':
+      return event?.preventDefault();
+    case 'count':
+      return count(effect.site, effect.landing);
+    case 'load':
+      if (effect.deferred) setTimeout(() => go(effect.target, effect.mode), 0);
+      else go(effect.target, effect.mode);
+      return;
+    case 'swap':
+      // After the navigation commits; a site that cannot swap it loads the target over that entry instead.
+      setTimeout(() => {
+        if (alive && hooks?.swapInPlace(effect.target) !== true) go(effect.target, 'replace');
+      }, 0);
+      return;
+    case 'back':
+      return history.back();
+    case 'later':
+      setTimeout(() => dispatch({ ...moment(), ...effect.input }), effect.after);
+      return;
+    case 'saveLog':
+      return saveLog(effect.log, effect.times);
+    case 'hider':
+      return document.documentElement.setAttribute(`data-dwell-${state.site}`, effect.on ? 'on' : 'off');
+    case 'sync':
+      setInputLock(effect.lock);
+      return hooks?.sync(effect.posts);
+  }
+}
+
+function dispatch(input: Input, event?: NavigateEvent): void {
+  if (!alive) return;
+  // A reloaded or removed extension leaves this script orphaned; it lets go of the page at its next event.
+  if (!extensionAlive()) {
+    stop();
+    return;
+  }
+  const next = step(state, input);
+  state = next.state;
+  for (const effect of next.effects) perform(effect, event);
+}
+
+function stop(): void {
   if (!alive) return;
   alive = false;
-  syncPage();
+  setInputLock(false);
+  hooks?.sync(false);
   for (const cleanup of cleanups.splice(0)) {
     try {
       cleanup();
@@ -121,334 +133,67 @@ function stop(site: BlockedSite): void {
       // The extension context is already gone; there is nothing left to detach.
     }
   }
-  document.documentElement.removeAttribute(`data-dwell-${site}`);
+  document.documentElement.removeAttribute(`data-dwell-${state.site}`);
 }
 
-function count(site: BlockedSite): void {
-  const now = Date.now();
-  if (now - lastCountAt < COUNT_DEDUPE_MS) return;
-  lastCountAt = now;
-  sendToWorker({ type: 'blocked', site }, () => stop(site));
-}
-
-function loadLog(key: string): number[] {
-  try {
-    const parsed: unknown = JSON.parse(sessionStorage.getItem(key) ?? '[]');
-    if (Array.isArray(parsed)) return parsed.filter((t): t is number => typeof t === 'number');
-  } catch {
-    // Storage blocked or the value is not ours: this document's memory still guards it.
-  }
-  return memoryLogs.get(key) ?? [];
-}
-
-function saveLog(key: string, list: number[]): void {
-  memoryLogs.set(key, list);
-  try {
-    sessionStorage.setItem(key, JSON.stringify(list));
-  } catch {
-    // Storage blocked: the in-memory copy above still guards this document.
-  }
-}
-
-/** Loop guard (`admitRedirect`): records one more redirect and returns true, or refuses it. */
-function mayRedirect(): boolean {
-  const next = admitRedirect({ now: Date.now(), redirects: loadLog(LOOP_KEY) });
-  if (next === null) return false;
-  saveLog(LOOP_KEY, next);
-  return true;
-}
-
-/** What a decision reads: the page left, the navigation, the time and both logs. */
-function context(from: string, nav: NavigationInfo | null): GuardContext {
-  return { from, nav, now: Date.now(), redirects: loadLog(LOOP_KEY), undos: loadLog(UNDO_KEY) };
-}
-
-function withoutFragment(url: string): string {
-  const hash = url.indexOf('#');
-  return hash === -1 ? url : url.slice(0, hash);
-}
-
-/**
- * Every redirect the guard makes goes through here, and only to an allowlisted target.
- * Callers have already passed the loop guard, before anything was cancelled. A target that differs from
- * the current URL only by its fragment (a feed tapped on the home page, Facebook's viewer locked on its own
- * reel) would be a same-document jump that leaves the blocked screen drawn, so the page is then replaced
- * and reloaded on that target.
- */
-/**
- * On Instagram, a post page opens through Instagram's own router in the same document (its pop-up when the
- * page hosts one), so nothing reloads and closing it goes back without a load. True when the router took it;
- * counted here, since no landing marker will be.
- */
-function openInSameDocument(target: string): boolean {
-  const path = popUpPath(target);
-  if (path === null) return false;
-  const answer = askBridge('page', path);
-  if (answer === 'refused') return false;
-  const code = singlePostCode(path);
-  // A Reel opened this way is one video: a move from it to another post is undone, as in a Reels viewer.
-  reelPopUp = code;
-  if (answer === 'page' && code !== null) markInAppPost(code);
-  count('instagram');
-  return true;
-}
-
-function go(target: string, mode: 'assign' | 'replace'): void {
-  if (!alive || !isAllowedTarget(target)) return;
-  const sameDocument = withoutFragment(target) === withoutFragment(location.href);
-  if (watchesPosts && !sameDocument && openInSameDocument(target)) return;
-  if (mode === 'replace' || sameDocument) location.replace(target);
-  else location.assign(target);
-  if (sameDocument) location.reload();
-}
-
-/** The load path of a decision: a redirect goes to its target, a cancel that already happened is counted. */
-function settleFallback(fallback: Fallback): void {
-  if (fallback.action === 'cancel') {
-    count(fallback.site);
-    return;
-  }
-  saveLog(LOOP_KEY, fallback.redirects);
-  go(fallback.target, 'replace');
-}
-
-/** Takes back a push that has committed: Back makes the site's own router draw `from` again. Counted once. */
-function goBack(site: BlockedSite, from: string): void {
-  undoing = { from, until: Date.now() + UNDO_SETTLE_MS };
-  count(site);
-  history.back();
-}
-
-/**
- * Lets the push commit, then goes back on the next task. When it turns out the push never committed (the
- * page or another listener stopped it), the page may still have drawn its route, so the fallback loads instead.
- */
-function undoAfterCommit(event: NavigateEvent, decision: Undo): void {
-  const from = location.href;
-  const pushed = event.destination.url;
-  saveLog(UNDO_KEY, decision.undos);
-  undoing = { from, until: Date.now() + UNDO_SETTLE_MS };
-  setTimeout(() => {
-    if (!alive) return;
-    if (location.href === pushed) {
-      goBack(decision.site, from);
-      return;
-    }
-    undoing = null;
-    settleFallback(decision.fallback);
-  }, 0);
-}
-
-/** Applies a decision to a cancelable navigation: undo it after it commits, or cancel it and count or load. */
-function apply(event: NavigateEvent, decision: Decision, mode: 'assign' | 'replace'): void {
-  if (decision.action === 'allow') return;
-  if (decision.action === 'undo') {
-    undoAfterCommit(event, decision);
-    return;
-  }
-  event.preventDefault();
-  if (decision.action === 'cancel') {
-    count(decision.site);
-    return;
-  }
-  saveLog(LOOP_KEY, decision.redirects);
-  // The target page is the destination (R15); its marker is what gets counted on landing.
-  setTimeout(() => go(decision.target, mode), 0);
-}
-
-/**
- * While an undo is in flight its own Back goes through, and any other move to another video or to a
- * blocked page is cancelled: the Back already on its way restores the page the undo started from.
- */
-function holdDuringUndo(event: NavigateEvent, from: string): void {
-  if (event.navigationType === 'traverse') return;
-  const destination = event.destination.url;
-  if (decideViewerMove(from, destination, blockers).action === 'lock' || classify(destination, blockers) !== null) {
-    event.preventDefault();
-  }
-}
-
-/**
- * A move from the post a Reel's pop-up shows to another post, as a lock on the first one; null for any other
- * move. Leaving the pop-up (closing it, opening a profile) forgets it.
- */
-function reelPopUpMove(destination: string): ViewerMove | null {
-  if (reelPopUp === null) return null;
-  const from = singlePostCode(location.pathname);
-  let to: string | null = null;
-  try {
-    to = singlePostCode(new URL(destination).pathname);
-  } catch {
-    // Not an address: not a move to another post.
-  }
-  if (from !== reelPopUp || to === null || !blockers.instagramReels) {
-    if (from !== reelPopUp || to === null) reelPopUp = null;
-    return null;
-  }
-  if (to === from) return null;
-  const target = instagramPostTarget(from);
-  return target === null ? null : { action: 'lock', site: 'instagram', target };
-}
-
-function onNavigate(event: NavigateEvent): void {
-  const nav: NavigationInfo = { type: event.navigationType, sameDocument: event.destination.sameDocument };
-  lastNav = { url: event.destination.url, nav };
-  if (!alive || !event.cancelable) return;
-  if (undoing !== null && Date.now() >= undoing.until) undoing = null;
-  if (undoing !== null) {
-    holdDuringUndo(event, undoing.from);
-    return;
-  }
-  const popUpMove = reelPopUpMove(event.destination.url);
-  if (popUpMove !== null) {
-    // The next post in a pop-up a Reel opened in: undone by Back, as a move in a Reels viewer is.
-    apply(event, decideLock(popUpMove, context(location.href, nav)), 'replace');
-    return;
-  }
-  const move = decideViewerMove(location.href, event.destination.url, blockers);
-  if (move.action === 'lock') {
-    // Next video in the viewer: undone, or cancelled and the first video's page loaded again.
-    apply(event, decideLock(move, context(location.href, nav)), 'replace');
-    return;
-  }
-  const hit = classify(event.destination.url, blockers);
-  // Most navigations block nothing: the logs in sessionStorage are read only for one that does.
-  if (hit !== null) apply(event, decide(hit, context(location.href, nav)), 'assign');
-}
-
-/** Fallback: if the current URL is blocked anyway, replace it with its target. */
-function enforceCurrent(): void {
-  if (!alive || !loaded) return;
-  const hit = classify(location.href, blockers);
-  if (hit !== null && mayRedirect()) go(hit.target, 'replace');
-}
-
-/**
- * A viewer that moved to another video without being stopped: undone when the Navigation API reported the
- * move as a same-document push, else sent back to the first video's page. Refused by both guards, the
- * first video stays the anchor, so the next poll tries again.
- */
-function settleMove(move: ViewerMove, from: string): void {
-  const nav = lastNav !== null && lastNav.url === location.href ? lastNav.nav : null;
-  const decision = decideLock(move, context(from, nav));
-  if (decision.action === 'undo') {
-    saveLog(UNDO_KEY, decision.undos);
-    lastHref = from;
-    goBack(decision.site, from);
-  } else if (decision.action === 'redirect') {
-    saveLog(LOOP_KEY, decision.redirects);
-    go(decision.target, 'replace');
-  } else {
-    lastHref = from;
-  }
-}
-
-/**
- * Fallback for every URL change the Navigation API did not stop: a viewer that moved to another video goes
- * back to the first one; anything else blocked goes to its target. Then the input lock and the post page
- * hider follow the URL. While an undo is in flight it waits for the Back to land, for at most UNDO_SETTLE_MS;
- * a Back that never lands leaves the move to the load path.
- */
-function settleUrl(): void {
-  if (!alive) return;
-  // Settled before the settings check, so an undo started before they load cannot hold every move after it.
-  if (undoing !== null) {
-    const landed = location.href === undoing.from;
-    if (!landed && Date.now() < undoing.until) return;
-    if (!landed) lastNav = null;
-    undoing = null;
-  }
-  if (!loaded) return;
-  const from = lastHref;
-  lastHref = location.href;
-  const move = decideViewerMove(from, lastHref, blockers);
-  if (move.action === 'lock') settleMove(move, from);
-  else enforceCurrent();
-  syncPage();
-}
-
-function tick(site: BlockedSite): void {
-  if (!extensionAlive()) {
-    stop(site);
-    return;
-  }
-  if (undoing !== null || location.href !== lastHref) settleUrl();
-}
-
-/** A redirect landing: strip the marker before the page's own scripts run; `settleMarker` counts it. */
-function consumeMarker(site: BlockedSite): void {
-  if (location.hash !== TARGET_FRAGMENT[site]) return;
-  markerPending = true;
+/** A redirect landing: the marker is stripped before the page's own scripts run, and counted once the settings load. */
+function stripMarker(site: BlockedSite): boolean {
+  if (location.hash !== TARGET_FRAGMENT[site]) return false;
   history.replaceState(history.state, '', location.pathname + location.search);
+  return true;
 }
 
-/** Once the settings are known: count the stripped marker once, only while that site's blocker is on. */
-function settleMarker(site: BlockedSite): void {
-  if (!markerPending) return;
-  markerPending = false;
-  if (markerCounts(site, blockers)) sendToWorker({ type: 'blocked', site }, () => stop(site));
+function watchNavigation(): void {
+  const onNavigate = (event: NavigateEvent): void => {
+    const { url, sameDocument } = event.destination;
+    const nav = { destination: url, navigationType: event.navigationType, sameDocument, cancelable: event.cancelable };
+    dispatch({ type: 'navigate', ...moment(), ...nav }, event);
+  };
+  // Every same-document URL commit: the page's pushState and replaceState, Back and Forward, a fragment.
+  const onCommit = (): void => dispatch({ type: 'settle', ...moment() });
+  navigation.addEventListener('navigate', onNavigate);
+  navigation.addEventListener('currententrychange', onCommit);
+  cleanups.push(() => {
+    navigation.removeEventListener('navigate', onNavigate);
+    navigation.removeEventListener('currententrychange', onCommit);
+  });
 }
 
-function applySettings(site: BlockedSite, stored: unknown): void {
-  blockers = readBlockers(stored);
-  loaded = true;
-  settleMarker(site);
-  setHiderAttribute(site);
-  settleUrl();
-}
-
-function listen(target: EventTarget, type: string, handler: () => void): void {
-  target.addEventListener(type, handler);
-  cleanups.push(() => target.removeEventListener(type, handler));
-}
-
-function watchSettings(site: BlockedSite): void {
+function watchSettings(): void {
+  const settings = (stored: unknown, initial: boolean): void => dispatch({ type: 'settings', ...moment(), stored, initial });
   const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: chrome.storage.AreaName): void => {
-    if (area !== 'local' || !Object.hasOwn(changes, SETTINGS_KEY)) return;
-    changedSinceStart = true;
-    applySettings(site, changes[SETTINGS_KEY]?.newValue);
+    if (area === 'local' && Object.hasOwn(changes, SETTINGS_KEY)) settings(changes[SETTINGS_KEY]?.newValue, false);
   };
   chrome.storage.onChanged.addListener(onChanged);
   cleanups.push(() => chrome.storage.onChanged.removeListener(onChanged));
-
   chrome.storage.local.get(SETTINGS_KEY).then(
-    (items) => {
-      if (!changedSinceStart) applySettings(site, items[SETTINGS_KEY]);
-    },
-    () => {
-      if (!extensionAlive()) stop(site);
-      else if (!changedSinceStart) applySettings(site, undefined);
-    },
+    (items) => settings(items[SETTINGS_KEY], true),
+    () => settings(undefined, true),
   );
 }
 
-function main(site: BlockedSite): void {
+/** Starts the guard on `site`, with the site's own pieces when it has some. */
+export function startGuard(site: BlockedSite, siteHooks?: (guard: GuardPort) => SiteHooks): void {
   // First on window, before any page script runs: the key lock comes before every key listener the page adds.
   cleanups.push(startKeyLock());
-  consumeMarker(site);
+  const marker = stripMarker(site);
+  const begun = start(site, location.href, marker);
+  state = begun.state;
+  if (siteHooks !== undefined) {
+    const own = siteHooks({
+      blockers: () => (alive && state.loaded ? state.blockers : null),
+      count: (blocked) => count(blocked),
+      opened: (code) => dispatch({ type: 'opened', ...moment(), code }),
+    });
+    hooks = own;
+    cleanups.push(() => own.stop());
+  }
+  watchNavigation();
   // Defaults until the stored settings arrive: hide first rather than flash a Reels entry.
-  setHiderAttribute(site);
-  lastHref = location.href;
-  watchesPosts = site === 'instagram';
-  // A tap on a post or Reel opens in Instagram's own pop-up while the Reels switch is on (`instagram-open.ts`).
-  if (watchesPosts) {
-    // Taps stay Instagram's until the stored settings are known: a switch turned off is never overridden.
-    const enabled = (): boolean => alive && loaded && blockers.instagramReels;
-    cleanups.push(watchReelTaps(enabled, (path) => (reelPopUp = singlePostCode(path))));
-  }
-
-  if ('navigation' in window) {
-    const nav = window.navigation;
-    nav.addEventListener('navigate', onNavigate);
-    cleanups.push(() => nav.removeEventListener('navigate', onNavigate));
-  }
-  syncPage();
-  listen(window, 'popstate', settleUrl);
-  listen(window, 'yt-navigate-finish', settleUrl);
-  const timer = setInterval(() => tick(site), POLL_MS);
-  cleanups.push(() => clearInterval(timer));
-  watchSettings(site);
+  for (const effect of begun.effects) perform(effect, undefined);
+  watchSettings();
 }
 
+// Instagram starts from `guard-instagram.ts`, with its own pieces.
 const site = siteForHost(location.hostname);
-if (site !== null) main(site);
+if (site !== null && site !== 'instagram') startGuard(site);

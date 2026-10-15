@@ -10,6 +10,7 @@
     "128": "src/assets/icons/icon-128.png"
   },
   "default_locale": "en",
+  "minimum_chrome_version": "111",
   "permissions": ["tabs", "idle", "storage", "alarms", "declarativeNetRequest"],
   "host_permissions": [
     "https://www.instagram.com/*",
@@ -44,7 +45,7 @@
   "content_scripts": [
     {
       "matches": ["https://www.instagram.com/*", "https://instagram.com/*"],
-      "js": ["src/content/guard.ts", "src/content/media.ts"],
+      "js": ["src/content/guard-instagram.ts", "src/content/media.ts"],
       "css": ["src/content/instagram.css"],
       "run_at": "document_start",
       "all_frames": false,

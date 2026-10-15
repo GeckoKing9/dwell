@@ -68,6 +68,16 @@ describe('source manifest', () => {
     expect(manifestProblems(source)).toEqual([]);
   });
 
+  it('requires Chrome 111 or later, where the Navigation API and page-world scripts the guard relies on exist', () => {
+    expect(source.minimum_chrome_version).toBe('111');
+    for (const version of [undefined, '100', '110', 'abc']) {
+      const m = structuredClone(source) as Record<string, unknown>;
+      if (version === undefined) delete m.minimum_chrome_version;
+      else m.minimum_chrome_version = version;
+      expect(manifestProblems(m)).toContain('minimum_chrome_version must be 111 or later');
+    }
+  });
+
   it('does not count the router bridge as Instagram\'s guard', () => {
     const m = structuredClone(source) as Record<string, unknown>;
     m.content_scripts = (m.content_scripts as { matches: string[]; world?: string }[]).filter(

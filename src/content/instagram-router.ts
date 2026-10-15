@@ -6,7 +6,8 @@
  *
  * On the guard's `dwell:open-post` event (an `openRequest`: a mode and a `/p/<code>/` path) it asks the
  * router to open the path: with the `content` target, the one Instagram's own links use for its pop-up,
- * when the page under it hosts pop-ups; otherwise, for a `page` request, as an ordinary in-app navigation.
+ * when the page under it hosts pop-ups; otherwise, for a `page` request, as an ordinary in-app navigation;
+ * for a `swap`, as a navigation that replaces the entry on screen.
  * It answers `pop-up`, `page` or `refused` on `<html>`, and the guard falls back to its usual rules on
  * `refused`. It reads no page data, has no extension API and sends nothing anywhere; a page that fires the
  * event itself can only open an Instagram post, which it could do without Dwell.
@@ -17,9 +18,15 @@ interface RouteInfo {
   route?: { isCometRootContainer?: boolean };
 }
 
+/** The navigation options Instagram's own links pass to its router. */
+interface GoOptions {
+  target?: 'content';
+  replace?: boolean;
+}
+
 interface CometRouter {
   getCurrentRouterState(): { main?: RouteInfo; pushViewStack?: RouteInfo[] };
-  dispatcher: { go(path: string, options: { target?: 'content' }): unknown };
+  dispatcher: { go(path: string, options: GoOptions): unknown };
 }
 
 /** Instagram's router, from its own module registry; null when the page has none or it changed shape. */
@@ -66,7 +73,7 @@ function hostsPopUps(router: CometRouter): boolean {
  * Asks the router to go to `path`; true when it took the navigation. An error after the router already moved
  * still counts as taken, so nothing navigates on top of it.
  */
-function go(router: CometRouter, path: string, options: { target?: 'content' }): boolean {
+function go(router: CometRouter, path: string, options: GoOptions): boolean {
   try {
     const result: unknown = router.dispatcher.go(path, options);
     if (result instanceof Promise) {
@@ -82,6 +89,8 @@ function go(router: CometRouter, path: string, options: { target?: 'content' }):
 function open(mode: OpenMode, path: string): OpenAnswer {
   const router = safeRouter();
   if (router === null) return 'refused';
+  // The entry on screen is the one Instagram just moved to: replace it, so its history and the browser's agree.
+  if (mode === 'swap') return go(router, path, { replace: true }) ? 'page' : 'refused';
   if (hostsPopUps(router)) return go(router, path, { target: 'content' }) ? 'pop-up' : 'refused';
   if (mode === 'page') return go(router, path, {}) ? 'page' : 'refused';
   return 'refused';

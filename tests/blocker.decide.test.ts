@@ -3,9 +3,11 @@ import {
   LOOP_MAX_REDIRECTS,
   LOOP_WINDOW_MS,
   admitRedirect,
+  admitsAt,
   decide,
   decideLock,
   markerCounts,
+  samePage,
   type GuardContext,
   type NavigationInfo,
 } from '../src/blocker/decide.ts';
@@ -183,7 +185,7 @@ describe('decideLock: a move from one viewer video to the next', () => {
     ['a replace', REPLACE],
     ['a traverse', TRAVERSE],
     ['a cross-document navigation', CROSS_DOCUMENT],
-    ['a move seen only by the poll', null],
+    ['a move seen only after it committed', null],
   ])('cancels %s and goes back to the first video by a reload', (_name, nav) => {
     expect(decideLock(lock, ctx(from, { nav, redirects: [NOW - 1000] }))).toEqual({
       action: 'redirect',
@@ -229,6 +231,38 @@ describe('admitRedirect: the loop guard, also used for undos', () => {
   it('forgets redirects 5 s old or older and timestamps from the future', () => {
     expect(admitRedirect({ now: NOW, redirects: [NOW - LOOP_WINDOW_MS, NOW - 9999, NOW + 10] })).toEqual([NOW]);
     expect(admitRedirect({ now: NOW, redirects: [NOW - LOOP_WINDOW_MS + 1, NOW] })).toBeNull();
+  });
+});
+
+describe('admitsAt: when the loop guard admits one more entry', () => {
+  it('is now while it admits, else when the older of the two recent entries turns 5 s old', () => {
+    expect(admitsAt({ now: NOW, redirects: [] })).toBe(NOW);
+    expect(admitsAt({ now: NOW, redirects: [NOW - 10] })).toBe(NOW);
+    expect(admitsAt({ now: NOW, redirects: [NOW - 500, NOW - 1000] })).toBe(NOW - 1000 + LOOP_WINDOW_MS);
+    expect(admitsAt({ now: NOW, redirects: [NOW - 3, NOW - 2, NOW - 1] })).toBe(NOW - 2 + LOOP_WINDOW_MS);
+  });
+
+  it('agrees with admitRedirect at that moment and just before it', () => {
+    const redirects = [NOW - 1000, NOW - 500];
+    const when = admitsAt({ now: NOW, redirects });
+    expect(admitRedirect({ now: when - 1, redirects })).toBeNull();
+    expect(admitRedirect({ now: when, redirects })).not.toBeNull();
+  });
+
+  it('ignores entries 5 s old or older and timestamps from the future', () => {
+    expect(admitsAt({ now: NOW, redirects: [NOW - LOOP_WINDOW_MS, NOW - 1, NOW + 10] })).toBe(NOW);
+  });
+});
+
+describe('samePage: the one rule for the page already open', () => {
+  it('ignores the fragment and a trailing slash, never the host, the path or the query', () => {
+    expect(samePage('https://x.com/someuser/status/123#dwell=x', TWEET_PAGE)).toBe(true);
+    expect(samePage(POST, 'https://www.instagram.com/p/DeewiSPpCrm')).toBe(true);
+    expect(samePage(IG_HOME, 'https://www.instagram.com')).toBe(true);
+    expect(samePage(WATCH, 'https://www.youtube.com/watch?v=AAAAAAAAAAA')).toBe(false);
+    expect(samePage(FB_HOME, 'https://m.facebook.com/')).toBe(false);
+    expect(samePage(TWEET, 'https://x.com/someuser/status/1234')).toBe(false);
+    expect(samePage('not a url', 'not a url')).toBe(false);
   });
 });
 

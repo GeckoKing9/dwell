@@ -6,8 +6,8 @@
  * A post opened in Instagram's pop-up (a `[role="dialog"]` holding the post) over another page leaves that
  * page alone. A video post on its own page is drawn as a pop-up too (`instagram-pop-up.ts`). The rules read link addresses and the document's structure only, never visible text, so they hold in every
  * language (`blocker/post.ts`). The grid loads after the post, so the page is checked again on every DOM
- * change, at most once per animation frame. Bundled into the guard, which calls `syncPostPage` on
- * Instagram only; nothing is stored or sent.
+ * change, at most once per animation frame. Bundled into Instagram's guard (`guard-instagram.ts`), which
+ * calls `syncPostPage`; nothing is stored or sent.
  */
 import { MIN_OTHER_POSTS, isOtherPostLink, singlePostCode } from '../blocker/post.ts';
 import { resetPopUp, syncPopUp } from './instagram-pop-up.ts';

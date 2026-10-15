@@ -118,13 +118,8 @@ function unmark(): void {
   document.querySelector(`[${CLOSE}]`)?.remove();
 }
 
-/** True when the tab has a page to go back to; the Navigation API knows, `history.length` also counts forward ones. */
-function canGoBack(): boolean {
-  return 'navigation' in window ? window.navigation.canGoBack : history.length > 1;
-}
-
 function leave(): void {
-  if (shown?.inApp === true || leaveBy(canGoBack(), document.referrer) === 'back') {
+  if (shown?.inApp === true || leaveBy(navigation.canGoBack, document.referrer) === 'back') {
     history.back();
     return;
   }

@@ -34,8 +34,8 @@ export interface NavigationInfo {
 }
 
 /**
- * Everything a decision reads: the page the navigation leaves, the navigation (null when the poll noticed
- * the change and cannot tell how it happened), the time, the redirect log and the undo log.
+ * Everything a decision reads: the page the navigation leaves, the navigation (null when the change was
+ * seen only after it committed and how it happened is not known), the time, the redirect log and the undo log.
  */
 export interface GuardContext extends LoopState {
   from: string;
@@ -66,19 +66,30 @@ const SITE_TOGGLES: Readonly<Record<BlockedSite, readonly (keyof Blockers)[]>> =
   x: ['xVideos'],
 };
 
+/** The entries of the log inside the window that ends now. */
+function recent(loop: LoopState): number[] {
+  return loop.redirects.filter((t) => loop.now - t >= 0 && loop.now - t < LOOP_WINDOW_MS);
+}
+
 /**
  * Loop guard: at most LOOP_MAX_REDIRECTS redirects per tab within LOOP_WINDOW_MS. Returns the log
  * with `now` added when one more redirect is allowed, or null when it is not. The undo guard reuses it
  * with its own log.
  */
 export function admitRedirect(loop: LoopState): number[] | null {
-  const recent = loop.redirects.filter((t) => loop.now - t >= 0 && loop.now - t < LOOP_WINDOW_MS);
-  return recent.length >= LOOP_MAX_REDIRECTS ? null : [...recent, loop.now];
+  const kept = recent(loop);
+  return kept.length >= LOOP_MAX_REDIRECTS ? null : [...kept, loop.now];
+}
+
+/** When `admitRedirect` admits one more entry to the log: `now` when it already does. */
+export function admitsAt(loop: LoopState): number {
+  const blocking = recent(loop).sort((a, b) => b - a)[LOOP_MAX_REDIRECTS - 1];
+  return blocking === undefined ? loop.now : blocking + LOOP_WINDOW_MS;
 }
 
 /**
  * Host, path (any trailing slash dropped) and query: the fragment does not make another page, the query
- * can (a YouTube watch page is `/watch?v=<id>`).
+ * can (a YouTube watch page is `/watch?v=<id>`). The guard's one rule for the page already open.
  */
 function pageOf(url: string): string | null {
   try {
@@ -90,7 +101,7 @@ function pageOf(url: string): string | null {
   }
 }
 
-function samePage(a: string, b: string): boolean {
+export function samePage(a: string, b: string): boolean {
   const page = pageOf(a);
   return page !== null && page === pageOf(b);
 }
@@ -104,7 +115,7 @@ function redirectOrCancel(site: BlockedSite, target: string, ctx: GuardContext):
 /**
  * Undo a same-document push when the undo guard admits it (at most 2 per tab in 5 s, its own log):
  * the push commits and Back takes it away again. A replace, a traverse, a cross-document navigation, a
- * change only the poll saw, or a refused undo takes `fallback`.
+ * change of unknown kind, or a refused undo takes `fallback`.
  */
 function undoOr(site: BlockedSite, ctx: GuardContext, fallback: Fallback): Decision {
   const pushed = ctx.nav !== null && ctx.nav.type === 'push' && ctx.nav.sameDocument;

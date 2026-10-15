@@ -71,6 +71,9 @@ export function manifestProblems(manifest: unknown): string[] {
   if (!isObject(manifest)) return ['manifest is not an object'];
 
   if (manifest.manifest_version !== 3) problems.push('manifest_version must be 3');
+  // The guard runs on the Navigation API and the router bridge in the page world: both need Chrome 111.
+  const chrome = typeof manifest.minimum_chrome_version === 'string' ? Number.parseInt(manifest.minimum_chrome_version, 10) : Number.NaN;
+  if (!(chrome >= 111)) problems.push('minimum_chrome_version must be 111 or later');
   if (!sameList(manifest.permissions, EXPECTED_PERMISSIONS)) {
     problems.push(`permissions must equal ${JSON.stringify(EXPECTED_PERMISSIONS)}`);
   }

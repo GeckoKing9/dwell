@@ -4,7 +4,7 @@ import { isPopUpPath, openRequest, readOpenAnswer, readOpenRequest } from '../sr
 const CODE = 'DeewiSPpCrm';
 
 describe('openRequest and readOpenRequest: what the guard asks the page-world bridge', () => {
-  it.each(['pop-up', 'page'] as const)('round-trips a %s request for a post path', (mode) => {
+  it.each(['pop-up', 'page', 'swap'] as const)('round-trips a %s request for a post path', (mode) => {
     expect(readOpenRequest(openRequest(mode, `/p/${CODE}/`))).toEqual({ mode, path: `/p/${CODE}/` });
   });
 

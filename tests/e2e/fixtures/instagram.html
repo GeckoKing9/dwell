@@ -52,12 +52,28 @@
         dialog.append(video);
         document.body.append(dialog);
       }
+      // Like Instagram's router, it records the route of every history entry, and records a navigation even
+      // when the browser cancelled its address change (against the entry still on screen). On Back it puts
+      // back the route it recorded for the entry, by a replace.
+      const routes = { initial: location.pathname };
+      let keys = 0;
+      const entryKey = () => (history.state && history.state.key) || 'initial';
+      window.navigateTo = (path, replace) => {
+        const key = replace ? entryKey() : `k${(keys += 1)}`;
+        if (replace) history.replaceState({ key }, '', path);
+        else history.pushState({ key }, '', path);
+        routes[location.pathname === path ? key : entryKey()] = path;
+      };
+      window.addEventListener('popstate', () => {
+        const recorded = routes[entryKey()];
+        if (recorded !== undefined && recorded !== location.pathname) history.replaceState(history.state, '', recorded);
+      });
       for (const link of document.querySelectorAll('main a')) {
         link.addEventListener('click', (event) => {
           event.preventDefault();
           window.siteHandledTap = true;
           const href = link.dataset.opens ?? link.getAttribute('href');
-          history.pushState({}, '', href);
+          window.navigateTo(href, false);
           if (/^\/(?:[^/]+\/)?(?:p|reel)\//.test(href)) openDialog();
         });
       }

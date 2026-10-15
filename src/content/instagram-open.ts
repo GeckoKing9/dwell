@@ -2,7 +2,8 @@
  * Opening a post through Instagram's own router, from the isolated world, by way of the page-world bridge
  * (`instagram-router.ts`). Two callers: a tap on a Reel's own link opens in Instagram's pop-up when the page
  * hosts one (`watchReelTaps`, before Instagram's handler would send it to the Reels feed); and the guard
- * asks for a post page in the same document whenever it would otherwise load one (`askBridge` with `page`).
+ * (`guard-instagram.ts`) asks for a post page in the same document whenever it would otherwise load one
+ * (`askBridge` with `page`).
  */
 import { OPENED_ATTR, OPEN_POST_EVENT, openRequest, readOpenAnswer, type OpenAnswer, type OpenMode } from '../blocker/bridge.ts';
 import { INSTAGRAM_REEL } from '../blocker/patterns.ts';
