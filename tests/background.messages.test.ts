@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBackground, type Background } from '../src/background/listeners.ts';
 import { RULESET_IDS } from '../src/background/rulesets.ts';
-import { DEFAULT_SETTINGS, EXPORT_FORMAT } from '../src/store/schema.ts';
+import { DEFAULT_SETTINGS, EXPORT_FORMAT, type Settings } from '../src/store/schema.ts';
 import { EXTENSION_ID, blockedCount, engineState, installFakeChrome, openWindow, totals, type FakeChrome } from './support/fake-chrome.ts';
 
 const T0 = new Date(2026, 9, 14, 9, 0, 0).getTime();
@@ -15,7 +15,7 @@ let bg: Background;
 beforeEach(() => {
   vi.useFakeTimers({ now: T0, toFake: ['Date', 'setTimeout', 'clearTimeout'] });
   fake = installFakeChrome();
-  openWindow(fake, 1, [{ id: 10, url: 'https://docs.google.com/d/1' }]);
+  openWindow(fake, 1, [{ id: 10, url: 'https://maps.google.com/d/1' }]);
   bg = createBackground();
 });
 
@@ -109,11 +109,11 @@ describe('settings', () => {
   it('applies a grouping change to the active tab at once', async () => {
     await bg.onInstalled();
     advance(4);
-    await bg.handleMessage({ type: 'settings', patch: { overrides: ['docs.google.com'] } }, DASHBOARD);
+    await bg.handleMessage({ type: 'settings', patch: { overrides: ['maps.google.com'] } }, DASHBOARD);
     advance(6);
     await bg.onAlarm({ name: 'heartbeat' });
     expect(totals(fake, 'google.com').seconds).toBe(4);
-    expect(totals(fake, 'docs.google.com').seconds).toBe(6);
+    expect(totals(fake, 'maps.google.com').seconds).toBe(6);
   });
 
   it('stops counting the active tab at once when its site joins the ignore list', async () => {
@@ -123,6 +123,25 @@ describe('settings', () => {
     advance(6);
     await bg.onAlarm({ name: 'heartbeat' });
     expect(totals(fake, 'google.com').seconds).toBe(4);
+  });
+
+  it('replies ok with a warning, keeps the saved value and lets the next start apply it when Chrome refuses the change (F7)', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await bg.onInstalled();
+    advance(4);
+    fake.failNextRulesetUpdate = true;
+    const patch = { blockers: { youtubeShorts: false }, overrides: ['maps.google.com'] };
+    const reply = await bg.handleMessage({ type: 'settings', patch }, DASHBOARD);
+    expect(reply).toMatchObject({ ok: true, warning: 'applied-later', settings: { blockers: { youtubeShorts: false } } });
+    expect(settings().blockers.youtubeShorts).toBe(false);
+    expect(fake.enabledRulesets.has('youtube-shorts')).toBe(true);
+    expect(error).toHaveBeenCalledTimes(1);
+    advance(6);
+    await bg.onAlarm({ name: 'heartbeat' });
+    expect(totals(fake, 'maps.google.com').seconds).toBe(6);
+    await createBackground().start();
+    expect(fake.enabledRulesets.has('youtube-shorts')).toBe(false);
+    error.mockRestore();
   });
 
   it('answers with the reason when the stored settings would be invalid', async () => {
@@ -147,20 +166,42 @@ describe('failures', () => {
 });
 
 describe('import', () => {
-  const file = (blockers: Partial<typeof DEFAULT_SETTINGS.blockers>) =>
+  const file = (change: Partial<Settings>) =>
     JSON.stringify({
       format: EXPORT_FORMAT,
       version: 1,
       exportedAt: new Date(T0).toISOString(),
       days: { '2026-10-13': { sites: { 'a.example': { h: { '9': 60 }, v: 1 } }, blocked: { instagram: 1, youtube: 0, facebook: 0 } } },
-      settings: { ...DEFAULT_SETTINGS, blockers: { ...DEFAULT_SETTINGS.blockers, ...blockers } },
+      settings: { ...DEFAULT_SETTINGS, ...change },
     });
+  const noShorts = { blockers: { ...DEFAULT_SETTINGS.blockers, youtubeShorts: false } };
 
   it('merges the file, answers with the outcome and reconciles the imported blockers', async () => {
-    const reply = await bg.handleMessage({ type: 'import', text: file({ youtubeShorts: false }) }, DASHBOARD);
+    const reply = await bg.handleMessage({ type: 'import', text: file(noShorts) }, DASHBOARD);
     expect(reply).toEqual({ ok: true, skipped: 0, daysWritten: 1, settingsWritten: true });
     expect(totals(fake, 'a.example').seconds).toBe(60);
     expect(fake.enabledRulesets.has('youtube-shorts')).toBe(false);
+  });
+
+  it('moves the open tabs to their new site at once when the imported settings change the grouping (F12)', async () => {
+    await bg.onInstalled();
+    advance(4);
+    const reply = await bg.handleMessage({ type: 'import', text: file({ overrides: ['maps.google.com'] }) }, DASHBOARD);
+    expect(reply).toMatchObject({ ok: true, settingsWritten: true });
+    advance(6);
+    await bg.onAlarm({ name: 'heartbeat' });
+    expect(totals(fake, 'google.com').seconds).toBe(4);
+    expect(totals(fake, 'maps.google.com').seconds).toBe(6);
+  });
+
+  it('replies with the outcome and a warning when the import was written but Chrome refused the rulesets (F7)', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    fake.failNextRulesetUpdate = true;
+    const reply = await bg.handleMessage({ type: 'import', text: file(noShorts) }, DASHBOARD);
+    expect(reply).toEqual({ ok: true, skipped: 0, daysWritten: 1, settingsWritten: true, warning: 'applied-later' });
+    expect(totals(fake, 'a.example').seconds).toBe(60);
+    expect(error).toHaveBeenCalledTimes(1);
+    error.mockRestore();
   });
 
   it('answers with the rejection and writes nothing for a bad file', async () => {

@@ -21,7 +21,7 @@ import {
 } from './events.ts';
 import { createMessageHandler, type Reply } from './messages.ts';
 import { createQueue, type Queue } from './queue.ts';
-import { activeTabEvents, readSeed } from './reseed.ts';
+import { activeTabEvents } from './reseed.ts';
 
 export interface Background {
   /** Runs on every worker start: alarms, idle interval and rulesets brought in line with the settings. */
@@ -40,10 +40,18 @@ export interface Background {
   handleMessage(raw: unknown, sender: SenderLike): Promise<Reply>;
 }
 
-/** Seeds from the live browser and drops expired days: what a fresh browser session needs. */
-async function reseedAndPrune(queue: Queue, local: KeyValueStore): Promise<void> {
-  await queue.track(async ({ at, settings }) => [await readSeed(at, settings)]);
+/**
+ * Drops expired days, reconciles the rulesets and ensures the alarms. It never seeds itself: the empty
+ * tracking job only opens the queue, and that job seeds from the live browser (once) when the hot
+ * state is missing, which is exactly the case after a browser start.
+ */
+async function browserStart(queue: Queue, local: KeyValueStore): Promise<void> {
+  await queue.track(() => []);
   await prune(queue, local);
+  await queue.run(async () => {
+    await ensureAlarms();
+    await applySettings(null, await loadSettings(local));
+  }, undefined);
 }
 
 export function createBackground(): Background {
@@ -61,8 +69,8 @@ export function createBackground(): Background {
         await ensureAlarms();
         await applySettings(null, await loadSettings(local));
       }, undefined),
-    onStartup: () => reseedAndPrune(queue, local),
-    onInstalled: () => reseedAndPrune(queue, local),
+    onStartup: () => browserStart(queue, local),
+    onInstalled: () => browserStart(queue, local),
     onTabActivated: (info) =>
       done(
         queue.track(async ({ at, settings }) => {

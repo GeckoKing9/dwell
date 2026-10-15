@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   CONTENT_MESSAGE_TYPES,
-  MAX_CATEGORY_ENTRIES,
-  MAX_HOST_LIST,
   MAX_IMPORT_CHARS,
   PAGE_MESSAGE_TYPES,
   allowedFrom,
+  checkMessage,
   isHostname,
   parseMessage,
   parseSettingsPatch,
   type Message,
 } from '../src/shared/messages.ts';
+import { MAX_LIST_ENTRIES, validateSettings } from '../src/shared/settings.ts';
+import { siteOf } from '../src/tracker/grouping.ts';
 
 const valid: Message[] = [
   { type: 'blocked', site: 'instagram' },
@@ -120,9 +121,8 @@ const badPatches: [string, unknown][] = [
   ['overrides with a URL', { overrides: ['https://docs.google.com/'] }],
   ['overrides with a path', { overrides: ['docs.google.com/x'] }],
   ['overrides with uppercase', { overrides: ['Docs.Google.com'] }],
-  ['overrides with a single label', { overrides: ['localhost'] }],
-  ['overrides with a leading hyphen', { overrides: ['-bad.example'] }],
-  ['overrides over the cap', { overrides: Array.from({ length: MAX_HOST_LIST + 1 }, (_, i) => `h${i}.example`) }],
+  ['overrides with an underscore', { overrides: ['bad_host.example'] }],
+  ['overrides over the cap', { overrides: Array.from({ length: MAX_LIST_ENTRIES + 1 }, (_, i) => `h${i}.example`) }],
   ['ignore with a number', { ignore: [42] }],
   ['categories with an unknown category', { categories: { 'github.com': 'Games' } }],
   ['categories keyed by a non-host', { categories: { 'not a host': 'Work' } }],
@@ -130,39 +130,73 @@ const badPatches: [string, unknown][] = [
   ['categories as an array', { categories: [['github.com', 'Work']] }],
   [
     'categories over the cap',
-    { categories: Object.fromEntries(Array.from({ length: MAX_CATEGORY_ENTRIES + 1 }, (_, i) => [`h${i}.example`, 'Other'])) },
+    { categories: Object.fromEntries(Array.from({ length: MAX_LIST_ENTRIES + 1 }, (_, i) => [`h${i}.example`, 'Other'])) },
   ],
 ];
 
 describe('parseSettingsPatch', () => {
   it.each(badPatches)('rejects %s', (_label, patch) => {
-    expect(parseSettingsPatch(patch)).toBeNull();
+    expect(parseSettingsPatch(patch).ok).toBe(false);
     expect(parseMessage({ type: 'settings', patch })).toBeNull();
   });
 
   it('copies only the validated keys', () => {
     const patch = parseSettingsPatch({ overrides: ['a.example'], blockers: { facebookReels: false } });
-    expect(patch).toEqual({ overrides: ['a.example'], blockers: { facebookReels: false } });
+    expect(patch).toEqual({ ok: true, value: { overrides: ['a.example'], blockers: { facebookReels: false } } });
   });
 
   it('accepts every idle threshold on the list', () => {
     for (const idleThresholdSec of [30, 60, 120, 300]) {
-      expect(parseSettingsPatch({ idleThresholdSec })).toEqual({ idleThresholdSec });
+      expect(parseSettingsPatch({ idleThresholdSec })).toEqual({ ok: true, value: { idleThresholdSec } });
     }
   });
 
   it('builds categories without a prototype', () => {
     const patch = parseSettingsPatch({ categories: { 'github.com': 'Work' } });
-    expect(Object.getPrototypeOf(patch?.categories)).toBeNull();
+    expect(patch.ok && Object.getPrototypeOf(patch.value.categories)).toBeNull();
+  });
+});
+
+describe('one validator for patches and stored settings (F8)', () => {
+  it('rejects a 600-entry category map with the same reason on both paths', () => {
+    const categories = Object.fromEntries(Array.from({ length: 600 }, (_, i) => [`s${i}.example`, 'Work']));
+    const patch = parseSettingsPatch({ categories });
+    const stored = validateSettings({ categories });
+    expect(patch.ok).toBe(false);
+    expect(stored.ok).toBe(false);
+    expect(!patch.ok && !stored.ok && patch.reason).toBe(!stored.ok && stored.reason);
+    expect(checkMessage({ type: 'settings', patch: { categories } })).toEqual(patch);
+  });
+
+  it.each(['http://localhost:5173/', 'http://intranet/', 'http://10.0.0.7/', 'http://[::1]:8080/', 'https://news.bbc.co.uk/'])(
+    'accepts the site the engine makes of %s',
+    (url) => {
+      const site = String(siteOf(url, [], []));
+      expect(parseSettingsPatch({ ignore: [site], categories: { [site]: 'Work' } })).toMatchObject({ ok: true });
+      expect(isHostname(site)).toBe(true);
+    },
+  );
+
+  it('names the offending key and the start of the value in the reason', () => {
+    const long = `Bad_Host-${'x'.repeat(200)}.example`;
+    const result = checkMessage({ type: 'settings', patch: { ignore: ['a.example', long] } });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toContain('"ignore"');
+    expect(result.reason).toContain('Bad_Host-xxx');
+    expect(result.reason.length).toBeLessThan(200);
   });
 });
 
 describe('isHostname', () => {
-  it.each(['youtube.com', 'docs.google.com', 'a.b.c.example', 'xn--bcher-kva.example', '1.example'])('accepts %s', (h) => {
-    expect(isHostname(h)).toBe(true);
-  });
+  it.each(['youtube.com', 'docs.google.com', 'a.b.c.example', 'xn--bcher-kva.example', '1.example', 'localhost', 'intranet', '127.0.0.1'])(
+    'accepts %s',
+    (h) => {
+      expect(isHostname(h)).toBe(true);
+    },
+  );
 
-  it.each(['', 'example', 'a..example', 'a.example.', 'under_score.example', `${'a'.repeat(64)}.example`, `${'a.'.repeat(127)}com`])(
+  it.each(['', 'www.example.com', 'a..example', 'a.example.', 'under_score.example', 'Example.com', 'constructor', `${'a.'.repeat(127)}com`])(
     'rejects %j',
     (h) => {
       expect(isHostname(h)).toBe(false);

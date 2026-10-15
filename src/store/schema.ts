@@ -49,7 +49,8 @@ export const DEFAULT_SETTINGS: Settings = {
   mediaOverride: true,
   paused: false,
   blockers: { instagramReels: true, youtubeShorts: true, facebookReels: true, instagramExplore: false },
-  overrides: [],
+  /** KTD8: apps that share a registrable domain but are used for different things, counted apart from the start. */
+  overrides: ['music.youtube.com', 'docs.google.com', 'mail.google.com', 'drive.google.com', 'calendar.google.com', 'meet.google.com'],
   ignore: [],
   categories: {},
   eventLog: false,

@@ -10,6 +10,20 @@ export async function applySettings(before: Settings | null, after: Settings): P
   }
 }
 
+/**
+ * `applySettings` for a value that is already saved. Chrome refusing the change is logged, never
+ * thrown: storage holds the truth and the next worker start applies it again. False when it failed.
+ */
+export async function applySaved(before: Settings | null, after: Settings): Promise<boolean> {
+  try {
+    await applySettings(before, after);
+    return true;
+  } catch (error) {
+    console.error('Dwell: saved settings not applied yet; the next worker start applies them', error);
+    return false;
+  }
+}
+
 function sameList(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((value, i) => value === b[i]);
 }

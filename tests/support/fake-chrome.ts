@@ -73,6 +73,8 @@ export interface FakeChrome {
   alarmCreates: string[];
   enabledRulesets: Set<string>;
   rulesetUpdates: { enableRulesetIds: string[]; disableRulesetIds: string[] }[];
+  /** The next `updateEnabledRulesets` call rejects, as Chrome does when it refuses the change. */
+  failNextRulesetUpdate: boolean;
 }
 
 interface UpdateRulesetOptions {
@@ -95,6 +97,7 @@ export function installFakeChrome(): FakeChrome {
     alarmCreates: [],
     enabledRulesets: new Set(['instagram-reels', 'youtube-shorts', 'facebook-reels']),
     rulesetUpdates: [],
+    failNextRulesetUpdate: false,
   };
   const api = {
     runtime: { id: EXTENSION_ID },
@@ -144,7 +147,14 @@ export function installFakeChrome(): FakeChrome {
       },
     },
     declarativeNetRequest: {
+      async getEnabledRulesets() {
+        return [...fake.enabledRulesets];
+      },
       async updateEnabledRulesets(options: UpdateRulesetOptions) {
+        if (fake.failNextRulesetUpdate) {
+          fake.failNextRulesetUpdate = false;
+          throw new Error('ruleset update refused');
+        }
         const enable = options.enableRulesetIds ?? [];
         const disable = options.disableRulesetIds ?? [];
         fake.rulesetUpdates.push({ enableRulesetIds: [...enable], disableRulesetIds: [...disable] });

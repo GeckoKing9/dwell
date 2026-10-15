@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { memoryStore } from '../src/store/adapter.ts';
 import { loadSettings, saveSettings, validateSettings } from '../src/shared/settings.ts';
 import type { SettingsResult } from '../src/shared/settings.ts';
+import { themeOf } from '../src/shared/theme.ts';
 import { DEFAULT_SETTINGS, SETTINGS_KEY } from '../src/store/schema.ts';
-import { defaultCategories } from '../src/stats/categories.ts';
+import { categoryOf, defaultCategories } from '../src/stats/categories.ts';
+import { siteOf } from '../src/tracker/grouping.ts';
 
 function expectRejected(result: SettingsResult, mention: string): void {
   expect(result.ok).toBe(false);
@@ -69,7 +71,7 @@ describe('validateSettings', () => {
     expectRejected(validateSettings({ categories: { 'a.com': 'Games' } }), 'Games');
   });
 
-  it.each(['https://a.com/', 'localhost', 'A.com', 'a com.org', 42])('rejects the non-hostname %s in every host list', (host) => {
+  it.each(['https://a.com/', 'www.a.com', 'A.com', 'a com.org', 'a_b.com', 42])('rejects the non-hostname %s in every host list', (host) => {
     expectRejected(validateSettings({ overrides: [host] }), 'overrides');
     expectRejected(validateSettings({ ignore: [host] }), 'ignore');
     if (typeof host === 'string') expectRejected(validateSettings({ categories: { [host]: 'Work' } }), 'categories');
@@ -96,10 +98,23 @@ describe('validateSettings', () => {
   });
 });
 
+describe('one site rule with the engine (F5)', () => {
+  it.each(['http://localhost:5173/', 'http://intranet/', 'http://192.168.0.1/', 'http://[::1]:8080/', 'https://www.bbc.co.uk/'])(
+    'accepts the site the engine makes of %s in every host list',
+    (url) => {
+      const site = siteOf(url, [], []);
+      expect(site).not.toBeNull();
+      const result = validateSettings({ overrides: [site], ignore: [site], categories: { [String(site)]: 'Work' } });
+      expect(result.ok).toBe(true);
+    },
+  );
+});
+
 describe('loadSettings and saveSettings', () => {
   it('returns defaults when nothing or something corrupt is stored', async () => {
     expect(await loadSettings(memoryStore())).toEqual(DEFAULT_SETTINGS);
     expect(await loadSettings(memoryStore({ [SETTINGS_KEY]: { idleThresholdSec: 7 } }))).toEqual(DEFAULT_SETTINGS);
+    expect(await loadSettings(memoryStore({ [SETTINGS_KEY]: 'settings' }))).toEqual(DEFAULT_SETTINGS);
   });
 
   it('merges a stored patch over the defaults', async () => {
@@ -115,5 +130,71 @@ describe('loadSettings and saveSettings', () => {
     const calls = store.setCalls;
     expectRejected(await saveSettings(store, { mediaOverride: 'off' }), 'mediaOverride');
     expect(store.setCalls).toBe(calls);
+  });
+});
+
+describe('a stored value with one bad field (F3)', () => {
+  const kept = {
+    paused: true,
+    overrides: ['music.youtube.com'],
+    ignore: ['bank.example.ca'],
+    categories: { 'a.com': 'Work' as const },
+    eventLog: true,
+    theme: 'dark' as const,
+  };
+  const stored = { ...DEFAULT_SETTINGS, ...kept, idleThresholdSec: 7, colour: 'teal' };
+
+  it('keeps every valid field, defaults only the bad one and drops the unknown key', async () => {
+    const loaded = await loadSettings(memoryStore({ [SETTINGS_KEY]: stored }));
+    expect(loaded).toEqual({ ...DEFAULT_SETTINGS, ...kept });
+    expect(loaded).not.toHaveProperty('colour');
+  });
+
+  it('keeps them, pause included, through the next save', async () => {
+    const store = memoryStore({ [SETTINGS_KEY]: stored });
+    expect((await saveSettings(store, { mediaOverride: false })).ok).toBe(true);
+    const written = (await store.get([SETTINGS_KEY]))[SETTINGS_KEY];
+    expect(written).toEqual({ ...DEFAULT_SETTINGS, ...kept, mediaOverride: false });
+  });
+
+  it('keeps the valid entries of a stored list or map and the valid blocker flags', async () => {
+    const value = {
+      ...stored,
+      idleThresholdSec: 120,
+      ignore: ['bank.example.ca', 'Not A Host'],
+      categories: { 'a.com': 'Work', 'b.com': 'Games' },
+      blockers: { ...DEFAULT_SETTINGS.blockers, youtubeShorts: false, instagramExplore: 'yes', tiktok: true },
+    };
+    expect(await loadSettings(memoryStore({ [SETTINGS_KEY]: value }))).toEqual({
+      ...DEFAULT_SETTINGS,
+      ...kept,
+      idleThresholdSec: 120,
+      blockers: { ...DEFAULT_SETTINGS.blockers, youtubeShorts: false },
+    });
+  });
+
+  it('reads the theme of a stored value whose other fields are bad', () => {
+    expect(themeOf(stored)).toBe('dark');
+    expect(themeOf({ theme: 'neon', paused: true })).toBe('system');
+  });
+});
+
+describe('built-in categories under the default grouping (F6)', () => {
+  it.each(Object.keys(defaultCategories()))('%s is a site the default grouping can produce', (key) => {
+    expect(siteOf(`https://${key}/`, DEFAULT_SETTINGS.overrides, [])).toBe(key);
+  });
+
+  it('counts the Google apps and YouTube Music on their own by default and files Google under Work', () => {
+    expect(DEFAULT_SETTINGS.overrides).toEqual([
+      'music.youtube.com',
+      'docs.google.com',
+      'mail.google.com',
+      'drive.google.com',
+      'calendar.google.com',
+      'meet.google.com',
+    ]);
+    expect(siteOf('https://mail.google.com/mail/u/0/', DEFAULT_SETTINGS.overrides, [])).toBe('mail.google.com');
+    expect(categoryOf('google.com', {})).toBe('Work');
+    expect(categoryOf('docs.google.com', {})).toBe('Work');
   });
 });

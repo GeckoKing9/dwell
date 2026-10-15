@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { memoryStore } from '../src/store/adapter.ts';
 import type { MemoryStore } from '../src/store/adapter.ts';
+import { applyAttributions, loadDay } from '../src/store/days.ts';
 import { applyImport, exportAll, importText, MAX_IMPORT_BYTES, parseImport } from '../src/store/export.ts';
 import type { ParsedImport } from '../src/store/export.ts';
 import { DEFAULT_SETTINGS, EXPORT_FORMAT, SETTINGS_KEY, dateString } from '../src/store/schema.ts';
@@ -57,6 +58,22 @@ describe('export then import', () => {
     expect(Object.keys(exported).sort()).toEqual(['days', 'exportedAt', 'format', 'settings', 'version']);
     expect(Object.keys(exported.days)).toEqual([daysAgo(0)]);
     expect(JSON.stringify(exported)).not.toContain('tick');
+  });
+
+  it('stores, exports and re-imports single-label and IP sites the engine counts (F5)', async () => {
+    const source = memoryStore();
+    const sites = ['localhost', 'intranet', '192.168.0.1', '[::1]'];
+    const result = await applyAttributions(
+      source,
+      sites.map((s) => ({ site: s, day: daysAgo(1), hour: 9, seconds: 30, visit: true })),
+    );
+    expect(result).toEqual({ written: 1, skipped: 0 });
+    const exported = await exportAll(source, TODAY);
+    expect(Object.keys(exported.days[daysAgo(1)]?.sites ?? {}).sort()).toEqual([...sites].sort());
+    const target = memoryStore();
+    expect(await importText(target, JSON.stringify(exported), TODAY)).toMatchObject({ ok: true, daysWritten: 1 });
+    const day = await loadDay(target, daysAgo(1));
+    for (const s of sites) expect(day.sites[s]).toEqual({ h: { '9': 30 }, v: 1 });
   });
 
   it('rounds fractional stored seconds so its own export always re-imports', async () => {
@@ -189,7 +206,7 @@ describe('hardened import rejections', () => {
     expectRejected(parse(raw), 'forbidden-key', key);
   });
 
-  it.each(['https://x.com/a', 'localhost', 'Example.com', 'a..com', `${'a'.repeat(250)}.com`])('rejects the non-hostname site key %s', (key) => {
+  it.each(['https://x.com/a', 'www.x.com', 'Example.com', 'a..com', 'a_b.com', `${'a'.repeat(250)}.com`])('rejects the non-hostname site key %s', (key) => {
     expectRejected(parse(file(day({ [key]: site({ '1': 1 }) }))), 'bad-site', 'site');
   });
 

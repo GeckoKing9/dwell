@@ -1,6 +1,23 @@
 import type { Category, Site } from '../store/schema.ts';
 
-const WORK = ['github.com', 'docs.google.com', 'mail.google.com', 'stackoverflow.com', 'notion.so', 'slack.com', 'linear.app', 'figma.com'];
+/**
+ * Every key is a site the default grouping can produce: a registrable domain, or a host in
+ * `DEFAULT_SETTINGS.overrides` (the Google apps). A test holds the two lists together.
+ */
+const WORK = [
+  'github.com',
+  'google.com',
+  'docs.google.com',
+  'mail.google.com',
+  'drive.google.com',
+  'calendar.google.com',
+  'meet.google.com',
+  'stackoverflow.com',
+  'notion.so',
+  'slack.com',
+  'linear.app',
+  'figma.com',
+];
 const SOCIAL = ['instagram.com', 'facebook.com', 'messenger.com', 'reddit.com', 'x.com', 'tiktok.com', 'threads.net', 'linkedin.com', 'discord.com'];
 const VIDEO = ['youtube.com', 'netflix.com', 'twitch.tv', 'primevideo.com', 'disneyplus.com', 'crave.ca', 'vimeo.com'];
 const SHOPPING = ['amazon.ca', 'amazon.com', 'ebay.ca', 'bestbuy.ca', 'aliexpress.com', 'etsy.com'];

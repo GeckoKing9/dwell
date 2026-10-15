@@ -24,7 +24,7 @@ describe('typed domains', () => {
   it('accepts a domain for the never-record list once', () => {
     expect(checkIgnoreHost('Example.com', [])).toEqual({ ok: true, host: 'example.com' });
     expect(checkIgnoreHost('example.com', ['example.com'])).toEqual({ ok: false, error: 'example.com is already on the list.' });
-    for (const bad of ['', 'localhost', 'not a domain', '__proto__', 'a..b']) {
+    for (const bad of ['', 'not a domain', '__proto__', 'a..b']) {
       expect(checkIgnoreHost(bad, []), bad).toEqual({ ok: false, error: 'Enter a domain such as example.com.' });
     }
   });

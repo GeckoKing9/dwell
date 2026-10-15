@@ -1,7 +1,6 @@
 /** Shared guards for untrusted values: imported files, stored records, settings patches. Pure. */
+import { siteOf } from '../tracker/grouping.ts';
 
-/** A lowercase hostname with at least one dot: what a grouped site id looks like. */
-export const HOSTNAME_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 export const MAX_HOSTNAME_LENGTH = 253;
 
 const FORBIDDEN_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
@@ -13,13 +12,19 @@ export function isForbiddenKey(key: string): boolean {
   return FORBIDDEN_KEYS.has(key);
 }
 
-/** True for a string that may be stored as a site id. */
+/**
+ * True for a string that may be stored as a site id: the one site rule of the codebase. A value
+ * passes only when the engine's own grouping (`siteOf`, with the value as its own override) gives
+ * back exactly that value, so the store, the settings and the messages accept every site the
+ * engine counts (single labels such as `localhost`, IP addresses) and nothing it could never emit
+ * (uppercase, `www.`, paths, ports, underscores). Prototype keys and over-long values are refused on top.
+ */
 export function isSiteId(value: unknown): value is string {
   return (
     typeof value === 'string' &&
     value.length <= MAX_HOSTNAME_LENGTH &&
-    HOSTNAME_RE.test(value) &&
-    !isForbiddenKey(value)
+    !isForbiddenKey(value) &&
+    siteOf(`https://${value}/`, [value], []) === value
   );
 }
 

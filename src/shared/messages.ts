@@ -1,10 +1,18 @@
 /**
  * Every runtime message in Dwell (content script, popup, dashboard -> worker) and its strict validator
- * (KTD4c). `parseMessage` accepts only plain objects with exactly the documented keys and types, and
- * returns a fresh copy so nothing else the sender attached survives. The worker authorises by sender
- * with `CONTENT_MESSAGE_TYPES` / `PAGE_MESSAGE_TYPES` (or `allowedFrom`). Pure: no Chrome APIs.
+ * (KTD4c). `checkMessage` accepts only plain objects with exactly the documented keys and types, and
+ * returns a fresh copy so nothing else the sender attached survives. A settings patch goes through the
+ * field validators of `settings.ts`, the same ones import and storage use, so the caps and the site
+ * rule cannot drift apart. The worker authorises by sender with `CONTENT_MESSAGE_TYPES` /
+ * `PAGE_MESSAGE_TYPES` (or `allowedFrom`). Pure: no Chrome APIs.
  */
-import { BLOCKED_SITES, CATEGORIES, THEMES, type BlockedSite, type Category, type Settings, type Theme } from '../store/schema.ts';
+import { BLOCKED_SITES, type BlockedSite } from '../store/schema.ts';
+import { isPlainObject, type Check } from '../store/validate.ts';
+import { validateSettingsPatch, type SettingsPatch } from './settings.ts';
+
+export type { SettingsPatch } from './settings.ts';
+/** The one site rule (`isSiteId`), under the name the dashboard's host checks import. */
+export { isSiteId as isHostname } from '../store/validate.ts';
 
 export interface BlockedMessage {
   type: 'blocked';
@@ -13,19 +21,6 @@ export interface BlockedMessage {
 export interface MediaMessage {
   type: 'media';
   playing: boolean;
-}
-
-type Blockers = Settings['blockers'];
-/** A partial settings update. `paused` has its own message; `blockers` may be partial. */
-export interface SettingsPatch {
-  idleThresholdSec?: Settings['idleThresholdSec'];
-  mediaOverride?: boolean;
-  blockers?: Partial<Blockers>;
-  overrides?: string[];
-  ignore?: string[];
-  categories?: Record<string, Category>;
-  eventLog?: boolean;
-  theme?: Theme;
 }
 export interface SettingsMessage {
   type: 'settings';
@@ -64,32 +59,10 @@ export const PAGE_MESSAGE_TYPES: readonly PageMessage['type'][] = Object.freeze(
 
 /** chrome.storage.local holds 10 MB without `unlimitedStorage`; an export can never be larger. */
 export const MAX_IMPORT_CHARS = 10 * 1024 * 1024;
-export const MAX_HOST_LIST = 500;
-export const MAX_CATEGORY_ENTRIES = 2000;
 
-const IDLE_THRESHOLDS: readonly number[] = [30, 60, 120, 300];
-const BLOCKER_KEYS: readonly (keyof Blockers)[] = ['instagramReels', 'youtubeShorts', 'facebookReels', 'instagramExplore'];
-const PATCH_KEYS: readonly (keyof SettingsPatch)[] = [
-  'idleThresholdSec',
-  'mediaOverride',
-  'blockers',
-  'overrides',
-  'ignore',
-  'categories',
-  'eventLog',
-  'theme',
-];
-const FORBIDDEN_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
-/** Lowercase DNS hostname with at least two labels, 253 characters at most. */
-const HOST_RE = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+const UNKNOWN: { ok: false; reason: string } = { ok: false, reason: 'The message is not one Dwell understands.' };
 
 type Json = Record<string, unknown>;
-
-function isPlainObject(value: unknown): value is Json {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const proto: unknown = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
-}
 
 /** Own keys are a subset of `allowed` and include every key in `required`. */
 function keysWithin(value: Json, allowed: readonly string[], required: readonly string[] = allowed): boolean {
@@ -101,66 +74,15 @@ function isBlockedSite(value: unknown): value is BlockedSite {
   return typeof value === 'string' && (BLOCKED_SITES as readonly string[]).includes(value);
 }
 
-export function isHostname(value: unknown): value is string {
-  return typeof value === 'string' && value.length <= 253 && !FORBIDDEN_KEYS.has(value) && HOST_RE.test(value);
+/** A validated, freshly built settings patch: the settings field validators, and never an empty change. */
+export function parseSettingsPatch(value: unknown): Check<SettingsPatch> {
+  const patch = validateSettingsPatch(value);
+  if (patch.ok && Object.keys(patch.value).length === 0) return { ok: false, reason: 'A settings change must name at least one setting.' };
+  return patch;
 }
 
-function hostList(value: unknown): string[] | null {
-  if (!Array.isArray(value) || value.length > MAX_HOST_LIST) return null;
-  return value.every(isHostname) ? [...value] : null;
-}
-
-function blockersPatch(value: unknown): Partial<Blockers> | null {
-  if (!isPlainObject(value) || !keysWithin(value, BLOCKER_KEYS, [])) return null;
-  const out: Partial<Blockers> = {};
-  for (const key of BLOCKER_KEYS) {
-    if (!Object.hasOwn(value, key)) continue;
-    const flag = value[key];
-    if (typeof flag !== 'boolean') return null;
-    out[key] = flag;
-  }
-  return Object.keys(out).length > 0 ? out : null;
-}
-
-function categoryMap(value: unknown): Record<string, Category> | null {
-  if (!isPlainObject(value)) return null;
-  const entries = Object.entries(value);
-  if (entries.length > MAX_CATEGORY_ENTRIES) return null;
-  const out: Record<string, Category> = Object.create(null) as Record<string, Category>;
-  for (const [host, category] of entries) {
-    if (!isHostname(host) || !(CATEGORIES as readonly unknown[]).includes(category)) return null;
-    out[host] = category as Category;
-  }
-  return out;
-}
-
-const PATCH_FIELDS: { [K in keyof SettingsPatch]-?: (value: unknown) => SettingsPatch[K] | null } = {
-  idleThresholdSec: (v) => (typeof v === 'number' && IDLE_THRESHOLDS.includes(v) ? (v as Settings['idleThresholdSec']) : null),
-  mediaOverride: (v) => (typeof v === 'boolean' ? v : null),
-  blockers: blockersPatch,
-  overrides: hostList,
-  ignore: hostList,
-  categories: categoryMap,
-  eventLog: (v) => (typeof v === 'boolean' ? v : null),
-  theme: (v) => (typeof v === 'string' && (THEMES as readonly string[]).includes(v) ? (v as Theme) : null),
-};
-
-/** A validated, freshly built settings patch, or null on any unknown key or wrong type. */
-export function parseSettingsPatch(value: unknown): SettingsPatch | null {
-  if (!isPlainObject(value) || !keysWithin(value, PATCH_KEYS, [])) return null;
-  const out: Record<string, unknown> = {};
-  for (const key of PATCH_KEYS) {
-    if (!Object.hasOwn(value, key)) continue;
-    const parsed = PATCH_FIELDS[key](value[key]);
-    if (parsed === null) return null;
-    out[key] = parsed;
-  }
-  return Object.keys(out).length > 0 ? (out as SettingsPatch) : null;
-}
-
-/** The message, validated and copied, or null when the shape is anything other than documented. */
-export function parseMessage(value: unknown): Message | null {
-  if (!isPlainObject(value)) return null;
+/** Every message but `settings`, validated and copied, or null when the shape is anything other than documented. */
+function parseFixedShape(value: Json): Exclude<Message, SettingsMessage> | null {
   switch (value.type) {
     case 'blocked':
       return keysWithin(value, ['type', 'site']) && isBlockedSite(value.site) ? { type: 'blocked', site: value.site } : null;
@@ -168,10 +90,6 @@ export function parseMessage(value: unknown): Message | null {
       return keysWithin(value, ['type', 'playing']) && typeof value.playing === 'boolean'
         ? { type: 'media', playing: value.playing }
         : null;
-    case 'settings': {
-      const patch = keysWithin(value, ['type', 'patch']) ? parseSettingsPatch(value.patch) : null;
-      return patch === null ? null : { type: 'settings', patch };
-    }
     case 'pause':
       return keysWithin(value, ['type', 'paused']) && typeof value.paused === 'boolean'
         ? { type: 'pause', paused: value.paused }
@@ -186,6 +104,24 @@ export function parseMessage(value: unknown): Message | null {
     default:
       return null;
   }
+}
+
+/** The message, validated and copied, or the reason it was refused (a settings patch names its key). */
+export function checkMessage(value: unknown): Check<Message> {
+  if (!isPlainObject(value)) return UNKNOWN;
+  if (value.type === 'settings') {
+    if (!keysWithin(value, ['type', 'patch'])) return UNKNOWN;
+    const patch = parseSettingsPatch(value.patch);
+    return patch.ok ? { ok: true, value: { type: 'settings', patch: patch.value } } : patch;
+  }
+  const message = parseFixedShape(value);
+  return message === null ? UNKNOWN : { ok: true, value: message };
+}
+
+/** The message, validated and copied, or null when the shape is anything other than documented. */
+export function parseMessage(value: unknown): Message | null {
+  const checked = checkMessage(value);
+  return checked.ok ? checked.value : null;
 }
 
 /** True when a sender of this class may send this message type. */
