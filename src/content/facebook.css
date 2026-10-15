@@ -1,1 +1,16 @@
-/* Facebook hiders: none yet (2026-10-14). */
+/*
+ * Facebook hiders. Selectors as found 2026-10-14; cosmetic, expect churn.
+ * The guard and the DNR rules do the blocking: a selector that stops matching hides nothing and breaks
+ * nothing. Every rule is scoped by the guard's data-dwell-facebook attribute ("on" or "off").
+ * Navigation containers only; the aria-label rule matches the English UI only.
+ */
+
+html[data-dwell-facebook="on"] [role="navigation"] div:has(> a[href*="/reel"]) {
+  display: none !important;
+}
+html[data-dwell-facebook="on"] [role="tablist"] div:has(> a[href*="/reel"]) {
+  display: none !important;
+}
+html[data-dwell-facebook="on"] [role="navigation"] a[aria-label*="Reel"] {
+  display: none !important;
+}

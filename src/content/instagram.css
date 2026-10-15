@@ -1,1 +1,10 @@
-/* Instagram hiders: none yet (2026-10-14). */
+/*
+ * Instagram hiders. Selectors as found 2026-10-14; cosmetic, expect churn.
+ * The guard and the DNR rules do the blocking: a selector that stops matching hides nothing and breaks
+ * nothing. Every rule is scoped by the guard's data-dwell-instagram attribute ("on" or "off").
+ * Navigation only: nothing inside <main> is hidden (feed Reels rely on obfuscated class names).
+ */
+
+html[data-dwell-instagram="on"] a[href^="/reels"]:not(main a) {
+  display: none !important;
+}

@@ -1,1 +1,41 @@
-[]
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "regexSubstitution": "https://www.youtube.com/watch?v=\\1#dwell=youtube" }
+    },
+    "condition": {
+      "regexFilter": "^https://www\\.youtube\\.com/(?:[^?]*/)?shorts/([A-Za-z0-9_-]{11})(?:[/?].*)?$",
+      "isUrlFilterCaseSensitive": false,
+      "resourceTypes": ["main_frame", "sub_frame"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "regexSubstitution": "https://www.youtube.com/watch?v=\\1#dwell=youtube" }
+    },
+    "condition": {
+      "regexFilter": "^https://m\\.youtube\\.com/(?:[^?]*/)?shorts/([A-Za-z0-9_-]{11})(?:[/?].*)?$",
+      "isUrlFilterCaseSensitive": false,
+      "resourceTypes": ["main_frame", "sub_frame"]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "regexSubstitution": "https://www.youtube.com/watch?v=\\1#dwell=youtube" }
+    },
+    "condition": {
+      "regexFilter": "^https://youtube\\.com/(?:[^?]*/)?shorts/([A-Za-z0-9_-]{11})(?:[/?].*)?$",
+      "isUrlFilterCaseSensitive": false,
+      "resourceTypes": ["main_frame", "sub_frame"]
+    }
+  }
+]

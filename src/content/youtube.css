@@ -1,1 +1,41 @@
-/* Youtube hiders: none yet (2026-10-14). */
+/*
+ * YouTube hiders. Selectors as found 2026-10-14; cosmetic, expect churn.
+ * The guard and the DNR rules do the blocking: a selector that stops matching hides nothing and breaks
+ * nothing. Every rule is scoped by the guard's data-dwell-youtube attribute ("on" or "off"), and each
+ * selector has its own rule so one the browser rejects cannot take the others down with it.
+ */
+
+/* Guide and mini-guide entries */
+html[data-dwell-youtube="on"] ytd-guide-entry-renderer:has(> a[title="Shorts"]) {
+  display: none !important;
+}
+html[data-dwell-youtube="on"] ytd-mini-guide-entry-renderer:has(> a[aria-label="Shorts"]) {
+  display: none !important;
+}
+
+/* Shelves on home, subscriptions and browse pages */
+html[data-dwell-youtube="on"] ytd-rich-section-renderer:has(> #content > ytd-rich-shelf-renderer[is-shorts]) {
+  display: none !important;
+}
+html[data-dwell-youtube="on"] ytd-browse:not([page-subtype="history"]) ytd-reel-shelf-renderer {
+  display: none !important;
+}
+html[data-dwell-youtube="on"] grid-shelf-view-model:has(ytm-shorts-lockup-view-model) {
+  display: none !important;
+}
+
+/* Search results and related videos */
+html[data-dwell-youtube="on"] ytd-search ytd-video-renderer:has(a[href^="/shorts"]) {
+  display: none !important;
+}
+html[data-dwell-youtube="on"] ytd-search ytd-reel-shelf-renderer {
+  display: none !important;
+}
+html[data-dwell-youtube="on"] #related ytd-compact-video-renderer:has(a[href^="/shorts"]) {
+  display: none !important;
+}
+
+/* The Shorts tab on channel pages */
+html[data-dwell-youtube="on"] ytd-browse[page-subtype="channels"] yt-tab-shape[tab-title="Shorts"] {
+  display: none !important;
+}

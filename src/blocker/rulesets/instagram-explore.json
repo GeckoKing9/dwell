@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "url": "https://www.instagram.com/#dwell=instagram" }
+    },
+    "condition": {
+      "regexFilter": "^https://(?:www\\.)?instagram\\.com/(?:[^?]*/)?explore(?:[/?]|$)",
+      "isUrlFilterCaseSensitive": false,
+      "resourceTypes": ["main_frame", "sub_frame"]
+    }
+  }
+]

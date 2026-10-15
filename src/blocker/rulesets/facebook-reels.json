@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "url": "https://www.facebook.com/#dwell=facebook" }
+    },
+    "condition": {
+      "regexFilter": "^https://(?:www\\.|m\\.)?facebook\\.com/(?:[^?]*/)?reels?(?:[/?]|$)",
+      "isUrlFilterCaseSensitive": false,
+      "resourceTypes": ["main_frame", "sub_frame"]
+    }
+  }
+]
