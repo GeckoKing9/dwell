@@ -18,10 +18,10 @@ html[data-dwell-instagram="on"] [data-dwell-hidden] {
 
 /*
  * A video post on its own page, shown the way Instagram's pop-up shows a post (instagram-pop-up.ts marks
- * the elements; 2026-10-15). The card is fixed in the middle at the size Dwell computes, the comments column
- * at the pop-up's width, the card's ancestors stop forming stacking contexts or containing blocks so the
- * fixed card lands in the window, and everything beside them is dimmed and unclickable. The bare page behind
- * takes the page's own background dimmed by the same 35 % (DIM_FACTOR, computed in instagram-pop-up.ts).
+ * the elements and sets the sizes; 2026-10-15). The card is fixed in the middle at the size Dwell computes, the
+ * comments column at the pop-up's width, the card's ancestors stop forming stacking contexts or containing
+ * blocks so the fixed card lands in the window, and everything beside them is dimmed (`--dwell-dim`, which is
+ * DIM_FACTOR) and unclickable. The bare page behind takes the page's own background dimmed the same.
  */
 html[data-dwell-instagram="on"][data-dwell-post-open],
 html[data-dwell-instagram="on"][data-dwell-post-open] body {
@@ -33,13 +33,20 @@ html[data-dwell-instagram="on"][data-dwell-post-open] [data-dwell-post-path] {
   max-width: none !important;
   transform: none !important;
   filter: none !important;
+  translate: none !important;
+  scale: none !important;
+  rotate: none !important;
+  perspective: none !important;
+  backdrop-filter: none !important;
   contain: none !important;
+  container-type: normal !important;
+  content-visibility: visible !important;
   will-change: auto !important;
   isolation: auto !important;
   z-index: auto !important;
 }
 html[data-dwell-instagram="on"][data-dwell-post-open] [data-dwell-dim] {
-  filter: brightness(0.35) !important;
+  filter: brightness(var(--dwell-dim, 0.35)) !important;
   pointer-events: none !important;
   z-index: 0 !important;
 }
@@ -58,13 +65,13 @@ html[data-dwell-instagram="on"][data-dwell-post-open] [data-dwell-post] {
   background: rgb(var(--ig-primary-background, 255, 255, 255));
 }
 html[data-dwell-instagram="on"][data-dwell-post-open] [data-dwell-post-side] {
-  flex: 0 0 405px !important;
-  width: 405px !important;
+  flex: 0 0 var(--dwell-post-side) !important;
+  width: var(--dwell-post-side) !important;
   max-width: none !important;
   height: auto !important;
   max-height: none !important;
 }
-html[data-dwell-instagram="on"] [data-dwell-close] {
+html[data-dwell-instagram="on"][data-dwell-post-open] [data-dwell-close] {
   position: fixed;
   top: 10px;
   right: 10px;
@@ -78,7 +85,7 @@ html[data-dwell-instagram="on"] [data-dwell-close] {
   color: #f5f5f5;
   cursor: pointer;
 }
-html[data-dwell-instagram="on"] [data-dwell-close] svg {
+html[data-dwell-instagram="on"][data-dwell-post-open] [data-dwell-close] svg {
   display: block;
   width: 24px;
   height: 24px;
@@ -87,13 +94,14 @@ html[data-dwell-instagram="on"] [data-dwell-close] svg {
   stroke-width: 2.4;
   stroke-linecap: round;
 }
-html[data-dwell-instagram="on"] [data-dwell-close]:hover {
+html[data-dwell-instagram="on"][data-dwell-post-open] [data-dwell-close]:hover {
   background: rgb(255 255 255 / 0.1);
 }
-html[data-dwell-instagram="on"] [data-dwell-close]:focus-visible {
+html[data-dwell-instagram="on"][data-dwell-post-open] [data-dwell-close]:focus-visible {
   outline: 2px solid #f5f5f5;
   outline-offset: 2px;
 }
-html[data-dwell-instagram="off"] [data-dwell-close] {
+/* No pop-up drawn (switch off, or a window too narrow for one): no close button either. */
+html:not([data-dwell-instagram="on"][data-dwell-post-open]) [data-dwell-close] {
   display: none !important;
 }

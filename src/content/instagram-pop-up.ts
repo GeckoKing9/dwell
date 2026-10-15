@@ -6,11 +6,12 @@
  * around the page Instagram already drew.
  *
  * Closing (the button, Escape, or a click on the dimmed page) goes back to the Instagram page the post was
- * opened from, or, with none to go back to, lifts the pop-up and leaves the post page as it was. Only
- * attributes are added to Instagram's elements and one button to the page; `instagram.css` does the rest.
- * Called by `instagram-post.ts`; nothing is stored or sent.
+ * opened from, or, with none to go back to, lifts the pop-up for as long as this post is open. Dialogs and
+ * menus Instagram opens from the post are never dimmed. Only attributes and custom properties are added to
+ * Instagram's page, plus one button; `instagram.css` does the rest. Called by `instagram-post.ts`; nothing is
+ * stored or sent.
  */
-import { dimColor, leaveBy, popUpBox } from '../blocker/post.ts';
+import { DIM_FACTOR, dimColor, leaveBy, popUpBox } from '../blocker/post.ts';
 
 const POST = 'data-dwell-post';
 const SIDE = 'data-dwell-post-side';
@@ -20,14 +21,21 @@ const OPEN = 'data-dwell-post-open';
 const CLOSE = 'data-dwell-close';
 /** A column narrower than this beside the video is a control strip, not the comments. */
 const MIN_SIDE_PX = 150;
+/** Behind the pop-up when neither the body's nor the page's colour can be read. */
+const FALLBACK_BACKDROP = 'rgb(18, 18, 18)';
+/** Instagram's own dialogs, menus and popovers: whatever holds one is never dimmed. */
+const OVERLAY = '[role="dialog"], [role="menu"], [role="listbox"], [role="tooltip"], [aria-modal="true"]';
+/** The dimmed parts are checked again at most this often while the page changes under the pop-up. */
+const REDIM_MS = 1000;
 
 interface Shown {
   readonly card: Element;
   readonly video: HTMLVideoElement;
+  redimmedAt: number;
 }
 
 let shown: Shown | null = null;
-/** Closed with nothing to go back to: stays lifted until the page changes. */
+/** Closed with nothing to go back to: stays lifted until this post's page is left (`resetPopUp`). */
 let dismissed = false;
 
 /**
@@ -51,18 +59,31 @@ function findCard(video: HTMLVideoElement, main: Element): { card: Element; side
 
 /** The page's own background, read before the pop-up restyles it, dimmed like the parts around the card. */
 function setBackdrop(): void {
-  const body = getComputedStyle(document.body).backgroundColor;
-  const page = dimColor(body) === dimColor('') ? getComputedStyle(document.documentElement).backgroundColor : body;
-  document.documentElement.style.setProperty('--dwell-post-backdrop', dimColor(page));
+  const color =
+    dimColor(getComputedStyle(document.body).backgroundColor) ??
+    dimColor(getComputedStyle(document.documentElement).backgroundColor) ??
+    FALLBACK_BACKDROP;
+  const root = document.documentElement.style;
+  root.setProperty('--dwell-post-backdrop', color);
+  root.setProperty('--dwell-dim', String(DIM_FACTOR));
 }
 
-function size(video: HTMLVideoElement): void {
-  const box = popUpBox({ width: innerWidth, height: innerHeight }, video.videoWidth / video.videoHeight);
-  document.documentElement.style.setProperty('--dwell-post-w', `${box.width}px`);
-  document.documentElement.style.setProperty('--dwell-post-h', `${box.height}px`);
+/** Sizes the pop-up to the window and the video; a window too narrow for it shows the page as Instagram drew it. */
+function resize(): void {
+  if (shown === null) return;
+  const box = popUpBox({ width: innerWidth, height: innerHeight }, shown.video.videoWidth / shown.video.videoHeight);
+  const root = document.documentElement;
+  root.toggleAttribute(OPEN, box !== null);
+  if (box === null) return;
+  root.style.setProperty('--dwell-post-w', `${box.width}px`);
+  root.style.setProperty('--dwell-post-h', `${box.height}px`);
+  root.style.setProperty('--dwell-post-side', `${box.side}px`);
 }
 
-/** Everything on screen beside the card's line of ancestors is dimmed; empty portals stay as they are. */
+/**
+ * Dims everything on screen beside the card's line of ancestors. Empty portals are skipped, and anything
+ * holding one of Instagram's dialogs or menus is skipped, or brought back if it was dimmed before it held one.
+ */
 function markAround(card: Element): void {
   for (let el: Element | null = card.parentElement; el !== null && el !== document.body; el = el.parentElement) {
     el.setAttribute(PATH, '');
@@ -70,6 +91,10 @@ function markAround(card: Element): void {
   for (let el: Element = card; el.parentElement !== null && el !== document.body; el = el.parentElement) {
     for (const sibling of el.parentElement.children) {
       if (sibling === el || sibling.hasAttribute(CLOSE) || sibling.hasAttribute('data-dwell-hidden')) continue;
+      if (sibling.matches(OVERLAY) || sibling.querySelector(OVERLAY) !== null) {
+        sibling.removeAttribute(DIM);
+        continue;
+      }
       const r = sibling.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) sibling.setAttribute(DIM, '');
     }
@@ -80,15 +105,21 @@ function unmark(): void {
   for (const name of [POST, SIDE, PATH, DIM]) {
     for (const el of document.querySelectorAll(`[${name}]`)) el.removeAttribute(name);
   }
-  document.documentElement.removeAttribute(OPEN);
-  document.documentElement.style.removeProperty('--dwell-post-w');
-  document.documentElement.style.removeProperty('--dwell-post-h');
-  document.documentElement.style.removeProperty('--dwell-post-backdrop');
+  const root = document.documentElement;
+  root.removeAttribute(OPEN);
+  for (const name of ['--dwell-post-w', '--dwell-post-h', '--dwell-post-side', '--dwell-post-backdrop', '--dwell-dim']) {
+    root.style.removeProperty(name);
+  }
   document.querySelector(`[${CLOSE}]`)?.remove();
 }
 
+/** True when the tab has a page to go back to; the Navigation API knows, `history.length` also counts forward ones. */
+function canGoBack(): boolean {
+  return 'navigation' in window ? window.navigation.canGoBack : history.length > 1;
+}
+
 function leave(): void {
-  if (leaveBy(history.length, document.referrer) === 'back') {
+  if (leaveBy(canGoBack(), document.referrer) === 'back') {
     history.back();
     return;
   }
@@ -114,7 +145,7 @@ function closeButton(): HTMLButtonElement {
 
 /** A click on the dimmed page (an ancestor of the card outside it, or the page itself) closes the pop-up. */
 function onClick(event: MouseEvent): void {
-  if (shown === null || !(event.target instanceof Element)) return;
+  if (shown === null || !document.documentElement.hasAttribute(OPEN) || !(event.target instanceof Element)) return;
   const target = event.target;
   const backdrop =
     target === document.documentElement || target === document.body || (target.hasAttribute(PATH) && !shown.card.contains(target));
@@ -124,62 +155,68 @@ function onClick(event: MouseEvent): void {
   leave();
 }
 
-/** Escape closes it, unless one of Instagram's own dialogs or menus is open and takes the key itself. */
+function typing(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable || target.getAttribute('role') === 'textbox' || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+}
+
+/** Escape closes it, unless the user is typing or one of Instagram's own dialogs or menus takes the key. */
 function onKeyDown(event: KeyboardEvent): void {
-  if (shown === null || event.key !== 'Escape' || document.querySelector('[role="dialog"], [role="menu"]') !== null) return;
+  if (shown === null || event.key !== 'Escape' || !document.documentElement.hasAttribute(OPEN)) return;
+  if (typing(event.target) || document.querySelector(OVERLAY) !== null) return;
   event.preventDefault();
   leave();
 }
 
-function onResize(): void {
-  if (shown !== null) size(shown.video);
-}
-
-function onMetadata(): void {
-  if (shown !== null) size(shown.video);
-}
-
-/** Removes the pop-up and everything it added. */
+/** Removes the pop-up and everything it added; nothing to do when none is shown. */
 function lift(): void {
-  if (shown !== null) shown.video.removeEventListener('loadedmetadata', onMetadata);
+  if (shown === null) return;
+  shown.video.removeEventListener('loadedmetadata', resize);
   shown = null;
   unmark();
   document.removeEventListener('click', onClick, true);
   window.removeEventListener('keydown', onKeyDown, true);
-  window.removeEventListener('resize', onResize);
+  window.removeEventListener('resize', resize);
+}
+
+/** Lifts the pop-up and forgets a close: the post's page was left or the Reels switch turned off. */
+export function resetPopUp(): void {
+  dismissed = false;
+  lift();
 }
 
 /**
- * Shows the post around `video` as a pop-up, or lifts it when `video` is null. Called on every check of
- * the post page; cheap when nothing changed, and redone when Instagram redraws the post.
+ * Shows the post around `video` as a pop-up, or lifts it while `video` is null (the post redrawing, an image
+ * slide), keeping a close the user made. Called on every check of the post page; cheap when nothing changed.
  */
 export function syncPopUp(video: HTMLVideoElement | null, main: Element | null): void {
   if (video === null || main === null) {
-    dismissed = false;
     lift();
     return;
   }
   if (dismissed) return;
   if (shown !== null && shown.video === video && shown.card.isConnected && shown.card.hasAttribute(POST)) {
-    markAround(shown.card);
+    // A dialog Instagram just opened inside something dimmed is brought back at once, not on the next pass.
+    for (const dimmed of document.querySelectorAll(`[${DIM}]`)) if (dimmed.querySelector(OVERLAY) !== null) dimmed.removeAttribute(DIM);
+    const now = Date.now();
+    if (now - shown.redimmedAt >= REDIM_MS) {
+      shown.redimmedAt = now;
+      markAround(shown.card);
+    }
     return;
   }
   const found = findCard(video, main);
-  if (found === null) {
-    lift();
-    return;
-  }
   lift();
-  shown = { card: found.card, video };
+  if (found === null) return;
+  shown = { card: found.card, video, redimmedAt: Date.now() };
   found.card.setAttribute(POST, '');
   found.side.setAttribute(SIDE, '');
   setBackdrop();
-  size(video);
+  resize();
   document.body.append(closeButton());
   markAround(found.card);
-  document.documentElement.setAttribute(OPEN, '');
-  video.addEventListener('loadedmetadata', onMetadata);
+  video.addEventListener('loadedmetadata', resize);
   document.addEventListener('click', onClick, true);
   window.addEventListener('keydown', onKeyDown, true);
-  window.addEventListener('resize', onResize);
+  window.addEventListener('resize', resize);
 }

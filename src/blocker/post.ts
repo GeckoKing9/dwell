@@ -42,26 +42,40 @@ export const POP_UP_MARGIN_PX = 24;
 export const POP_UP_EDGE_PX = 64;
 /** The width of the comments column beside the media in Instagram's pop-up. */
 export const POP_UP_SIDE_PX = 405;
+/** Less room than this for the video beside the comments, and the page is left as Instagram drew it. */
+const MIN_MEDIA_PX = 160;
 /** Short videos are vertical: the shape assumed until the video reports its own. */
 const DEFAULT_RATIO = 9 / 16;
 
+/** A pop-up's outer size and its comments column, in CSS pixels. */
+export interface PopUpBox {
+  width: number;
+  height: number;
+  side: number;
+}
+
 /**
- * The size of a post shown the way Instagram's pop-up shows it: as tall as the window allows less the
- * margin, the media at the video's own width-to-height `ratio`, the comments column beside it, and never
- * wider than the window less POP_UP_EDGE_PX on each side.
+ * The size of a post shown the way Instagram's pop-up shows it: the video at its own width-to-height
+ * `ratio`, as tall as the window allows less the margin, with the comments column beside it. In a window too
+ * narrow for that the box keeps the video's shape and gets shorter, never wider than the window less
+ * POP_UP_EDGE_PX a side; null when even that leaves the video less than MIN_MEDIA_PX.
  */
-export function popUpBox(view: { width: number; height: number }, ratio: number): { width: number; height: number } {
+export function popUpBox(view: { width: number; height: number }, ratio: number): PopUpBox | null {
   const shape = Number.isFinite(ratio) && ratio > 0 ? ratio : DEFAULT_RATIO;
-  const height = Math.max(0, view.height - 2 * POP_UP_MARGIN_PX);
-  const width = Math.max(0, Math.min(view.width - 2 * POP_UP_EDGE_PX, Math.round(height * shape) + POP_UP_SIDE_PX));
-  return { width, height };
+  const tallest = view.height - 2 * POP_UP_MARGIN_PX;
+  const room = view.width - 2 * POP_UP_EDGE_PX - POP_UP_SIDE_PX;
+  if (tallest <= 0 || room < MIN_MEDIA_PX) return null;
+  const full = Math.round(tallest * shape);
+  if (full <= room) return { width: full + POP_UP_SIDE_PX, height: tallest, side: POP_UP_SIDE_PX };
+  return { width: room + POP_UP_SIDE_PX, height: Math.round(room / shape), side: POP_UP_SIDE_PX };
 }
 
 /**
  * Where closing the pop-up goes: `back` to the Instagram page the post was opened from (a search, a
- * profile), or `stay` on the post with the pop-up lifted when there is none (a link from another site).
+ * profile) when the tab can go back, or `stay` on the post with the pop-up lifted when there is none (a
+ * link from another site, the first page of a new tab).
  */
-export function leaveBy(historyLength: number, referrer: string): 'back' | 'stay' {
+export function leaveBy(canGoBack: boolean, referrer: string): 'back' | 'stay' {
   let from: URL;
   try {
     from = new URL(referrer);
@@ -69,22 +83,20 @@ export function leaveBy(historyLength: number, referrer: string): 'back' | 'stay
     // No referrer, or not an address: the post was not opened from Instagram.
     return 'stay';
   }
-  return historyLength > 1 && from.protocol === 'https:' && siteForHost(from.hostname) === 'instagram' ? 'back' : 'stay';
+  return canGoBack && from.protocol === 'https:' && siteForHost(from.hostname) === 'instagram' ? 'back' : 'stay';
 }
 
-/** How much the page around the pop-up is dimmed: `instagram.css` uses the same `brightness()`. */
+/** How much the page around the pop-up is dimmed: `instagram.css` reads it as `--dwell-dim`. */
 export const DIM_FACTOR = 0.35;
-/** Behind the pop-up when the page's own colour cannot be read. */
-const FALLBACK_BACKDROP = 'rgb(18, 18, 18)';
 const OPAQUE_RGB = /^rgba?\(\s*(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})(?:,\s*(1|1\.0+))?\s*\)$/;
 
 /**
  * The page's computed background colour dimmed by DIM_FACTOR, so the bare page behind the pop-up matches
- * the dimmed parts of it. Anything other than an opaque `rgb()`/`rgba()` reads as a dark grey.
+ * the dimmed parts of it; null when the colour is not an opaque `rgb()`/`rgba()`.
  */
-export function dimColor(computed: string): string {
+export function dimColor(computed: string): string | null {
   const m = OPAQUE_RGB.exec(computed.trim());
-  if (m === null) return FALLBACK_BACKDROP;
+  if (m === null) return null;
   const [r, g, b] = [m[1], m[2], m[3]].map((v) => Math.round(Number(v) * DIM_FACTOR));
   return `rgb(${r}, ${g}, ${b})`;
 }

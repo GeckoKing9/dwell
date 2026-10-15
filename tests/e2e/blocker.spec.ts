@@ -460,6 +460,89 @@ test('a post opened from another site has nothing to go back to: closing lifts t
   await page.close();
 });
 
+test('a dialog Instagram opens from the pop-up (share, likes, the ... menu) stays bright and clickable', async () => {
+  const page = await context.newPage();
+  await openPostFromInstagram(page);
+  await page.evaluate(() => {
+    const portal = document.createElement('div');
+    portal.id = 'portal';
+    document.body.append(portal);
+  });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => {
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.style.cssText = 'margin:40px;width:240px;height:120px;background:#fff';
+    dialog.innerHTML = '<button id="share">Share</button>';
+    dialog.querySelector('button')?.addEventListener('click', () => document.body.setAttribute('data-shared', 'yes'));
+    // An open portal covers the window, as overlay containers do while a dialog is up.
+    const portal = document.getElementById('portal');
+    if (portal !== null) portal.style.cssText = 'position:fixed;inset:0;z-index:5';
+    portal?.append(dialog);
+  });
+  await page.waitForTimeout(1500);
+  await expect(page.locator('#portal')).not.toHaveAttribute('data-dwell-dim', '');
+  await page.locator('#share').click();
+  await expect(page.locator('body')).toHaveAttribute('data-shared', 'yes');
+  expect(path(page)).toBe(`/p/${CODE}/`);
+  await page.close();
+});
+
+test('Escape while typing a comment keeps the pop-up and the text', async () => {
+  const page = await context.newPage();
+  await openPostFromInstagram(page);
+  await page.locator('#comment-box').fill('half a thought');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  expect(path(page)).toBe(`/p/${CODE}/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-post-open', '');
+  await expect(page.locator('#comment-box')).toHaveValue('half a thought');
+  await page.close();
+});
+
+test('a pop-up closed with nothing to go back to stays closed when Instagram redraws the video', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/p/${CODE}/`);
+  await expect(page.locator('#post')).toHaveAttribute('data-dwell-post', '');
+  await page.locator('[data-dwell-close]').click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-dwell-post-open', '');
+  await page.evaluate(() => {
+    const media = document.getElementById('media');
+    const video = document.getElementById('post-video');
+    video?.remove();
+    setTimeout(() => {
+      const again = document.createElement('video');
+      again.id = 'post-video';
+      media?.append(again);
+    }, 100);
+  });
+  await page.waitForTimeout(800);
+  await expect(page.locator('html')).not.toHaveAttribute('data-dwell-post-open', '');
+  await page.close();
+});
+
+test('opened in a new tab from Instagram, the first page of the tab: closing lifts the pop-up instead of a Back that goes nowhere', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/p/${CODE}/`, { referer: `${IG}/explore/` });
+  await expect(page.locator('#post')).toHaveAttribute('data-dwell-post', '');
+  expect(await page.evaluate(() => document.referrer)).toBe(`${IG}/explore/`);
+  await page.locator('[data-dwell-close]').click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-dwell-post-open', '');
+  expect(path(page)).toBe(`/p/${CODE}/`);
+  await page.close();
+});
+
+test('a window too narrow for the video beside the comments shows the page as Instagram drew it, and the pop-up again when widened', async () => {
+  const page = await context.newPage();
+  await openPostFromInstagram(page);
+  await page.setViewportSize({ width: 600, height: 800 });
+  await expect(page.locator('html')).not.toHaveAttribute('data-dwell-post-open', '');
+  await expect(page.locator('[data-dwell-close]')).toBeHidden();
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-post-open', '');
+  await page.close();
+});
+
 test('with instagramReels off a post page stays as Instagram drew it', async () => {
   const page = await context.newPage();
   await openPostFromInstagram(page);

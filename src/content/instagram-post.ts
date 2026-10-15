@@ -10,7 +10,7 @@
  * Instagram only; nothing is stored or sent.
  */
 import { MIN_OTHER_POSTS, isOtherPostLink, singlePostCode } from '../blocker/post.ts';
-import { syncPopUp } from './instagram-pop-up.ts';
+import { resetPopUp, syncPopUp } from './instagram-pop-up.ts';
 
 const MARK = 'data-dwell-hidden';
 /**
@@ -34,17 +34,24 @@ function holdsAll(container: Element, links: readonly Element[]): boolean {
   return links.every((link) => container.contains(link));
 }
 
+/** True for an element that is not inside one of the `others` links (a thumbnail of another post). */
+function ownOf(el: Element, others: ReadonlySet<Element>): boolean {
+  const link = el.closest('a');
+  return link === null || !others.has(link);
+}
+
+/** The post's own video: the first one in `main` that is not inside a link to another post. */
+function ownVideo(main: Element, others: ReadonlySet<Element>): HTMLVideoElement | null {
+  return [...main.querySelectorAll('video')].find((video) => ownOf(video, others)) ?? null;
+}
+
 /** The post's own media: its video, else its first article, else its first image; never one inside a link to another post. */
 function postMedia(main: Element, others: ReadonlySet<Element>): Element | null {
-  const own = (el: Element): boolean => {
-    const link = el.closest('a');
-    return link === null || !others.has(link);
-  };
-  const video = [...main.querySelectorAll('video')].find(own);
-  if (video !== undefined) return video;
+  const video = ownVideo(main, others);
+  if (video !== null) return video;
   const article = main.querySelector('article');
   if (article !== null) return article;
-  return [...main.querySelectorAll('img')].find(own) ?? null;
+  return [...main.querySelectorAll('img')].find((img) => ownOf(img, others)) ?? null;
 }
 
 /**
@@ -52,10 +59,9 @@ function postMedia(main: Element, others: ReadonlySet<Element>): Element | null 
  * each element after the one that holds the media (the separator, the "More posts" heading, the grid, the
  * footer). Nothing unless at least MIN_OTHER_POSTS of those links come after the post.
  */
-function morePosts(main: Element, code: string): Element[] {
-  const others = otherPostLinks(main, code);
+function morePosts(main: Element, others: readonly HTMLAnchorElement[], otherSet: ReadonlySet<Element>): Element[] {
   if (others.length < MIN_OTHER_POSTS) return [];
-  const media = postMedia(main, new Set(others));
+  const media = postMedia(main, otherSet);
   if (media === null) return [];
   let container = media.parentElement;
   while (container !== null && !holdsAll(container, others)) container = container.parentElement;
@@ -103,25 +109,22 @@ function loadedPostCode(): string | null {
   return LOADED_CODE !== null && singlePostCode(location.pathname) === LOADED_CODE ? LOADED_CODE : null;
 }
 
-/** The post's own video: the first one in `main` that is not inside a link to another post. */
-function ownVideo(main: Element, code: string): HTMLVideoElement | null {
-  const others = new Set<Element>(otherPostLinks(main, code));
-  const own = [...main.querySelectorAll('video')].find((video) => {
-    const link = video.closest('a');
-    return link === null || !others.has(link);
-  });
-  return own ?? null;
-}
-
 function run(): void {
   frame = null;
   const code = loadedPostCode();
   const main = document.querySelector('main');
   // The post in a pop-up over another page: that page is not this post's page, so it is left alone.
-  const ownPage = code !== null && main !== null && !postInPopUp(code);
-  mark(ownPage ? morePosts(main, code) : []);
+  if (code === null || main === null || postInPopUp(code)) {
+    mark([]);
+    syncPopUp(null, main);
+    return;
+  }
+  // Every link to another post, read once per check: both the hider and the pop-up start from them.
+  const others = otherPostLinks(main, code);
+  const otherSet = new Set<Element>(others);
+  mark(morePosts(main, others, otherSet));
   // A video post on its own page is shown the way Instagram's pop-up shows one (`instagram-pop-up.ts`).
-  syncPopUp(ownPage ? ownVideo(main, code) : null, main);
+  syncPopUp(ownVideo(main, otherSet), main);
 }
 
 function schedule(): void {
@@ -147,5 +150,5 @@ export function syncPostPage(on: boolean): void {
   if (frame !== null) cancelAnimationFrame(frame);
   frame = null;
   mark([]);
-  syncPopUp(null, null);
+  resetPopUp();
 }
