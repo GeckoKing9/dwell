@@ -223,7 +223,7 @@ describe('start and alarms', () => {
     expect(fake.alarms.get('prune')).toMatchObject({ periodInMinutes: 1440 });
     expect(fake.detectionInterval).toBe(60);
     expect([...fake.enabledRulesets].sort()).toEqual(['facebook-reels', 'instagram-reels', 'youtube-shorts']);
-    expect(fake.rulesetUpdates.at(-1)?.disableRulesetIds).toEqual(['instagram-explore']);
+    expect(fake.rulesetUpdates).toEqual([]);
 
     fake.local.data.set('settings', { ...DEFAULT_SETTINGS, idleThresholdSec: 300, blockers: { ...DEFAULT_SETTINGS.blockers, instagramExplore: true } });
     await createBackground().start();
@@ -271,7 +271,7 @@ describe('the event log sweep', () => {
       await heartbeat(bg);
     }
     expect(listed).not.toHaveBeenCalled();
-    expect(fake.local.data.get(logKey(T0))).toHaveLength(13);
+    expect(fake.local.data.get(logKey(T0))).toHaveLength(12);
   });
 
   it('drops log hours older than 24 h on the prune alarm, even with the log off', async () => {

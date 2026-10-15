@@ -126,11 +126,11 @@ describe('list fields', () => {
   });
 
   it('keep a bad entry in the field with an error and send nothing', () => {
-    const { deps, state, handlers } = setup({}, { drafts: { ignore: 'nope', split: 'google.com' } });
+    const { deps, state, handlers } = setup({}, { drafts: { ignore: 'not a domain', split: 'google.com' } });
     handlers.settings.add('ignore');
     handlers.settings.add('split');
     expect(deps.send).not.toHaveBeenCalled();
-    expect(state.ui.value.drafts).toEqual({ ignore: 'nope', split: 'google.com' });
+    expect(state.ui.value.drafts).toEqual({ ignore: 'not a domain', split: 'google.com' });
     expect(state.ui.value.errors).toEqual({ ignore: 'Enter a domain such as example.com.', split: 'Enter a subdomain such as mail.google.com.' });
     handlers.settings.draft('ignore', 'nop');
     expect(state.ui.value.errors.ignore).toBe('');

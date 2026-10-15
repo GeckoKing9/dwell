@@ -75,6 +75,11 @@ async function messages(): Promise<unknown[]> {
   return worker.evaluate(() => [...((globalThis as unknown as { dwellSeen?: unknown[] }).dwellSeen ?? [])]);
 }
 
+/** Only the block reports: every content script also reports its media state on load. */
+async function blocked(): Promise<unknown[]> {
+  return (await messages()).filter((m) => (m as { type?: string }).type === 'blocked');
+}
+
 function path(page: Page): string {
   return new URL(page.url()).pathname;
 }
@@ -160,10 +165,10 @@ test('a hard load of an Instagram Reel lands on the home page, counted once, mar
   await expect.poll(() => page.url()).toBe(`${IG}/`);
   expect(served.some((url) => url.includes('/reels/'))).toBe(false);
   expect(await page.evaluate(() => document.documentElement.dataset.hashAtHead)).toBe('');
-  await expect.poll(messages).toEqual([{ type: 'blocked', site: 'instagram' }]);
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'instagram' }]);
   await page.reload();
   await page.waitForTimeout(300);
-  expect(await messages()).toEqual([{ type: 'blocked', site: 'instagram' }]);
+  expect(await blocked()).toEqual([{ type: 'blocked', site: 'instagram' }]);
   await page.close();
 });
 
@@ -177,7 +182,7 @@ test('an in-page Reel route change is cancelled before it commits and counted wi
   expect(await tapReel(page)).toEqual({ path: '/', added: 0 });
   await page.waitForTimeout(600);
   expect(page.url()).toBe(`${IG}/`);
-  await expect.poll(messages).toEqual([{ type: 'blocked', site: 'instagram' }]);
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'instagram' }]);
   await page.close();
 });
 
@@ -186,12 +191,12 @@ test('a landing with the marker is stripped before the page runs a script', asyn
   await page.goto(`${IG}/#dwell=instagram`);
   expect(await page.evaluate(() => document.documentElement.dataset.hashAtHead)).toBe('');
   expect(page.url()).toBe(`${IG}/`);
-  await expect.poll(messages).toEqual([{ type: 'blocked', site: 'instagram' }]);
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'instagram' }]);
 
   await page.goto(`${IG}/#dwell=youtube`);
   expect(await page.evaluate(() => location.hash)).toBe('#dwell=youtube');
   await page.waitForTimeout(300);
-  expect(await messages()).toHaveLength(1);
+  expect(await blocked()).toHaveLength(1);
   await page.close();
 });
 
@@ -203,7 +208,7 @@ test('with instagramReels off a landing on the marker is stripped and not counte
   expect(page.url()).toBe(`${IG}/`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'off');
   await page.waitForTimeout(300);
-  expect(await messages()).toEqual([]);
+  expect(await blocked()).toEqual([]);
   await page.close();
 });
 
@@ -217,13 +222,13 @@ test('with instagramReels off the same tap lands on /reels/abc untouched, and tu
   expect(await tapReel(page)).toEqual({ path: '/reels/abc', added: 1 });
   await page.waitForTimeout(600);
   expect(path(page)).toBe('/reels/abc');
-  expect(await messages()).toEqual([]);
+  expect(await blocked()).toEqual([]);
 
   await setBlockers({ instagramReels: true });
   await page.waitForURL(`${IG}/`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
   expect(await page.evaluate(() => document.documentElement.dataset.hashAtHead)).toBe('');
-  await expect.poll(messages).toEqual([{ type: 'blocked', site: 'instagram' }]);
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'instagram' }]);
   await page.close();
 });
 
@@ -265,7 +270,7 @@ test('the loop guard lets the third Shorts tap within 5 s through instead of can
   await page.waitForTimeout(600);
   expect(page.url()).toBe(`${YT}/shorts/CCCCCCCCCCC`);
   const landing = { type: 'blocked', site: 'youtube' };
-  await expect.poll(messages).toEqual([landing, landing]);
+  await expect.poll(blocked).toEqual([landing, landing]);
   await page.close();
 });
 
@@ -279,9 +284,13 @@ test('media reports playing and paused, and nothing else', async () => {
     video.srcObject = canvas.captureStream(5);
     await video.play();
   });
-  await expect.poll(messages).toEqual([{ type: 'media', playing: true }]);
+  await expect.poll(messages).toEqual([
+    { type: 'media', playing: false },
+    { type: 'media', playing: true },
+  ]);
   await page.evaluate(() => (document.getElementById('clip') as HTMLVideoElement).pause());
   await expect.poll(messages).toEqual([
+    { type: 'media', playing: false },
     { type: 'media', playing: true },
     { type: 'media', playing: false },
   ]);

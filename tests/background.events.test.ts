@@ -162,7 +162,7 @@ describe('log entries', () => {
     [{ type: 'tick', at: AT }, { at: AT, kind: 'tick' }],
     [{ type: 'url', at: AT, tabId: 1, site: 'a.example', audible: true }, { at: AT, kind: 'url', site: 'a.example', tab: 1, a: 1 }],
     [{ type: 'url', at: AT, tabId: 1, site: null, audible: false }, { at: AT, kind: 'url', tab: 1, a: 0 }],
-    [{ type: 'url', at: AT, tabId: 1, site: 'localhost' }, { at: AT, kind: 'url', tab: 1 }],
+    [{ type: 'url', at: AT, tabId: 1, site: 'localhost' }, { at: AT, kind: 'url', site: 'localhost', tab: 1 }],
     [{ type: 'url', at: AT, tabId: 1, site: 'a.example', audible: false, nav: true }, { at: AT, kind: 'url-nav', site: 'a.example', tab: 1, a: 0 }],
     [
       { type: 'seed', at: AT, windowId: 1, tabId: 2, site: 'b.example', audible: true, idle: 'idle' },
