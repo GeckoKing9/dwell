@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { memoryStore } from '../src/store/adapter.ts';
 import { DEFAULT_SETTINGS, SETTINGS_KEY } from '../src/store/schema.ts';
+import { isRelevantChange } from '../src/shared/storageChanges.ts';
 import {
-  isRelevantChange,
+  applyChanges,
   knownSites,
   loadDashboardData,
   replyFailure,
@@ -34,6 +35,39 @@ describe('loading', () => {
     expect(isRelevantChange(['x', 'd:2026-10-14'], 'local')).toBe(true);
     expect(isRelevantChange(['log:2026-10-14T10'], 'local')).toBe(false);
     expect(isRelevantChange(['settings'], 'session')).toBe(false);
+  });
+
+  it('applies a single day change in memory without touching the store', async () => {
+    const store = memoryStore(sampleDays());
+    const get = vi.spyOn(store, 'get');
+    const keys = vi.spyOn(store, 'keys');
+    const data = await loadDashboardData({ store, now: () => NOW });
+    get.mockClear();
+    keys.mockClear();
+    const later = new Date(NOW.getTime() + 60_000);
+    const changed = { sites: { 'github.com': { h: { 16: 120 }, v: 1 } }, blocked: { instagram: 0, youtube: 0, facebook: 0 } };
+    const next = applyChanges(data, { 'd:2026-10-14': { newValue: changed } }, later);
+    expect(get).not.toHaveBeenCalled();
+    expect(keys).not.toHaveBeenCalled();
+    expect(next?.days['d:2026-10-14']?.sites['github.com']?.h['16']).toBe(120);
+    expect(next?.days['d:2026-10-13']).toBe(data.days['d:2026-10-13']);
+    expect(next?.settings).toBe(data.settings);
+    expect(next?.now).toBe(later);
+  });
+
+  it('applies a settings change in memory and keeps the days', async () => {
+    const data = await loadDashboardData({ store: memoryStore(sampleDays()), now: () => NOW });
+    const next = applyChanges(data, { [SETTINGS_KEY]: { newValue: { ...DEFAULT_SETTINGS, paused: true } } }, NOW);
+    expect(next?.settings.paused).toBe(true);
+    expect(next?.days).toBe(data.days);
+  });
+
+  it('asks for a full reload when a key is removed or a value does not read', async () => {
+    const data = await loadDashboardData({ store: memoryStore(sampleDays()), now: () => NOW });
+    expect(applyChanges(data, { 'd:2026-10-14': {} }, NOW)).toBeNull();
+    expect(applyChanges(data, { 'd:2026-10-14': { newValue: 'junk' } }, NOW)).toBeNull();
+    expect(applyChanges(data, { [SETTINGS_KEY]: {} }, NOW)).toBeNull();
+    expect(applyChanges(data, { [SETTINGS_KEY]: { newValue: { idleThresholdSec: 7 } } }, NOW)).toBeNull();
   });
 
   it('navigates every week the stored days touch, up to this week', () => {

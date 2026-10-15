@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { buildView, clampBack, dayModel, deltaText, weekModel } from '../src/dashboard/model.ts';
 import { simulateDays } from '../src/stats/simulate.ts';
 import { navigableWeeks } from '../src/stats/weeks.ts';
-import { NOW, sampleData } from './support/dashboard.ts';
+import type { DayRecord } from '../src/store/schema.ts';
+import { day, NOW, sampleData } from './support/dashboard.ts';
 
 describe('week model', () => {
   const week = weekModel(sampleData(), 0);
@@ -122,5 +123,28 @@ describe('views', () => {
     const settings = buildView({ view: 'settings' }, data);
     expect(settings.kind === 'settings' && settings.sites).toEqual(['github.com', 'instagram.com', 'netflix.com', 'youtube.com']);
     expect(buildView({ view: 'privacy' }, data).kind).toBe('privacy');
+  });
+});
+
+describe('week model cost', () => {
+  it('reduces each of 14 days at most once for a week model with its previous week', () => {
+    const reads = new Map<string, number>();
+    const days: Record<string, DayRecord> = {};
+    for (let d = 1; d <= 14; d++) {
+      const key = `d:2026-10-${String(d).padStart(2, '0')}`;
+      const record = { ...day({ 'github.com': { 9: 600 }, 'netflix.com': { 20: 300 } }), blocked: { instagram: 1, youtube: 0, facebook: 0 } };
+      days[key] = new Proxy(record, {
+        get(target, prop, receiver) {
+          if (prop === 'sites') reads.set(key, (reads.get(key) ?? 0) + 1);
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+    }
+    const model = weekModel(sampleData(days), 0);
+    expect(model.agg.total).toBeGreaterThan(0);
+    expect(model.previous.get('github.com')).toBeGreaterThan(0);
+    expect(model.agg.blocked.instagram).toBe(3);
+    expect(reads.size).toBe(6); // Mon-Wed of this week and of the like-for-like previous window
+    expect(Math.max(...reads.values())).toBe(1);
   });
 });

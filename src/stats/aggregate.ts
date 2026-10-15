@@ -84,7 +84,21 @@ function bySecondsThenName(a: SiteTime, b: SiteTime): number {
   return b.seconds - a.seconds || (a.site < b.site ? -1 : a.site > b.site ? 1 : 0);
 }
 
+const memo = new WeakMap<DayRecord, DayAggregate>();
+
+/**
+ * The reduction of one stored day. Memoised by record identity: a record is replaced, never edited, when
+ * storage changes, so the week model, the previous week and the day view share one reduction per day.
+ */
 export function dayAggregate(record: DayRecord): DayAggregate {
+  const cached = memo.get(record);
+  if (cached) return cached;
+  const agg = reduceDay(record);
+  memo.set(record, agg);
+  return agg;
+}
+
+function reduceDay(record: DayRecord): DayAggregate {
   const hours = new Array<number>(24).fill(0);
   const perHour: Map<Site, number>[] = Array.from({ length: 24 }, () => new Map());
   const sites: SiteDay[] = [];
@@ -134,6 +148,8 @@ function siteDelta(current: number, previous: number, previousTotal: number): Si
 interface Collected {
   /** Aggregates of the days with data, by weekday index. */
   byDay: Map<number, DayAggregate>;
+  /** Redirects counted over the window's stored days, including days with no time. */
+  blocked: Record<BlockedSite, number>;
   sites: Map<Site, SiteDay>;
   total: number;
 }
@@ -141,6 +157,7 @@ interface Collected {
 function collect(days: Record<string, DayRecord>, week: WeekRange, retentionStart: Date, lastIdx: number): Collected {
   const byDay = new Map<number, DayAggregate>();
   const sites = new Map<Site, SiteDay>();
+  const blocked = { instagram: 0, youtube: 0, facebook: 0 };
   let total = 0;
   for (let k = 0; k <= lastIdx; k++) {
     const date = addDays(week.start, k);
@@ -148,6 +165,7 @@ function collect(days: Record<string, DayRecord>, week: WeekRange, retentionStar
     const record = days[dayKey(date)];
     if (!record) continue;
     const agg = dayAggregate(record);
+    for (const site of BLOCKED_SITES) blocked[site] += agg.blocked[site];
     if (agg.total <= 0) continue;
     byDay.set(k, agg);
     total += agg.total;
@@ -156,7 +174,7 @@ function collect(days: Record<string, DayRecord>, week: WeekRange, retentionStar
       sites.set(s.site, { site: s.site, seconds: (prev?.seconds ?? 0) + s.seconds, visits: (prev?.visits ?? 0) + s.visits });
     }
   }
-  return { byDay, sites, total };
+  return { byDay, blocked, sites, total };
 }
 
 function average(win: Collected, lastIdx: number): number | null {
@@ -217,15 +235,6 @@ export function weekAggregate(
   const sums = new Map<Category, number>(CATEGORIES.map((c) => [c, 0]));
   for (const row of siteRows) sums.set(row.category, (sums.get(row.category) ?? 0) + row.seconds);
 
-  const blocked = { instagram: 0, youtube: 0, facebook: 0 };
-  for (let k = 0; k <= lastIdx; k++) {
-    const date = addDays(week.start, k);
-    const record = date.getTime() < retentionStart.getTime() ? undefined : days[dayKey(date)];
-    if (!record) continue;
-    const b = dayAggregate(record).blocked;
-    for (const site of BLOCKED_SITES) blocked[site] += b[site];
-  }
-
   const full = cells.filter((c) => c.status === 'data' && c.date.getTime() < todayMidnight.getTime());
   let quietest: DayCell | null = null;
   let busiest: DayCell | null = null;
@@ -243,7 +252,7 @@ export function weekAggregate(
     delta: cur.byDay.size > 0 ? weekDelta(dailyAverage, previousAverage) : { kind: 'none', percent: 0 },
     sites: siteRows,
     categories: CATEGORIES.map((category) => ({ category, seconds: sums.get(category) ?? 0 })),
-    blocked,
+    blocked: cur.blocked,
     quietest,
     busiest,
     compare: { partial: isCurrent, throughDay: Math.max(-1, lastIdx) },

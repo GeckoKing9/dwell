@@ -5,7 +5,7 @@ import { uiLang } from '../shared/i18n.ts';
 import { App } from './App.tsx';
 import { SETTINGS_KEY } from '../store/schema.ts';
 import { applyTheme, themeOf } from '../shared/theme.ts';
-import { isRelevantChange } from './data.ts';
+import { isRelevantChange } from '../shared/storageChanges.ts';
 import type { PageDeps } from './data.ts';
 
 /** A local download the person asked for: an object URL on an `<a download>`, never a network request. */
@@ -38,7 +38,7 @@ const deps: PageDeps = {
   send: (message) => chrome.runtime.sendMessage(message),
   onChange(listener) {
     const handler = (changes: Record<string, chrome.storage.StorageChange>, area: string): void => {
-      if (isRelevantChange(Object.keys(changes), area)) listener();
+      if (isRelevantChange(Object.keys(changes), area)) listener(changes);
     };
     chrome.storage.onChanged.addListener(handler);
     return () => chrome.storage.onChanged.removeListener(handler);

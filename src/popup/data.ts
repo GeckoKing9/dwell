@@ -9,7 +9,7 @@ import { dayAggregate } from '../stats/aggregate.ts';
 import type { SiteDay, SiteTime } from '../stats/aggregate.ts';
 import { addDays } from '../stats/weeks.ts';
 import { loadDay } from '../store/days.ts';
-import { dateString, DAY_KEY_PREFIX, emptyDayRecord, SETTINGS_KEY } from '../store/schema.ts';
+import { dateString, emptyDayRecord } from '../store/schema.ts';
 import type { BlockedSite, DayRecord, Settings } from '../store/schema.ts';
 import type { KeyValueStore } from '../store/adapter.ts';
 import { loadSettings } from '../shared/settings.ts';
@@ -99,10 +99,7 @@ export async function loadPopupData(deps: PopupDeps): Promise<PopupData> {
   return { settings, today, previous: before.reverse(), now, url: tab?.url ?? null };
 }
 
-/** True when a storage change touches settings or a day record, the only keys the popup reads. */
-export function isRelevantChange(changedKeys: readonly string[], area: string): boolean {
-  return area === 'local' && changedKeys.some((key) => key === SETTINGS_KEY || key.startsWith(DAY_KEY_PREFIX));
-}
+export { isRelevantChange } from '../shared/storageChanges.ts';
 
 export interface UsualStats {
   /** Previous days with any data, 0 to 7. */

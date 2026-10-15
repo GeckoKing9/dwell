@@ -81,9 +81,18 @@ describe('settings', () => {
 
   it('lists split subdomains with their state and a switch to count them with their site again', () => {
     expect(byClass(tree, 'ovr-row').map((r) => text([r]))).toEqual(['mail.google.com · Counted separately', 'docs.google.com · Counted with google.com']);
-    call(el(tree, 'split-mail.google.com'), 'onClick');
-    call(el(tree, 'split-docs.google.com'), 'onClick');
+    call(el(tree, 'split-mail_google_com'), 'onClick');
+    call(el(tree, 'split-docs_google_com'), 'onClick');
     expect(vi.mocked(on.settings.change).mock.calls.slice(-2)).toEqual([[{ overrides: [] }], [{ overrides: ['mail.google.com', 'docs.google.com'] }]]);
+  });
+
+  it('gives every settings control a stable id, with host-based ids made selector-safe', () => {
+    const controls = all(tree, (e) => e.type === 'button' || e.type === 'select' || e.type === 'input');
+    expect(controls.length).toBeGreaterThan(20);
+    expect(controls.filter((e) => typeof e.props.id !== 'string' || e.props.id === '').map((e) => text([e]))).toEqual([]);
+    const ids = controls.map((e) => String(e.props.id));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(el(tree, 'ignore-remove-news_example').type).toBe('button');
   });
 
   it('adds and removes never-record domains through the field and its chips', () => {
@@ -109,9 +118,9 @@ describe('settings', () => {
   });
 
   it('edits the category of every known site', () => {
-    const select = el(tree, 'cat-github.com');
+    const select = el(tree, 'cat-github_com');
     expect(select.props.value).toBe('Other');
-    expect(el(tree, 'cat-youtube.com').props.value).toBe('Video');
+    expect(el(tree, 'cat-youtube_com').props.value).toBe('Video');
     expect(all([select], (e) => e.type === 'option').map((o) => text([o]))).toEqual(['Social', 'Video', 'Work', 'Shopping', 'News', 'Other']);
     call(select, 'onChange', { currentTarget: { value: 'Work' } });
     call(select, 'onChange', { currentTarget: { value: 'Nonsense' } });

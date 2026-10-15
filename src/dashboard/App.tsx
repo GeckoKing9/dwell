@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { t } from '../shared/i18n.ts';
 import { DashboardView } from './components/DashboardView.tsx';
-import { loadDashboardData, withPending } from './data.ts';
+import { applyChanges, loadDashboardData, withPending } from './data.ts';
 import type { DashboardData, PageDeps, Pending } from './data.ts';
 import { makeHandlers } from './handlers.ts';
 import { buildView } from './model.ts';
@@ -14,7 +14,8 @@ import type { SettingsUi } from './settingsUi.ts';
 const DEFAULT_WIDTH = 720;
 
 /**
- * Reads every day key and the settings on open and on every relevant storage change, so the worker's
+ * Reads every day key and the settings on open, then applies each relevant storage change in memory (a full
+ * read only when a key is removed, a value does not read, or a read is still running), so the worker's
  * writes show while the page is open. Routes follow the location hash; writes go through `makeHandlers`.
  */
 export function App({ deps }: { deps: PageDeps }) {
@@ -28,19 +29,25 @@ export function App({ deps }: { deps: PageDeps }) {
   const [ui, setUi] = useState<SettingsUi>(EMPTY_UI);
   const [undoUntil, setUndoUntil] = useState<number | null>(null);
   const latest = useRef(0);
+  const inflight = useRef(0);
+  const loaded = useRef<DashboardData | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const stopObserving = useRef<(() => void) | null>(null);
 
   /** Only the newest read is applied, so a slow older read never overwrites a newer one. */
   const refresh = (): Promise<void> => {
     const request = ++latest.current;
+    inflight.current++;
     return loadDashboardData(deps).then(
       (next) => {
+        inflight.current--;
         if (request !== latest.current) return;
+        loaded.current = next;
         setData(next);
         setFailed(false);
       },
       (error: unknown) => {
+        inflight.current--;
         console.error('Dwell dashboard: reading storage failed', error);
         setFailed(true);
       },
@@ -49,7 +56,15 @@ export function App({ deps }: { deps: PageDeps }) {
 
   useEffect(() => {
     void refresh();
-    return deps.onChange(() => void refresh());
+    return deps.onChange((changes) => {
+      const next = loaded.current && inflight.current === 0 ? applyChanges(loaded.current, changes, deps.now()) : null;
+      if (next === null) {
+        void refresh();
+        return;
+      }
+      loaded.current = next;
+      setData(next);
+    });
   }, [deps]);
 
   useEffect(

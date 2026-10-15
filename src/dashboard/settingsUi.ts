@@ -46,3 +46,8 @@ export function mergeSeen(seen: readonly string[], overrides: readonly string[])
   for (const host of overrides) if (!out.includes(host)) out.push(host);
   return out;
 }
+
+/** A host as it appears inside an element id: hosts only hold letters, digits, dots and hyphens, so dots become underscores and ids stay selector-safe and unique. */
+export function idSlug(host: string): string {
+  return host.toLowerCase().replace(/[^a-z0-9-]/g, '_');
+}

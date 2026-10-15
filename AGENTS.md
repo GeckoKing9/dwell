@@ -100,7 +100,7 @@ dwell/
 
 **Code quality:**
 - TypeScript strict; no `any` without a comment saying why.
-- The engine, the classifier and the aggregation stay pure; Chrome APIs only in `src/background/`, `src/content/` and the UI entry files.
+- The engine, the classifier and the aggregation stay pure and never touch the Chrome global. Chrome APIs live only in `src/background/`, `src/content/` and the UI entry files, plus two injectable seams: `src/shared/i18n.ts` (`chrome.i18n.getMessage`) and `src/store/adapter.ts` (the `chrome.storage` wrapper). Everything else reaches Chrome through those seams or injected dependencies.
 - Test-first for engine, classifier and aggregation; watch the test fail first.
 - `npm run typecheck && npm run lint && npm test && npm run check:privacy` before every commit.
 

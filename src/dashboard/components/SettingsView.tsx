@@ -6,7 +6,8 @@ import { Notice } from './SetRow.tsx';
 import { SettingsAppearance } from './SettingsAppearance.tsx';
 import { SettingsData } from './SettingsData.tsx';
 import { SettingsSites } from './SettingsSites.tsx';
-import { SettingsBlockers, SettingsTracking } from './SettingsTracking.tsx';
+import { SettingsBlockers } from './SettingsBlockers.tsx';
+import { SettingsTracking } from './SettingsTracking.tsx';
 
 const GROUPS: readonly [string, MessageKey][] = [
   ['set-tracking', 'sTracking'],
