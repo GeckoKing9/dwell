@@ -71,8 +71,17 @@ Any other sender or shape is rejected. No `externally_connectable`.
 
 See `docs/project_spec.md`. One key per local day; hours sparse; 90-day prune by date string comparison.
 
+- `log:YYYY-MM-DDTHH` (optional event log, off by default; UTC hour keys, last 24 h, at most 3,600 entries an hour): `{ at, kind, site?, win?, tab?, a? }` with `kind` from `LOG_KINDS`, integer window and tab ids, `a` the audible flag. Never in the data export; the separate event-log export is `dwell-event-log` version 2: the entries plus the day records they cover (ADR-1).
+
 ---
 
 ## Architecture decision records
 
 The plan's Key Technical Decisions (KTD1 to KTD12) are the ADRs for this project. New decisions during implementation are appended here as `ADR-<n>: <title>` with context, options, decision and consequences.
+
+### ADR-1: Replayable event log
+
+- **Context:** KTD10 logged `{ at, kind, site }`, which loses window and tab identity, the audible flag, a seed's idle state and every browser restart, so a recorded day could not replay with identical totals (Definition of Done).
+- **Options:** keep site-only entries and accept an approximate replay; log an engine-state snapshot per job (large, and holds more than the log needs); carry Chrome's integer ids and the audible flag in a closed kind list.
+- **Decision:** the third. Entries are `{ at, kind, site?, win?, tab?, a? }`; `LOG_KINDS` is closed (16 event kinds plus `start`, written when the worker rebuilt a lost hot state). The guard in `src/store/log.ts` rejects any other field, `://`, `/`, `?`, a non-hostname site, a negative or non-integer id. `src/tracker/replayLog.ts` inverts `src/background/log.ts` and resets at `start`. The export is version 2 and adds the day records it covers.
+- **Consequences:** a property test proves `replayLog(encode(events))` equals `replay(events)` on 1,500 generated sequences. Version 1 files still read and replay approximately: one window holding one tab, `close` dropped, every seed active. Known limits: a replay is exact from a `start` entry on (a ring that began mid-session starts from an empty state); a host the day records cannot hold (`localhost`) logs as untracked; a mid-ring change of the media override is not logged; a clock set backwards replays in time order.

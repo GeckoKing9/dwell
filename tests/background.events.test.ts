@@ -138,17 +138,23 @@ describe('seed', () => {
 describe('log entries', () => {
   it.each([
     [{ type: 'focus', at: AT, windowId: null }, { at: AT, kind: 'focus-none' }],
-    [{ type: 'focus', at: AT, windowId: 3 }, { at: AT, kind: 'focus' }],
+    [{ type: 'focus', at: AT, windowId: 3 }, { at: AT, kind: 'focus', win: 3 }],
+    [{ type: 'activate', at: AT, windowId: 3, tabId: 9 }, { at: AT, kind: 'activate', win: 3, tab: 9 }],
     [{ type: 'idle', at: AT, state: 'locked' }, { at: AT, kind: 'idle-locked' }],
-    [{ type: 'media', at: AT, tabId: 1, playing: true }, { at: AT, kind: 'media-on' }],
-    [{ type: 'media', at: AT, tabId: 1, playing: false }, { at: AT, kind: 'media-off' }],
+    [{ type: 'media', at: AT, tabId: 1, playing: true }, { at: AT, kind: 'media-on', tab: 1 }],
+    [{ type: 'media', at: AT, tabId: 1, playing: false }, { at: AT, kind: 'media-off', tab: 1 }],
     [{ type: 'pause', at: AT, paused: true }, { at: AT, kind: 'pause-on' }],
     [{ type: 'pause', at: AT, paused: false }, { at: AT, kind: 'pause-off' }],
-    [{ type: 'url', at: AT, tabId: 1, site: 'a.example' }, { at: AT, kind: 'url', site: 'a.example' }],
-    [{ type: 'url', at: AT, tabId: 1, site: null }, { at: AT, kind: 'url' }],
-    [{ type: 'url', at: AT, tabId: 1, site: 'localhost' }, { at: AT, kind: 'url' }],
-    [{ type: 'seed', at: AT, windowId: 1, tabId: 1, site: 'b.example', idle: 'active' }, { at: AT, kind: 'seed', site: 'b.example' }],
-    [{ type: 'close', at: AT, tabId: 1 }, { at: AT, kind: 'close' }],
+    [{ type: 'tick', at: AT }, { at: AT, kind: 'tick' }],
+    [{ type: 'url', at: AT, tabId: 1, site: 'a.example', audible: true }, { at: AT, kind: 'url', site: 'a.example', tab: 1, a: 1 }],
+    [{ type: 'url', at: AT, tabId: 1, site: null, audible: false }, { at: AT, kind: 'url', tab: 1, a: 0 }],
+    [{ type: 'url', at: AT, tabId: 1, site: 'localhost' }, { at: AT, kind: 'url', tab: 1 }],
+    [
+      { type: 'seed', at: AT, windowId: 1, tabId: 2, site: 'b.example', audible: true, idle: 'idle' },
+      { at: AT, kind: 'seed-idle', site: 'b.example', win: 1, tab: 2, a: 1 },
+    ],
+    [{ type: 'seed', at: AT, windowId: null, tabId: null, site: null, idle: 'locked' }, { at: AT, kind: 'seed-locked' }],
+    [{ type: 'close', at: AT, tabId: 1 }, { at: AT, kind: 'close', tab: 1 }],
   ] as [EngineEvent, object][])('logs %j as %j', (event, entry) => {
     expect(logEntry(event)).toEqual(entry);
   });

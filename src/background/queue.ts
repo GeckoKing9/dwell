@@ -68,7 +68,7 @@ async function trackJob(stores: Stores, at: number, produce: Producer): Promise<
 
   await applyAttributions(stores.local, attributions);
   await saveHotState(stores.session, toHotState(state));
-  if (settings.eventLog) await appendEvents(stores.local, reduced, at);
+  if (settings.eventLog) await appendEvents(stores.local, reduced, at, stored === null);
 }
 
 export function createQueue(stores: Stores): Queue {

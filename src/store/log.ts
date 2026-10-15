@@ -1,67 +1,130 @@
 /**
- * The optional 24-hour event ring (KTD10) in storage.local: one `log:<UTC hour>` key per hour,
- * each entry only `{ at, kind, site? }`. A guard refuses anything that looks like a URL, path or title.
+ * The optional 24-hour event ring (KTD10, ADR-1) in storage.local: one `log:<UTC hour>` key per hour,
+ * each entry `{ at, kind, site?, win?, tab?, a? }`. `win` and `tab` are Chrome's integer window and tab
+ * ids and `a` the audible flag, so a recorded day replays through the engine exactly. A guard refuses
+ * any other field, a kind outside LOG_KINDS, and anything that looks like a URL, path or title.
  * UTC hour keys keep the ring monotonic across DST; local time never matters here.
  */
 import type { KeyValueStore, StoredRecord } from './adapter.ts';
-import { isPlainObject, isSiteId } from './validate.ts';
+import { loadAllDays, readDayRecord } from './days.ts';
+import { DAY_KEY_PREFIX, dateString, isDayKey, type DayRecord } from './schema.ts';
+import { isForbiddenKey, isIntInRange, isPlainObject, isSiteId, nullRecord } from './validate.ts';
 
 export const LOG_KEY_PREFIX = 'log:';
 export const LOG_FORMAT = 'dwell-event-log';
+export const LOG_VERSION = 2;
 export const LOG_WINDOW_MS = 24 * 3_600_000;
 export const MAX_ENTRIES_PER_HOUR = 3600;
 
+/**
+ * Every kind an entry may have: one per engine event, with level values folded in (`idle-locked`,
+ * `media-on`, `seed-idle`), plus `start`, written when the worker built a fresh engine state.
+ */
+export const LOG_KINDS = [
+  'focus',
+  'focus-none',
+  'activate',
+  'url',
+  'idle-active',
+  'idle-idle',
+  'idle-locked',
+  'media-on',
+  'media-off',
+  'pause-on',
+  'pause-off',
+  'tick',
+  'close',
+  'seed-active',
+  'seed-idle',
+  'seed-locked',
+  'start',
+] as const;
+
+export type LogVersion = 1 | typeof LOG_VERSION;
+
 const HOUR_MS = 3_600_000;
 const MAX_TIME = 8.64e15;
-const KIND_RE = /^[a-z][a-z0-9-]{0,31}$/;
+const MAX_FILE_ENTRIES = 25 * MAX_ENTRIES_PER_HOUR;
 const LOG_KEY_RE = /^log:(\d{4})-(\d{2})-(\d{2})T(\d{2})$/;
-const ENTRY_KEYS: ReadonlySet<string> = new Set(['at', 'kind', 'site']);
 const URL_MARKS = ['://', '/', '?'] as const;
+const KINDS: ReadonlySet<string> = new Set(LOG_KINDS);
+/** Version 1 held only `{ at, kind, site? }`, and its seed carried no idle state. Read only, never written. */
+const V1_KINDS: ReadonlySet<string> = new Set([...LOG_KINDS.filter((kind) => kind !== 'start' && !kind.startsWith('seed-')), 'seed']);
+const ENTRY_KEYS: ReadonlySet<string> = new Set(['at', 'kind', 'site', 'win', 'tab', 'a']);
+const V1_ENTRY_KEYS: ReadonlySet<string> = new Set(['at', 'kind', 'site']);
+const FILE_KEYS: ReadonlySet<string> = new Set(['format', 'version', 'entries', 'days']);
 
 export interface LogEntry {
   readonly at: number;
   readonly kind: string;
   readonly site?: string;
+  readonly win?: number;
+  readonly tab?: number;
+  readonly a?: 0 | 1;
 }
 
 export interface LogExport {
   readonly format: typeof LOG_FORMAT;
-  readonly version: 1;
+  readonly version: typeof LOG_VERSION;
   readonly entries: LogEntry[];
+  /** The stored day records, keyed 'YYYY-MM-DD', of every local day from the first entry to the last. */
+  readonly days: Record<string, DayRecord>;
 }
 
-/** Thrown when an entry could carry more than a time, an event kind and a site id. */
+/** A log file read back: version 1 files have no ids and no days. */
+export interface LogFile {
+  readonly version: LogVersion;
+  readonly entries: LogEntry[];
+  readonly days: Record<string, DayRecord>;
+}
+
+/** Thrown when an entry could carry more than a time, an event kind, a site id and integer ids. */
 export class LogPrivacyError extends Error {
   override name = 'LogPrivacyError';
 }
 
+function isId(value: unknown): boolean {
+  return value === undefined || isIntInRange(value, 0, Number.MAX_SAFE_INTEGER);
+}
+
 /** Why `entry` may not be logged, or null. Messages never echo the offending value. */
-function entryProblem(entry: unknown): string | null {
+function entryProblem(entry: unknown, version: LogVersion = LOG_VERSION): string | null {
   if (!isPlainObject(entry)) return 'A log entry must be an object.';
+  const allowed = version === 1 ? V1_ENTRY_KEYS : ENTRY_KEYS;
   for (const key of Object.keys(entry)) {
-    if (!ENTRY_KEYS.has(key)) return 'A log entry may hold only at, kind and site.';
+    if (!allowed.has(key)) return 'A log entry may hold only at, kind, site, win, tab and a.';
   }
   for (const value of Object.values(entry)) {
     if (typeof value === 'string' && URL_MARKS.some((mark) => value.includes(mark))) {
       return 'A log entry contains "://", "/" or "?", which only a URL would.';
     }
   }
-  const { at, kind, site } = entry;
+  const { at, kind, site, win, tab, a } = entry;
   if (typeof at !== 'number' || !Number.isFinite(at) || at < 0 || at > MAX_TIME) return 'A log entry needs a valid time.';
-  if (typeof kind !== 'string' || !KIND_RE.test(kind)) return 'A log entry kind must be a short lowercase word.';
+  if (typeof kind !== 'string' || !(version === 1 ? V1_KINDS : KINDS).has(kind)) return 'A log entry kind must be one of LOG_KINDS.';
   if (site !== undefined && !isSiteId(site)) return 'A log entry site must be a grouped site id like example.com.';
+  if (!isId(win) || !isId(tab)) return 'A log entry window or tab id must be a non-negative integer.';
+  if (a !== undefined && a !== 0 && a !== 1) return 'A log entry audible flag must be 0 or 1.';
   return null;
 }
 
-/** Throws LogPrivacyError unless `entry` is exactly `{ at, kind, site? }` with a safe kind and site id. */
-export function assertLogEntrySafe(entry: unknown): asserts entry is LogEntry {
-  const problem = entryProblem(entry);
+/** Throws LogPrivacyError unless `entry` is `{ at, kind, site?, win?, tab?, a? }` with a listed kind and safe values. */
+export function assertLogEntrySafe(entry: unknown, version: LogVersion = LOG_VERSION): asserts entry is LogEntry {
+  const problem = entryProblem(entry, version);
   if (problem !== null) throw new LogPrivacyError(problem);
 }
 
-/** A fresh object with only the three allowed fields. */
+/** A fresh object with only the allowed fields that are present, in a fixed order. */
 function clean(entry: LogEntry): LogEntry {
-  return entry.site === undefined ? { at: entry.at, kind: entry.kind } : { at: entry.at, kind: entry.kind, site: entry.site };
+  const { at, kind, site, win, tab, a } = entry;
+  return {
+    at,
+    kind,
+    ...(site === undefined ? {} : { site }),
+    ...(win === undefined ? {} : { win }),
+    ...(tab === undefined ? {} : { tab }),
+    ...(a === undefined ? {} : { a }),
+  };
 }
 
 /** 'log:YYYY-MM-DDTHH' for the UTC hour containing `at`. */
@@ -108,7 +171,30 @@ export async function appendLogEntries(store: KeyValueStore, entries: readonly L
   await store.set(out);
 }
 
-/** Every stored entry in time order, for the separate "export event log" action. Never part of the data export. */
+/** A version 1 entry still in the ring after an upgrade: harmless, but it cannot replay exactly. */
+function isLegacyEntry(entry: unknown): boolean {
+  return entryProblem(entry) !== null && entryProblem(entry, 1) === null;
+}
+
+/** Stored day records of every local day from `first` to `last`, keyed 'YYYY-MM-DD'. */
+async function daysBetween(store: KeyValueStore, first: number, last: number): Promise<Record<string, DayRecord>> {
+  const from = dateString(new Date(first));
+  const to = dateString(new Date(last));
+  const days = nullRecord<DayRecord>();
+  const stored = await loadAllDays(store);
+  for (const key of Object.keys(stored).sort()) {
+    const day = key.slice(DAY_KEY_PREFIX.length);
+    const record = stored[key];
+    if (record && day >= from && day <= to) days[day] = record;
+  }
+  return days;
+}
+
+/**
+ * Every stored entry in time order plus the day records they cover, for the separate "export event
+ * log" action. Never part of the data export. A tampered entry throws; a version 1 entry left from
+ * before an upgrade is skipped.
+ */
 export async function exportLog(store: KeyValueStore): Promise<LogExport> {
   const keys = (await store.keys()).filter((key) => key.startsWith(LOG_KEY_PREFIX)).sort();
   const stored = keys.length > 0 ? await store.get(keys) : {};
@@ -117,10 +203,44 @@ export async function exportLog(store: KeyValueStore): Promise<LogExport> {
     const list: unknown = stored[key];
     if (!Array.isArray(list)) throw new LogPrivacyError(`Log key ${key} does not hold a list.`);
     for (const entry of list) {
+      if (isLegacyEntry(entry)) continue;
       assertLogEntrySafe(entry);
       entries.push(clean(entry));
     }
   }
   entries.sort((a, b) => a.at - b.at);
-  return { format: LOG_FORMAT, version: 1, entries };
+  const first = entries[0];
+  const last = entries.at(-1);
+  const days = first && last ? await daysBetween(store, first.at, last.at) : nullRecord<DayRecord>();
+  return { format: LOG_FORMAT, version: LOG_VERSION, entries, days };
+}
+
+function readDays(value: unknown): Record<string, DayRecord> {
+  const days = nullRecord<DayRecord>();
+  if (value === undefined) return days;
+  if (!isPlainObject(value)) throw new TypeError('The days of an event log file must be an object.');
+  for (const [day, record] of Object.entries(value)) {
+    if (isForbiddenKey(day) || !isDayKey(DAY_KEY_PREFIX + day)) throw new TypeError('An event log file names a day that is not a date.');
+    days[day] = readDayRecord(record);
+  }
+  return days;
+}
+
+/**
+ * Reads an exported event log file (parsed JSON). Version 2 files replay exactly; version 1 files
+ * carry no window or tab ids and replay approximately (see `replayLog`). Throws TypeError for a file
+ * of the wrong shape and LogPrivacyError for an entry the guard refuses.
+ */
+export function readLogExport(value: unknown): LogFile {
+  if (!isPlainObject(value) || value['format'] !== LOG_FORMAT) throw new TypeError('Not a Dwell event log file.');
+  if (Object.keys(value).some((key) => !FILE_KEYS.has(key))) throw new TypeError('An event log file has an unknown field.');
+  const version = value['version'];
+  if (version !== 1 && version !== LOG_VERSION) throw new TypeError('Unsupported event log version.');
+  const list = value['entries'];
+  if (!Array.isArray(list) || list.length > MAX_FILE_ENTRIES) throw new TypeError('An event log file needs a list of at most 90,000 entries.');
+  const entries = list.map((entry: unknown) => {
+    assertLogEntrySafe(entry, version);
+    return clean(entry);
+  });
+  return { version, entries, days: readDays(value['days']) };
 }

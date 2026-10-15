@@ -176,7 +176,7 @@ describe('the tracking job', () => {
     expect(totals(fake, 'a.example').seconds).toBe(15);
   });
 
-  it('appends site ids, never URLs, to the event log only when the log is on', async () => {
+  it('appends site ids and integer ids, never URLs, to the event log only when the log is on', async () => {
     openWindow(fake, 1, [{ id: 10, url: A }, { id: 11, url: B }]);
     const bg = createBackground();
     await bg.onInstalled();
@@ -187,13 +187,30 @@ describe('the tracking job', () => {
     advance(2);
     await bg.onTabActivated(activate(fake, 10));
     await bg.onIdleChanged('idle');
-    const entries = [...fake.local.data.entries()].filter(([k]) => k.startsWith('log:')).flatMap(([, v]) => v as object[]);
-    expect(entries).toEqual([
-      { at: T0 + 2000, kind: 'url', site: 'a.example' },
-      { at: T0 + 2000, kind: 'activate' },
+    const logged = () => [...fake.local.data.entries()].filter(([k]) => k.startsWith('log:')).flatMap(([, v]) => v as object[]);
+    expect(logged()).toEqual([
+      { at: T0 + 2000, kind: 'url', site: 'a.example', tab: 10 },
+      { at: T0 + 2000, kind: 'activate', win: 1, tab: 10 },
       { at: T0 + 2000, kind: 'idle-idle' },
     ]);
-    expect(JSON.stringify(entries)).not.toMatch(/:\/\/|page|q=1/);
+    expect(JSON.stringify(logged())).not.toMatch(/:\/\/|page|q=1/);
+  });
+
+  it('opens the job that rebuilt a lost hot state with a start entry, then the seed', async () => {
+    openWindow(fake, 1, [{ id: 10, url: A }]);
+    fake.local.data.set('settings', { ...DEFAULT_SETTINGS, eventLog: true });
+    const bg = createBackground();
+    await bg.onInstalled();
+    fake.session.data.clear();
+    advance(5);
+    await heartbeat(bg);
+    const logged = [...fake.local.data.entries()].filter(([k]) => k.startsWith('log:')).flatMap(([, v]) => v as object[]);
+    expect(logged.slice(-3)).toEqual([
+      { at: T0 + 5000, kind: 'start' },
+      { at: T0 + 5000, kind: 'seed-active', site: 'a.example', win: 1, tab: 10 },
+      { at: T0 + 5000, kind: 'tick' },
+    ]);
+    expect(logged[0]).toEqual({ at: T0, kind: 'start' });
   });
 });
 
