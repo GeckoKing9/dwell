@@ -101,10 +101,30 @@ describe('wheelSwallowed', () => {
 });
 
 describe('touchSwallowed', () => {
-  it('swallows a touch move over the viewer and lets one through inside a scrollable panel', () => {
-    expect(touchSwallowed([FEED])).toBe(true);
-    expect(touchSwallowed([PLAIN])).toBe(true);
-    expect(touchSwallowed([panel(200), FEED])).toBe(false);
+  const body = { tagName: 'BODY', isContentEditable: false, role: null };
+  const up = { dx: 0, dy: 40, touches: 1 };
+
+  it('swallows a vertical swipe over the viewer and lets one through inside a scrollable panel', () => {
+    expect(touchSwallowed(up, body, [FEED])).toBe(true);
+    expect(touchSwallowed(up, body, [PLAIN])).toBe(true);
+    expect(touchSwallowed({ dx: 0, dy: -40, touches: 1 }, body, [FEED])).toBe(true);
+    expect(touchSwallowed(up, body, [panel(100), FEED])).toBe(false);
+  });
+
+  it('swallows a swipe in a panel already at its end, so it does not chain to the viewer', () => {
+    expect(touchSwallowed(up, body, [panel(200), FEED])).toBe(true);
+  });
+
+  it('lets a horizontal drag through: a seek bar or a carousel', () => {
+    expect(touchSwallowed({ dx: 60, dy: 5, touches: 1 }, body, [FEED])).toBe(false);
+  });
+
+  it('lets a two-finger pinch through', () => {
+    expect(touchSwallowed({ dx: 0, dy: 40, touches: 2 }, body, [FEED])).toBe(false);
+  });
+
+  it('lets a drag on a slider through', () => {
+    expect(touchSwallowed(up, { tagName: 'DIV', isContentEditable: false, role: 'slider' }, [FEED])).toBe(false);
   });
 });
 
@@ -130,4 +150,11 @@ describe('keySwallowed', () => {
     expect(keySwallowed('ArrowDown', target)).toBe(false);
     expect(keySwallowed('PageUp', target)).toBe(false);
   });
+
+  it.each(['slider', 'spinbutton', 'menu', 'menuitem', 'listbox', 'option', 'combobox', 'radiogroup', 'radio', 'tablist', 'searchbox'])(
+    'lets arrows through to a focused %s widget, which uses them itself',
+    (role) => {
+      expect(keySwallowed('ArrowDown', { tagName: 'DIV', isContentEditable: false, role })).toBe(false);
+    },
+  );
 });

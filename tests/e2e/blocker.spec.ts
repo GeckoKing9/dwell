@@ -483,6 +483,24 @@ test('an in-page tap on an X video lands on its tweet page, counted once on land
   await page.close();
 });
 
+test('a tap on the video of the tweet page you are on stays there, no reload, counted once', async () => {
+  const page = await context.newPage();
+  await page.goto(`${X}/someuser/status/123`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-x', 'on');
+  await page.evaluate(() => {
+    document.documentElement.dataset.draft = 'kept';
+  });
+
+  expect(await swipeTo(page, '/someuser/status/123/video/1')).toEqual({ path: '/someuser/status/123', added: 0 });
+  await page.waitForTimeout(600);
+  expect(path(page)).toBe('/someuser/status/123');
+  // Same document: nothing was reloaded, so what the user had on the page is still there.
+  expect(await page.evaluate(() => document.documentElement.dataset.draft)).toBe('kept');
+  expect(served).toEqual([`${X}/someuser/status/123`]);
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'x' }]);
+  await page.close();
+});
+
 test('an X photo viewer and the rest of X load untouched', async () => {
   const page = await context.newPage();
   await page.goto(`${X}/someuser/status/123/photo/1`);

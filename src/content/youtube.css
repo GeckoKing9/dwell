@@ -24,13 +24,7 @@ html[data-dwell-youtube="on"] grid-shelf-view-model:has(ytm-shorts-lockup-view-m
   display: none !important;
 }
 
-/* Search results and related videos */
-html[data-dwell-youtube="on"] ytd-search ytd-video-renderer:has(a[href^="/shorts"]) {
-  display: none !important;
-}
-html[data-dwell-youtube="on"] ytd-search ytd-reel-shelf-renderer {
-  display: none !important;
-}
+/* Related videos. Search results keep their Shorts: one found by search opens on its watch page (ADR-4). */
 html[data-dwell-youtube="on"] #related ytd-compact-video-renderer:has(a[href^="/shorts"]) {
   display: none !important;
 }

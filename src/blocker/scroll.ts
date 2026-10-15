@@ -24,7 +24,7 @@ export interface EditableLike {
   readonly role: string | null;
 }
 
-/** 1: down, -1: up, 0: unknown (a touch move, whose direction is not tracked). */
+/** 1: down, -1: up, 0: no vertical movement yet. */
 export type Direction = -1 | 0 | 1;
 
 /** Scroll metrics are fractional under zoom; a pixel of slack keeps a panel at its end from counting. */
@@ -33,6 +33,30 @@ const SCROLLABLE = new Set(['auto', 'scroll', 'overlay']);
 const VERTICAL_SNAP = /\b(?:y|block|both)\b/;
 const LOCKED_KEYS = new Set(['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp']);
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
+/** ARIA widgets that use the arrow keys or a drag themselves: a volume slider, a menu, a list. */
+const WIDGET_ROLES = new Set([
+  'textbox',
+  'searchbox',
+  'slider',
+  'spinbutton',
+  'scrollbar',
+  'menu',
+  'menubar',
+  'menuitem',
+  'menuitemcheckbox',
+  'menuitemradio',
+  'listbox',
+  'option',
+  'combobox',
+  'radiogroup',
+  'radio',
+  'tablist',
+  'tab',
+  'tree',
+  'treeitem',
+  'grid',
+  'gridcell',
+]);
 
 function hasRoom(box: ScrollBox, direction: Direction): boolean {
   if (direction === 0) return true;
@@ -63,17 +87,32 @@ export function wheelSwallowed(deltaX: number, deltaY: number, chain: Iterable<S
   return !canAbsorb(chain, deltaY > 0 ? 1 : -1);
 }
 
-/** A touch move is swallowed unless it happens inside a scrollable, non-snapping ancestor. */
-export function touchSwallowed(chain: Iterable<ScrollBox>): boolean {
-  return !canAbsorb(chain, 0);
+/** A touch move since its touchstart: `dy` > 0 when the finger moved up, which scrolls the content down. */
+export interface TouchMove {
+  readonly dx: number;
+  readonly dy: number;
+  readonly touches: number;
 }
 
-function isEditable(target: EditableLike | null): boolean {
+function usesInput(target: EditableLike | null): boolean {
   if (target === null) return false;
-  return target.isContentEditable || target.role === 'textbox' || EDITABLE_TAGS.has(target.tagName.toUpperCase());
+  return (
+    target.isContentEditable ||
+    (target.role !== null && WIDGET_ROLES.has(target.role)) ||
+    EDITABLE_TAGS.has(target.tagName.toUpperCase())
+  );
 }
 
-/** Arrow and page keys are swallowed unless the user is typing. */
+/**
+ * A one-finger vertical swipe is swallowed unless an ancestor can take it. A horizontal drag (a seek bar,
+ * a carousel), a pinch, and a drag on a slider or other widget go through.
+ */
+export function touchSwallowed(move: TouchMove, target: EditableLike | null, chain: Iterable<ScrollBox>): boolean {
+  if (move.touches !== 1 || Math.abs(move.dx) > Math.abs(move.dy) || usesInput(target)) return false;
+  return !canAbsorb(chain, move.dy > 0 ? 1 : move.dy < 0 ? -1 : 0);
+}
+
+/** Arrow and page keys are swallowed unless the user is typing or a focused widget uses them. */
 export function keySwallowed(key: string, target: EditableLike | null): boolean {
-  return LOCKED_KEYS.has(key) && !isEditable(target);
+  return LOCKED_KEYS.has(key) && !usesInput(target);
 }

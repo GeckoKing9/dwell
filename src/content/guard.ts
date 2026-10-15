@@ -19,7 +19,7 @@
 import { admitRedirect, decide, decideLock, markerCounts, type Decision } from '../blocker/decide.ts';
 import { classify, siteForHost } from '../blocker/patterns.ts';
 import { TARGET_FRAGMENT, isAllowedTarget } from '../blocker/targets.ts';
-import { decideViewerMove, viewerLocked } from '../blocker/viewer.ts';
+import { VIEWER_TOGGLE, decideViewerMove, viewerLocked } from '../blocker/viewer.ts';
 import { DEFAULT_SETTINGS, SETTINGS_KEY, type BlockedSite, type Settings } from '../store/schema.ts';
 import { extensionAlive, sendToWorker } from './runtime.ts';
 import { setInputLock } from './viewer-lock.ts';
@@ -30,14 +30,6 @@ const POLL_MS = 250;
 const COUNT_DEDUPE_MS = 1000;
 /** sessionStorage is per tab and per origin, so the loop guard survives the redirect it caused. */
 const LOOP_KEY = 'dwell:redirects';
-
-/** The blocker each site's hider CSS follows. X has no hider stylesheet; its attribute is set all the same. */
-const HIDER_TOGGLE: Readonly<Record<BlockedSite, keyof Blockers>> = {
-  instagram: 'instagramReels',
-  youtube: 'youtubeShorts',
-  facebook: 'facebookReels',
-  x: 'xVideos',
-};
 
 let blockers: Blockers = { ...DEFAULT_SETTINGS.blockers };
 let loaded = false;
@@ -67,8 +59,9 @@ function readBlockers(stored: unknown): Blockers {
   return out;
 }
 
+/** The site's hider stylesheet follows its one-video toggle; X has no stylesheet, its attribute is set all the same. */
 function setHiderAttribute(site: BlockedSite): void {
-  document.documentElement.setAttribute(`data-dwell-${site}`, blockers[HIDER_TOGGLE[site]] ? 'on' : 'off');
+  document.documentElement.setAttribute(`data-dwell-${site}`, blockers[VIEWER_TOGGLE[site]] ? 'on' : 'off');
 }
 
 function stop(site: BlockedSite): void {
@@ -168,7 +161,14 @@ function onNavigate(event: NavigateEvent): void {
   const hit = classify(event.destination.url, blockers);
   if (hit === null) return;
   // The loop guard is asked before cancelling, so a refused rewrite is never cancelled with nothing after it.
-  apply(event, decide(hit, loop), 'assign');
+  const decision = decide(hit, loop);
+  if (decision.action === 'redirect' && withoutFragment(decision.target) === withoutFragment(location.href)) {
+    // Already on the target (a tap on the video of the tweet being read): stay, with nothing reloaded.
+    event.preventDefault();
+    count(hit.site);
+    return;
+  }
+  apply(event, decision, 'assign');
 }
 
 /** Fallback: if the current URL is blocked anyway, replace it with its target. */
@@ -188,7 +188,9 @@ function settleUrl(): void {
   lastHref = location.href;
   const move = decideViewerMove(from, lastHref, blockers);
   if (move.action === 'lock') {
+    // Refused by the loop guard: keep the first video as the anchor, so the next poll tries again.
     if (mayRedirect()) go(move.target, 'replace');
+    else lastHref = from;
   } else {
     enforceCurrent();
   }
