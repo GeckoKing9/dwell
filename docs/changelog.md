@@ -1,7 +1,11 @@
 # Changelog
 
 ## [Unreleased]
-_Nothing yet._
+### Changed
+- One video at a time instead of no videos: tapping a Reel or a Short opens that one video on a page with no feed (Instagram's post page, YouTube's watch page), so there is nothing to scroll on to. On Facebook the Reels viewer stays on the reel you opened; scrolling or arrowing to the next one takes you back. The Reels feeds themselves still go to the home page, and a profile's Reels grid now loads.
+
+### Added
+- X: a fourth switch, on by default. A video opened in X's full-screen viewer opens on its post instead, so the video feed never starts.
 
 ## [0.1.0] — 2026-10-15
 ### Added

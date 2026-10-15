@@ -90,7 +90,7 @@ dwell/
 
 **Privacy and security — MUST follow:**
 - Store only the registrable domain, seconds per hour, visits, redirect counts and settings. Never a URL, path, query, title or page content, anywhere, including the optional event log.
-- Permissions stay exactly `tabs`, `idle`, `storage`, `alarms`, `declarativeNetRequest`; host permissions and content-script matches are the literal `https://` list for www, m and bare hosts of the three sites, top frame only. A new permission is a stop condition, not a decision.
+- Permissions stay exactly `tabs`, `idle`, `storage`, `alarms`, `declarativeNetRequest`; host permissions and content-script matches are the literal `https://` list for www, m and bare hosts of Instagram, YouTube and Facebook, plus `https://x.com/*` (added at the owner's request, ADR-4), top frame only. A new permission is a stop condition, not a decision.
 - Manifest CSP `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'`. No `externally_connectable`. `incognito: not_allowed`.
 - No `fetch`, `XMLHttpRequest`, `WebSocket`, `sendBeacon`, `EventSource`, `WebTransport`, `RTCPeerConnection`, `new Image`, `import()`, `window.open`, `eval`, `new Function`, computed access on `globalThis`/`self`/`window`, or `createElement` of script, link or iframe anywhere in `src/`. `npm run check:privacy` enforces it.
 - Every `tabs.update`, `tabs.create`, `windows.create`, `location.replace` and DNR redirect target comes from the one allowlist in `src/blocker/targets.ts`.
