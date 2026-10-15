@@ -3,11 +3,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { classify } from '../../src/blocker/patterns.ts';
 import { DEFAULT_SETTINGS, type Settings } from '../../src/store/schema.ts';
+import { tapReel, tapShort } from './fixtures/taps.ts';
 
 const dist = fileURLToPath(new URL('../../dist', import.meta.url));
 const fixture = readFileSync(new URL('./fixtures/instagram.html', import.meta.url), 'utf8');
 const SHORT_ID = 'dQw4w9WgXcQ';
 const IG = 'https://www.instagram.com';
+const YT = 'https://www.youtube.com';
 const RULESETS = ['instagram-reels', 'youtube-shorts', 'facebook-reels', 'instagram-explore'] as const;
 const TOGGLE: Record<(typeof RULESETS)[number], keyof Settings['blockers']> = {
   'instagram-reels': 'instagramReels',
@@ -77,15 +79,6 @@ function path(page: Page): string {
   return new URL(page.url()).pathname;
 }
 
-/** Clicks the fixture's in-page Reel link and reads the path synchronously after its pushState. */
-async function tapReel(page: Page): Promise<{ path: string; added: number }> {
-  return page.evaluate(() => {
-    const before = history.length;
-    document.getElementById('open-reel')?.click();
-    return { path: location.pathname, added: history.length - before };
-  });
-}
-
 test('every DNR rule compiles under Chrome RE2 limits and matches what the classifier blocks', async () => {
   const rules = Object.fromEntries(
     RULESETS.map((id) => [id, JSON.parse(readFileSync(`${dist}/src/blocker/rulesets/${id}.json`, 'utf8')) as StaticRule[]]),
@@ -126,13 +119,18 @@ test('every DNR rule compiles under Chrome RE2 limits and matches what the class
         const { matchedRules } = await chrome.declarativeNetRequest.testMatchOutcome({ url, type: 'main_frame' });
         matched.push([...new Set(matchedRules.map((r) => r.rulesetId))].sort());
       }
+      // A Reel or Short embedded as a frame in another page is left alone (ADR-3).
+      const framed = await Promise.all(
+        samples.map((url) => chrome.declarativeNetRequest.testMatchOutcome({ url, type: 'sub_frame' })),
+      );
       await chrome.declarativeNetRequest.updateEnabledRulesets({ disableRulesetIds: ['instagram-explore'] });
-      return { unsupported, matched };
+      return { unsupported, matched, framed: framed.flatMap((o) => o.matchedRules.map((r) => r.rulesetId)) };
     },
     { rules, samples },
   );
 
   expect(outcome.unsupported).toEqual([]);
+  expect(outcome.framed).toEqual([]);
   expect(samples.map((url, i) => ({ url, rulesets: outcome.matched[i] }))).toEqual(
     samples.map((url, i) => ({ url, rulesets: expected[i] })),
   );
@@ -197,6 +195,18 @@ test('a landing with the marker is stripped before the page runs a script', asyn
   await page.close();
 });
 
+test('with instagramReels off a landing on the marker is stripped and not counted', async () => {
+  await setBlockers({ instagramReels: false });
+  const page = await context.newPage();
+  await page.goto(`${IG}/#dwell=instagram`);
+  expect(await page.evaluate(() => document.documentElement.dataset.hashAtHead)).toBe('');
+  expect(page.url()).toBe(`${IG}/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'off');
+  await page.waitForTimeout(300);
+  expect(await messages()).toEqual([]);
+  await page.close();
+});
+
 test('with instagramReels off the same tap lands on /reels/abc untouched, and turning it on redirects', async () => {
   await setBlockers({ instagramReels: false });
   const page = await context.newPage();
@@ -240,6 +250,22 @@ test('the loop guard stops after 2 redirects in 5 s on the same tab', async () =
   await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
   await page.waitForTimeout(600);
   expect(path(page)).toBe('/reels/abc');
+  await page.close();
+});
+
+test('the loop guard lets the third Shorts tap within 5 s through instead of cancelling it', async () => {
+  const page = await context.newPage();
+  await page.goto(`${YT}/`);
+  for (const id of ['AAAAAAAAAAA', 'BBBBBBBBBBB']) {
+    const from = path(page);
+    expect(await tapShort(page, id)).toEqual({ path: from, added: 0 });
+    await expect.poll(() => page.url()).toBe(`${YT}/watch?v=${id}`);
+  }
+  expect(await tapShort(page, 'CCCCCCCCCCC')).toEqual({ path: '/shorts/CCCCCCCCCCC', added: 1 });
+  await page.waitForTimeout(600);
+  expect(page.url()).toBe(`${YT}/shorts/CCCCCCCCCCC`);
+  const landing = { type: 'blocked', site: 'youtube' };
+  await expect.poll(messages).toEqual([landing, landing]);
   await page.close();
 });
 

@@ -4,11 +4,14 @@
  * key, and sends only `{ type: 'blocked', site }`. Nothing else from the page is read or sent.
  *
  * 1. Navigation API: a cancelable `navigate` to a blocked URL is cancelled. Reels and Explore stay on
- *    the current page and are counted here, with no marker. Shorts go on to the watch page (AE6).
+ *    the current page and are counted here, with no marker. Shorts go on to the watch page (AE6), and are
+ *    cancelled only when the loop guard allows that redirect; otherwise the tap goes through untouched.
  * 2. Fallbacks (`popstate`, `yt-navigate-finish`, a 250 ms poll, a settings change): a blocked URL that
  *    is current is replaced by its allowlisted target, at most 2 redirects per tab in 5 s.
- * 3. A landing that carries `#dwell=<site>` (DNR or a fallback redirect) is counted once and stripped.
+ * 3. A landing that carries `#dwell=<site>` (DNR or a fallback redirect) is stripped at once, and counted
+ *    once after the settings load, only while that site's blocker is on.
  */
+import { admitRedirect, decide, markerCounts } from '../blocker/decide.ts';
 import { classify, siteForHost } from '../blocker/patterns.ts';
 import { TARGET_FRAGMENT, isAllowedTarget } from '../blocker/targets.ts';
 import { DEFAULT_SETTINGS, SETTINGS_KEY, type BlockedSite, type Settings } from '../store/schema.ts';
@@ -17,8 +20,6 @@ import { extensionAlive, sendToWorker } from './runtime.ts';
 type Blockers = Settings['blockers'];
 
 const POLL_MS = 250;
-const LOOP_WINDOW_MS = 5000;
-const LOOP_MAX_REDIRECTS = 2;
 const COUNT_DEDUPE_MS = 1000;
 /** sessionStorage is per tab and per origin, so the loop guard survives the redirect it caused. */
 const LOOP_KEY = 'dwell:redirects';
@@ -34,7 +35,7 @@ let blockers: Blockers = { ...DEFAULT_SETTINGS.blockers };
 let loaded = false;
 let changedSinceStart = false;
 let alive = true;
-let markerCounted = false;
+let markerPending = false;
 let lastCountAt = 0;
 let lastHref = '';
 let memoryRedirects: number[] = [];
@@ -98,18 +99,20 @@ function saveRedirects(list: number[]): void {
   }
 }
 
-/** Loop guard: at most LOOP_MAX_REDIRECTS redirects per tab within LOOP_WINDOW_MS. */
+/** Loop guard (`admitRedirect`): records one more redirect and returns true, or refuses it. */
 function mayRedirect(): boolean {
-  const now = Date.now();
-  const recent = loadRedirects().filter((t) => now - t >= 0 && now - t < LOOP_WINDOW_MS);
-  if (recent.length >= LOOP_MAX_REDIRECTS) return false;
-  saveRedirects([...recent, now]);
+  const next = admitRedirect({ now: Date.now(), redirects: loadRedirects() });
+  if (next === null) return false;
+  saveRedirects(next);
   return true;
 }
 
-/** Every redirect the guard makes goes through here, and only to an allowlisted target. */
+/**
+ * Every redirect the guard makes goes through here, and only to an allowlisted target.
+ * Callers have already passed the loop guard, before anything was cancelled.
+ */
 function go(target: string, mode: 'assign' | 'replace'): void {
-  if (!alive || !isAllowedTarget(target) || !mayRedirect()) return;
+  if (!alive || !isAllowedTarget(target)) return;
   if (mode === 'replace') location.replace(target);
   else location.assign(target);
 }
@@ -118,20 +121,24 @@ function onNavigate(event: NavigateEvent): void {
   if (!alive || !event.cancelable) return;
   const hit = classify(event.destination.url, blockers);
   if (hit === null) return;
+  // The loop guard is asked before cancelling, so a refused Short is never cancelled with nothing after it.
+  const decision = decide(hit, { now: Date.now(), redirects: loadRedirects() });
+  if (decision.action === 'allow') return;
   event.preventDefault();
-  if (hit.kind === 'shorts') {
-    // The watch page is the destination (R15); its marker is what gets counted on landing.
-    setTimeout(() => go(hit.target, 'assign'), 0);
+  if (decision.action === 'cancel') {
+    count(decision.site);
     return;
   }
-  count(hit.site);
+  saveRedirects(decision.redirects);
+  // The watch page is the destination (R15); its marker is what gets counted on landing.
+  setTimeout(() => go(decision.target, 'assign'), 0);
 }
 
 /** Fallback: if the current URL is blocked anyway, replace it with its target. */
 function enforceCurrent(): void {
   if (!alive || !loaded) return;
   const hit = classify(location.href, blockers);
-  if (hit !== null) go(hit.target, 'replace');
+  if (hit !== null && mayRedirect()) go(hit.target, 'replace');
 }
 
 function tick(site: BlockedSite): void {
@@ -144,17 +151,24 @@ function tick(site: BlockedSite): void {
   enforceCurrent();
 }
 
-/** A redirect landing: count it once, then strip the marker before the page's own scripts run. */
+/** A redirect landing: strip the marker before the page's own scripts run; `settleMarker` counts it. */
 function consumeMarker(site: BlockedSite): void {
-  if (markerCounted || location.hash !== TARGET_FRAGMENT[site]) return;
-  markerCounted = true;
+  if (location.hash !== TARGET_FRAGMENT[site]) return;
+  markerPending = true;
   history.replaceState(history.state, '', location.pathname + location.search);
-  sendToWorker({ type: 'blocked', site }, () => stop(site));
+}
+
+/** Once the settings are known: count the stripped marker once, only while that site's blocker is on. */
+function settleMarker(site: BlockedSite): void {
+  if (!markerPending) return;
+  markerPending = false;
+  if (markerCounts(site, blockers)) sendToWorker({ type: 'blocked', site }, () => stop(site));
 }
 
 function applySettings(site: BlockedSite, stored: unknown): void {
   blockers = readBlockers(stored);
   loaded = true;
+  settleMarker(site);
   setHiderAttribute(site);
   enforceCurrent();
 }

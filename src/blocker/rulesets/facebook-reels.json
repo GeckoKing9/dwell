@@ -9,7 +9,7 @@
     "condition": {
       "regexFilter": "^https://(?:www\\.|m\\.)?facebook\\.com/(?:[^?]*/)?reels?(?:[/?]|$)",
       "isUrlFilterCaseSensitive": false,
-      "resourceTypes": ["main_frame", "sub_frame"]
+      "resourceTypes": ["main_frame"]
     }
   }
 ]

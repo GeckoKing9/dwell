@@ -129,11 +129,8 @@ describe.each(Object.entries(RULESETS))('ruleset %s', (name, toggle) => {
     }
   });
 
-  it('only redirects main_frame and sub_frame', () => {
-    for (const rule of set) {
-      expect(rule.condition.resourceTypes.length).toBeGreaterThan(0);
-      for (const type of rule.condition.resourceTypes) expect(['main_frame', 'sub_frame']).toContain(type);
-    }
+  it('redirects top-level page loads only, never a frame embedded in another page', () => {
+    for (const rule of set) expect(rule.condition.resourceTypes).toEqual(['main_frame']);
   });
 
   it('uses only RE2-compatible, anchored https patterns', () => {

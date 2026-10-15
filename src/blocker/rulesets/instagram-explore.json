@@ -9,7 +9,7 @@
     "condition": {
       "regexFilter": "^https://(?:www\\.)?instagram\\.com/(?:[^?]*/)?explore(?:[/?]|$)",
       "isUrlFilterCaseSensitive": false,
-      "resourceTypes": ["main_frame", "sub_frame"]
+      "resourceTypes": ["main_frame"]
     }
   }
 ]

@@ -9,7 +9,7 @@
     "condition": {
       "regexFilter": "^https://www\\.youtube\\.com/(?:[^?]*/)?shorts/([A-Za-z0-9_-]{11})(?:[/?].*)?$",
       "isUrlFilterCaseSensitive": false,
-      "resourceTypes": ["main_frame", "sub_frame"]
+      "resourceTypes": ["main_frame"]
     }
   },
   {
@@ -22,7 +22,7 @@
     "condition": {
       "regexFilter": "^https://m\\.youtube\\.com/(?:[^?]*/)?shorts/([A-Za-z0-9_-]{11})(?:[/?].*)?$",
       "isUrlFilterCaseSensitive": false,
-      "resourceTypes": ["main_frame", "sub_frame"]
+      "resourceTypes": ["main_frame"]
     }
   },
   {
@@ -35,7 +35,7 @@
     "condition": {
       "regexFilter": "^https://youtube\\.com/(?:[^?]*/)?shorts/([A-Za-z0-9_-]{11})(?:[/?].*)?$",
       "isUrlFilterCaseSensitive": false,
-      "resourceTypes": ["main_frame", "sub_frame"]
+      "resourceTypes": ["main_frame"]
     }
   }
 ]
