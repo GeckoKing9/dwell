@@ -4,7 +4,7 @@
  * returns a fresh copy so nothing else the sender attached survives. The worker authorises by sender
  * with `CONTENT_MESSAGE_TYPES` / `PAGE_MESSAGE_TYPES` (or `allowedFrom`). Pure: no Chrome APIs.
  */
-import { BLOCKED_SITES, CATEGORIES, type BlockedSite, type Category, type Settings } from '../store/schema.ts';
+import { BLOCKED_SITES, CATEGORIES, THEMES, type BlockedSite, type Category, type Settings, type Theme } from '../store/schema.ts';
 
 export interface BlockedMessage {
   type: 'blocked';
@@ -25,6 +25,7 @@ export interface SettingsPatch {
   ignore?: string[];
   categories?: Record<string, Category>;
   eventLog?: boolean;
+  theme?: Theme;
 }
 export interface SettingsMessage {
   type: 'settings';
@@ -76,6 +77,7 @@ const PATCH_KEYS: readonly (keyof SettingsPatch)[] = [
   'ignore',
   'categories',
   'eventLog',
+  'theme',
 ];
 const FORBIDDEN_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
 /** Lowercase DNS hostname with at least two labels, 253 characters at most. */
@@ -140,6 +142,7 @@ const PATCH_FIELDS: { [K in keyof SettingsPatch]-?: (value: unknown) => Settings
   ignore: hostList,
   categories: categoryMap,
   eventLog: (v) => (typeof v === 'boolean' ? v : null),
+  theme: (v) => (typeof v === 'string' && (THEMES as readonly string[]).includes(v) ? (v as Theme) : null),
 };
 
 /** A validated, freshly built settings patch, or null on any unknown key or wrong type. */

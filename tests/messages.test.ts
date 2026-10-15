@@ -30,8 +30,10 @@ const valid: Message[] = [
       ignore: ['localhost.test', 'xn--bcher-kva.example'],
       categories: { 'github.com': 'Work', 'youtube.com': 'Video' },
       eventLog: true,
+      theme: 'light',
     },
   },
+  { type: 'settings', patch: { theme: 'system' } },
   { type: 'pause', paused: true },
   { type: 'pause', paused: false },
   { type: 'import', text: '{"format":"dwell-export"}' },
@@ -103,7 +105,9 @@ describe('parseMessage rejects anything else', () => {
 });
 
 const badPatches: [string, unknown][] = [
-  ['an unknown key', { theme: 'dark' }],
+  ['an unknown key', { colour: 'dark' }],
+  ['a theme off the list', { theme: 'auto' }],
+  ['a theme as a number', { theme: 1 }],
   ['an idle threshold off the list', { idleThresholdSec: 45 }],
   ['an idle threshold as a string', { idleThresholdSec: '60' }],
   ['mediaOverride as a number', { mediaOverride: 0 }],

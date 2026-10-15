@@ -6,8 +6,9 @@
  * UTC hour keys keep the ring monotonic across DST; local time never matters here.
  */
 import type { KeyValueStore, StoredRecord } from './adapter.ts';
+import { loadSettings, validateSettings } from '../shared/settings.ts';
 import { loadAllDays, readDayRecord } from './days.ts';
-import { DAY_KEY_PREFIX, dateString, isDayKey, type DayRecord } from './schema.ts';
+import { DAY_KEY_PREFIX, dateString, isDayKey, type DayRecord, type Settings } from './schema.ts';
 import { isForbiddenKey, isIntInRange, isPlainObject, isSiteId, nullRecord } from './validate.ts';
 
 export const LOG_KEY_PREFIX = 'log:';
@@ -52,7 +53,7 @@ const KINDS: ReadonlySet<string> = new Set(LOG_KINDS);
 const V1_KINDS: ReadonlySet<string> = new Set([...LOG_KINDS.filter((kind) => kind !== 'start' && !kind.startsWith('seed-')), 'seed']);
 const ENTRY_KEYS: ReadonlySet<string> = new Set(['at', 'kind', 'site', 'win', 'tab', 'a']);
 const V1_ENTRY_KEYS: ReadonlySet<string> = new Set(['at', 'kind', 'site']);
-const FILE_KEYS: ReadonlySet<string> = new Set(['format', 'version', 'entries', 'days']);
+const FILE_KEYS: ReadonlySet<string> = new Set(['format', 'version', 'entries', 'days', 'settings']);
 
 export interface LogEntry {
   readonly at: number;
@@ -63,12 +64,17 @@ export interface LogEntry {
   readonly a?: 0 | 1;
 }
 
+/** The two settings that change how a day replays; the rest of the settings never reach the engine. */
+export type LogSettings = Pick<Settings, 'idleThresholdSec' | 'mediaOverride'>;
+
 export interface LogExport {
   readonly format: typeof LOG_FORMAT;
   readonly version: typeof LOG_VERSION;
   readonly entries: LogEntry[];
   /** The stored day records, keyed 'YYYY-MM-DD', of every local day from the first entry to the last. */
   readonly days: Record<string, DayRecord>;
+  /** The idle threshold and media override in force at export time. */
+  readonly settings: LogSettings;
 }
 
 /** A log file read back: version 1 files have no ids and no days. */
@@ -76,6 +82,8 @@ export interface LogFile {
   readonly version: LogVersion;
   readonly entries: LogEntry[];
   readonly days: Record<string, DayRecord>;
+  /** Absent in files exported before the field existed. */
+  readonly settings?: LogSettings;
 }
 
 /** Thrown when an entry could carry more than a time, an event kind, a site id and integer ids. */
@@ -212,7 +220,8 @@ export async function exportLog(store: KeyValueStore): Promise<LogExport> {
   const first = entries[0];
   const last = entries.at(-1);
   const days = first && last ? await daysBetween(store, first.at, last.at) : nullRecord<DayRecord>();
-  return { format: LOG_FORMAT, version: LOG_VERSION, entries, days };
+  const { idleThresholdSec, mediaOverride } = await loadSettings(store);
+  return { format: LOG_FORMAT, version: LOG_VERSION, entries, days, settings: { idleThresholdSec, mediaOverride } };
 }
 
 function readDays(value: unknown): Record<string, DayRecord> {
@@ -224,6 +233,13 @@ function readDays(value: unknown): Record<string, DayRecord> {
     days[day] = readDayRecord(record);
   }
   return days;
+}
+
+function readSettings(value: unknown): LogSettings | undefined {
+  if (value === undefined) return undefined;
+  const checked = isPlainObject(value) && Object.keys(value).length === 2 ? validateSettings(value) : null;
+  if (!checked?.ok) throw new TypeError('The settings of an event log file must hold idleThresholdSec and mediaOverride.');
+  return { idleThresholdSec: checked.value.idleThresholdSec, mediaOverride: checked.value.mediaOverride };
 }
 
 /**
@@ -242,5 +258,6 @@ export function readLogExport(value: unknown): LogFile {
     assertLogEntrySafe(entry, version);
     return clean(entry);
   });
-  return { version, entries, days: readDays(value['days']) };
+  const settings = readSettings(value['settings']);
+  return { version, entries, days: readDays(value['days']), ...(settings ? { settings } : {}) };
 }

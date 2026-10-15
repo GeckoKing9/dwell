@@ -286,6 +286,22 @@ test.describe('dashboard', () => {
     await expect.poll(() => worker.evaluate(() => (globalThis as unknown as { dwellIdleCalls: number[] }).dwellIdleCalls.at(-1))).toBe(60);
   });
 
+  test('the theme setting forces dark on the dashboard and the popup, and System removes it', async () => {
+    await seedSimulated();
+    const page = await openDashboard('#settings');
+    await expect(page.locator('#theme-system')).toHaveAttribute('aria-checked', 'true');
+    await page.locator('#theme-dark').click();
+    await expect.poll(async () => (await storedSettings()).theme).toBe('dark');
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+    const popup = await newPage(360, 560);
+    await popup.goto(`chrome-extension://${extensionId}/src/popup/index.html`);
+    await expect.poll(() => popup.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+    await page.locator('#theme-system').click();
+    await expect.poll(async () => (await storedSettings()).theme).toBe('system');
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBeUndefined();
+    await expect.poll(() => popup.evaluate(() => document.documentElement.dataset.theme)).toBeUndefined();
+  });
+
   test('export downloads a file the import accepts, and the day count is unchanged', async () => {
     await seedSimulated();
     const before = await dayKeyCount();

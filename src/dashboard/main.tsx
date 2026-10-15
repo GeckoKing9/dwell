@@ -3,6 +3,8 @@ import { render } from 'preact';
 import { chromeStore } from '../store/adapter.ts';
 import { uiLang } from '../shared/i18n.ts';
 import { App } from './App.tsx';
+import { SETTINGS_KEY } from '../store/schema.ts';
+import { applyTheme, themeOf } from '../shared/theme.ts';
 import { isRelevantChange } from './data.ts';
 import type { PageDeps } from './data.ts';
 
@@ -69,5 +71,10 @@ const deps: PageDeps = {
 };
 
 document.documentElement.lang = uiLang();
+void deps.store.get([SETTINGS_KEY]).then((items) => applyTheme(document.documentElement, themeOf(items[SETTINGS_KEY])));
+chrome.storage.onChanged.addListener((changes, area) => {
+  const change = changes[SETTINGS_KEY];
+  if (area === 'local' && change) applyTheme(document.documentElement, themeOf(change.newValue));
+});
 const root = document.getElementById('app');
 if (root) render(<App deps={deps} />, root);

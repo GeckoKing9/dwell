@@ -137,7 +137,10 @@ describe('exportLog', () => {
       version: 2,
       entries: [{ at: NOON - HOUR / 2, kind: 'tick' }, { at: NOON, kind: 'focus', win: 2 }],
       days: { '2026-10-14': day },
+      settings: { idleThresholdSec: 60, mediaOverride: true },
     });
+    const custom = memoryStore({ settings: { idleThresholdSec: 300, mediaOverride: false } });
+    expect((await exportLog(custom)).settings).toEqual({ idleThresholdSec: 300, mediaOverride: false });
     expect((await exportLog(memoryStore())).days).toEqual({});
   });
 
@@ -162,6 +165,14 @@ describe('readLogExport', () => {
     expect(Object.getPrototypeOf(file.days)).toBeNull();
   });
 
+  it('reads the settings field when present and accepts a file without it', async () => {
+    const withField = readLogExport(file({ settings: { idleThresholdSec: 120, mediaOverride: false } }));
+    expect(withField.settings).toEqual({ idleThresholdSec: 120, mediaOverride: false });
+    expect(readLogExport(file({})).settings).toBeUndefined();
+    const store = memoryStore({ settings: { idleThresholdSec: 30 } });
+    expect(readLogExport(JSON.parse(JSON.stringify(await exportLog(store)))).settings).toEqual({ idleThresholdSec: 30, mediaOverride: true });
+  });
+
   it('accepts a version 1 file, with its seed kind and no days', () => {
     const file = readLogExport({ format: 'dwell-event-log', version: 1, entries: [{ at: 1, kind: 'seed', site: 'a.com' }, { at: 2, kind: 'tick' }] });
     expect(file).toEqual({ version: 1, entries: [{ at: 1, kind: 'seed', site: 'a.com' }, { at: 2, kind: 'tick' }], days: {} });
@@ -172,7 +183,10 @@ describe('readLogExport', () => {
   it.each([
     ['a non-object', 'dwell-event-log'],
     ['another format', file({ format: 'dwell-export' })],
-    ['an unknown field', file({ settings: {} })],
+    ['an unknown field', file({ extra: {} })],
+    ['settings with a bad idle threshold', file({ settings: { idleThresholdSec: 45, mediaOverride: true } })],
+    ['settings with an extra key', file({ settings: { idleThresholdSec: 60, mediaOverride: true, theme: 'dark' } })],
+    ['settings that are not an object', file({ settings: 'x' })],
     ['an unknown version', file({ version: 3 })],
     ['entries that are not a list', file({ entries: {} })],
     ['too many entries', file({ entries: Array.from({ length: 90_001 }, () => ({ at: 1, kind: 'tick' })) })],

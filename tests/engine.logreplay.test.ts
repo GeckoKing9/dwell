@@ -3,21 +3,16 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { appendEvents, logEntry } from '../src/background/log.ts';
 import { memoryStore } from '../src/store/adapter.ts';
-import { MAX_HOUR_SECONDS, applyAttributions } from '../src/store/days.ts';
+import { applyAttributions } from '../src/store/days.ts';
 import { LOG_KINDS, LogPrivacyError, assertLogEntrySafe, exportLog, readLogExport, type LogEntry } from '../src/store/log.ts';
-import type { DayRecord } from '../src/store/schema.ts';
 import { createInitialState, reduce, replay } from '../src/tracker/engine.ts';
 import { START_KIND, logToEvents, replayLog } from '../src/tracker/replayLog.ts';
 import type { Buckets, EngineEvent, TrackerSettings } from '../src/tracker/types.ts';
 import { sequenceArb } from './support/arbitraries.ts';
+import { CARRY_TOLERANCE_SEC, differences } from './support/differences.ts';
 import { siteTotals } from './support/helpers.ts';
 import { type Fixture, simulateSession } from './support/simulator.ts';
 
-/**
- * A replay that begins where the recorder already held a sub-second remainder for a site can end an
- * hour up to this much apart from the stored record. A replay from a `start` entry has no such gap.
- */
-const CARRY_TOLERANCE_SEC = 1;
 const HOUR_MS = 3_600_000;
 const SETTINGS: TrackerSettings = { idleThresholdSec: 60, mediaOverride: true, heartbeatSec: 60, visitGapSec: 60 };
 const T = Date.UTC(2026, 9, 14, 9, 0, 0);
@@ -33,27 +28,6 @@ async function record(events: readonly EngineEvent[], settings: TrackerSettings)
     await appendEvents(store, [event], event.at, index === 0);
   }
   return store;
-}
-
-/** Every hour whose stored and replayed seconds differ by more than the tolerance, and every visit count that differs. */
-function differences(days: Record<string, DayRecord>, buckets: Buckets): { problems: string[]; maxSec: number } {
-  const problems: string[] = [];
-  let maxSec = 0;
-  for (const day of new Set([...Object.keys(days), ...Object.keys(buckets)])) {
-    const stored = days[day]?.sites ?? {};
-    const replayed = buckets[day] ?? {};
-    for (const site of new Set([...Object.keys(stored), ...Object.keys(replayed)])) {
-      const a = stored[site];
-      const b = replayed[site];
-      if ((a?.v ?? 0) !== (b?.v ?? 0)) problems.push(`${day} ${site}: ${a?.v ?? 0} visits stored, ${b?.v ?? 0} replayed`);
-      for (const hour of new Set([...Object.keys(a?.h ?? {}), ...Object.keys(b?.h ?? {})])) {
-        const diff = Math.abs((a?.h[hour] ?? 0) - Math.min(MAX_HOUR_SECONDS, b?.h[hour] ?? 0));
-        maxSec = Math.max(maxSec, diff);
-        if (diff > CARRY_TOLERANCE_SEC) problems.push(`${day} ${site} hour ${hour}: off by ${diff} s`);
-      }
-    }
-  }
-  return { problems, maxSec };
 }
 
 describe('the event log round trip', () => {

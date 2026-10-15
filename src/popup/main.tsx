@@ -5,6 +5,8 @@ import { uiLang } from '../shared/i18n.ts';
 import { isRelevantChange } from './data.ts';
 import type { PopupDeps } from './data.ts';
 import { Popup } from './Popup.tsx';
+import { SETTINGS_KEY } from '../store/schema.ts';
+import { applyTheme, themeOf } from '../shared/theme.ts';
 
 /** The popup's only contact with Chrome. Writes go to the worker as messages, never to storage. */
 const deps: PopupDeps = {
@@ -26,5 +28,10 @@ const deps: PopupDeps = {
 };
 
 document.documentElement.lang = uiLang();
+void deps.store.get([SETTINGS_KEY]).then((items) => applyTheme(document.documentElement, themeOf(items[SETTINGS_KEY])));
+chrome.storage.onChanged.addListener((changes, area) => {
+  const change = changes[SETTINGS_KEY];
+  if (area === 'local' && change) applyTheme(document.documentElement, themeOf(change.newValue));
+});
 const root = document.getElementById('app');
 if (root) render(<Popup deps={deps} />, root);

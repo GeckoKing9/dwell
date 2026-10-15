@@ -21,6 +21,9 @@ export interface DayRecord {
   blocked: Record<BlockedSite, number>;
 }
 
+export const THEMES = ['system', 'light', 'dark'] as const;
+export type Theme = (typeof THEMES)[number];
+
 export interface Settings {
   idleThresholdSec: 30 | 60 | 120 | 300;
   mediaOverride: boolean;
@@ -37,6 +40,8 @@ export interface Settings {
   /** The user's edits on top of the built-in map in `stats/categories.ts`. */
   categories: Record<Site, Category>;
   eventLog: boolean;
+  /** `system` follows the browser's colour scheme; the other two force it. */
+  theme: Theme;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -48,6 +53,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ignore: [],
   categories: {},
   eventLog: false,
+  theme: 'system',
 };
 
 export const SETTINGS_KEY = 'settings';

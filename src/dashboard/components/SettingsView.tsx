@@ -3,6 +3,7 @@ import type { MessageKey } from '../../shared/i18n.ts';
 import type { Settings } from '../../store/schema.ts';
 import type { SettingsHandlers, SettingsUi } from '../settingsUi.ts';
 import { Notice } from './SetRow.tsx';
+import { SettingsAppearance } from './SettingsAppearance.tsx';
 import { SettingsData } from './SettingsData.tsx';
 import { SettingsSites } from './SettingsSites.tsx';
 import { SettingsBlockers, SettingsTracking } from './SettingsTracking.tsx';
@@ -11,6 +12,7 @@ const GROUPS: readonly [string, MessageKey][] = [
   ['set-tracking', 'sTracking'],
   ['set-blockers', 'sBlockers'],
   ['set-sites', 'sSites'],
+  ['set-appearance', 'sAppearance'],
   ['set-data', 'sData'],
 ];
 
@@ -46,6 +48,7 @@ export function SettingsView({ settings, sites, ui, on }: SettingsViewProps) {
           <SettingsTracking settings={settings} on={on} />
           <SettingsBlockers settings={settings} on={on} />
           <SettingsSites settings={settings} sites={sites} ui={ui} on={on} />
+          <SettingsAppearance settings={settings} on={on} />
           <SettingsData settings={settings} ui={ui} on={on} />
         </div>
       </div>

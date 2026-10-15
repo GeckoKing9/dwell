@@ -30,6 +30,7 @@ describe('validateSettings', () => {
       ignore: ['bank.example.ca'],
       categories: defaultCategories(),
       eventLog: true,
+      theme: 'dark' as const,
     };
     expect(validateSettings(value)).toEqual({ ok: true, value });
   });
@@ -46,8 +47,18 @@ describe('validateSettings', () => {
   });
 
   it('rejects unknown keys at every level', () => {
-    expectRejected(validateSettings({ theme: 'dark' }), 'theme');
+    expectRejected(validateSettings({ colour: 'dark' }), 'colour');
     expectRejected(validateSettings({ blockers: { tiktok: true } }), 'tiktok');
+  });
+
+  it('accepts system, light and dark, defaults to system, and treats a missing key as the default', () => {
+    expect(DEFAULT_SETTINGS.theme).toBe('system');
+    for (const theme of ['system', 'light', 'dark']) expect(validateSettings({ theme })).toMatchObject({ ok: true, value: { theme } });
+    expect(validateSettings({ idleThresholdSec: 30 })).toMatchObject({ ok: true, value: { theme: 'system' } });
+  });
+
+  it('rejects any other theme', () => {
+    for (const theme of ['auto', 'Dark', '', 1, null, true]) expectRejected(validateSettings({ theme }), 'theme');
   });
 
   it('rejects bad enums and non-booleans', () => {

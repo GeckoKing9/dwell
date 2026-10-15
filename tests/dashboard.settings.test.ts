@@ -25,17 +25,17 @@ describe('settings', () => {
   const tree = renderDashboard({ view: 'settings' }, data, { on, ui: { seenSplits: ['mail.google.com', 'docs.google.com'] } });
 
   it('groups tracking, blockers, sites and data, with Settings current', () => {
-    expect(all(tree, (e) => e.type === 'h2').map((h) => text([h]))).toEqual(['Tracking', 'Blockers', 'Sites', 'Data']);
+    expect(all(tree, (e) => e.type === 'h2').map((h) => text([h]))).toEqual(['Tracking', 'Blockers', 'Sites', 'Appearance', 'Data']);
     expect(el(tree, 'nav-settings').props['aria-current']).toBe('page');
     const index = all(byClass(tree, 'set-index'), (e) => e.type === 'a');
     const preventDefault = vi.fn();
-    call(index[3], 'onClick', { preventDefault });
+    call(index[4], 'onClick', { preventDefault });
     expect(preventDefault).toHaveBeenCalled();
     expect(on.settings.jump).toHaveBeenCalledWith('set-data');
   });
 
   it('offers the four idle thresholds as one segmented choice and sends only a real change', () => {
-    const radios = all(tree, (e) => e.props.role === 'radio');
+    const radios = all([el(tree, 'row-idle')], (e) => e.props.role === 'radio');
     expect(radios.map((r) => [text([r]), r.props['aria-checked']])).toEqual([
       ['30 s', 'false'],
       ['60 s', 'true'],
@@ -46,6 +46,20 @@ describe('settings', () => {
     call(el(tree, 'idle-60'), 'onClick');
     expect(on.settings.change).toHaveBeenCalledTimes(1);
     expect(on.settings.change).toHaveBeenCalledWith({ idleThresholdSec: 120 });
+  });
+
+  it('offers System, Light and Dark as one segmented choice and sends only a real change', () => {
+    const row = el(tree, 'row-theme');
+    const radios = all([row], (e) => e.props.role === 'radio');
+    expect(radios.map((r) => [text([r]), r.props['aria-checked']])).toEqual([
+      ['System', 'true'],
+      ['Light', 'false'],
+      ['Dark', 'false'],
+    ]);
+    call(el(tree, 'theme-system'), 'onClick');
+    expect(on.settings.change).not.toHaveBeenCalledWith({ theme: 'system' });
+    call(el(tree, 'theme-dark'), 'onClick');
+    expect(on.settings.change).toHaveBeenLastCalledWith({ theme: 'dark' });
   });
 
   it('flips media, pause, each blocker and the event log with one tap', () => {

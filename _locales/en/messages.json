@@ -741,6 +741,30 @@
     "message": "Choose where each site is counted in the category breakdown.",
     "description": "Settings row description."
   },
+  "sAppearance": {
+    "message": "Appearance",
+    "description": "Settings group title."
+  },
+  "sTheme": {
+    "message": "Theme",
+    "description": "Settings row: light or dark colours."
+  },
+  "sThemeDesc": {
+    "message": "System follows Chrome’s light or dark setting. Light and Dark force one.",
+    "description": "Settings row description."
+  },
+  "themeSystem": {
+    "message": "System",
+    "description": "Theme choice: follow the browser."
+  },
+  "themeLight": {
+    "message": "Light",
+    "description": "Theme choice: always light."
+  },
+  "themeDark": {
+    "message": "Dark",
+    "description": "Theme choice: always dark."
+  },
   "sData": {
     "message": "Data",
     "description": "Settings group title."

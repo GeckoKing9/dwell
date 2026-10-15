@@ -1,6 +1,6 @@
 /** The settings schema at the trust boundary: one strict validator for the UI, messages and import. */
-import { CATEGORIES, DEFAULT_SETTINGS, SETTINGS_KEY } from '../store/schema.ts';
-import type { Category, Settings } from '../store/schema.ts';
+import { CATEGORIES, DEFAULT_SETTINGS, SETTINGS_KEY, THEMES } from '../store/schema.ts';
+import type { Category, Settings, Theme } from '../store/schema.ts';
 import type { KeyValueStore } from '../store/adapter.ts';
 import { isForbiddenKey, isPlainObject, isSiteId, keyProblem, nullRecord } from '../store/validate.ts';
 import type { Check } from '../store/validate.ts';
@@ -25,6 +25,10 @@ function isIdleChoice(value: unknown): value is Settings['idleThresholdSec'] {
 
 function isCategory(value: unknown): value is Category {
   return typeof value === 'string' && (CATEGORIES as readonly string[]).includes(value);
+}
+
+function isTheme(value: unknown): value is Theme {
+  return typeof value === 'string' && (THEMES as readonly string[]).includes(value);
 }
 
 function copySettings(base: Settings): Settings {
@@ -86,6 +90,11 @@ export function validateSettings(input: unknown, base: Settings = DEFAULT_SETTIN
     const idle = input['idleThresholdSec'];
     if (!isIdleChoice(idle)) return fail('Settings "idleThresholdSec" must be 30, 60, 120 or 300.');
     out.idleThresholdSec = idle;
+  }
+  if (Object.hasOwn(input, 'theme')) {
+    const theme = input['theme'];
+    if (!isTheme(theme)) return fail('Settings "theme" must be system, light or dark.');
+    out.theme = theme;
   }
   for (const key of BOOLEAN_KEYS) {
     if (!Object.hasOwn(input, key)) continue;
