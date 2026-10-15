@@ -55,3 +55,8 @@ Graphify: set up when project reaches 20+ source files
 2. Owner uses Dwell for one real day with the event log on, exports it into `tests/fixtures/real/` and runs `npm test`: the popup should match recollection and the replay should pass (Definition of Done).
 3. `!/security-check` and `!/code-review` on the branch diff, then merge `feature/mvp` into `main`.
 4. Tag `v0.1.0` on `main` and push the tag; the release workflow builds, tests and attaches the zip and hash list.
+
+<!-- session-end:auto -->
+**Last session (2026-10-15, coding):** Dwell MVP built in units U1-U11, 21 review findings fixed, merged to main with CI green; handoff/ folder created; dist copied to C:\Users\CRdup\dwell-dist.
+**Next:** Run manual checklist on real Chrome, then tag v0.1.0.
+<!-- /session-end:auto -->
