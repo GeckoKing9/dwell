@@ -11,6 +11,7 @@ Branch: feature/mvp (one branch per milestone). No AI attribution anywhere.
 - [x] U6 aggregation, formatting, categories, simulator
 - [x] U7 popup
 - [ ] U8 dashboard
+- [x] U10 event log replay round-trip
 - [ ] U9 README, release workflow, docs
 - [ ] Gates: typecheck, lint, test, test:tz, check:privacy, build, test:e2e, npm audit, impeccable, !/security-check, !/code-review
 - [ ] Manual checklist recorded in docs/project_status.md

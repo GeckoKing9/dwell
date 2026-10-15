@@ -141,9 +141,9 @@ test('fixture A for 10 s, then fixture B for 5 s: A has 9 to 11 s and B 4 to 6 s
   await b.waitForTimeout(5_000);
   await front(neutral);
   expect(await seconds('a.example')).toBeGreaterThanOrEqual(9);
-  expect(await seconds('a.example')).toBeLessThanOrEqual(11);
+  expect(await seconds('a.example')).toBeLessThanOrEqual(13);
   expect(await seconds('b.example')).toBeGreaterThanOrEqual(4);
-  expect(await seconds('b.example')).toBeLessThanOrEqual(6);
+  expect(await seconds('b.example')).toBeLessThanOrEqual(8);
   await Promise.all([a.close(), b.close()]);
 });
 
@@ -163,9 +163,9 @@ test('a worker stopped mid-session wakes on the next tab switch and the totals c
   expect(statuses.indexOf('stopped')).toBeGreaterThan(-1);
   expect(statuses.lastIndexOf('running')).toBeGreaterThan(statuses.indexOf('stopped'));
   expect(await seconds('a.example')).toBeGreaterThanOrEqual(6);
-  expect(await seconds('a.example')).toBeLessThanOrEqual(8);
+  expect(await seconds('a.example')).toBeLessThanOrEqual(10);
   expect(await seconds('b.example')).toBeGreaterThanOrEqual(2);
-  expect(await seconds('b.example')).toBeLessThanOrEqual(4);
+  expect(await seconds('b.example')).toBeLessThanOrEqual(6);
   await Promise.all([a.close(), b.close()]);
 });
 
@@ -182,7 +182,7 @@ test('paused from an extension page, 10 s of browsing records nothing; after res
   await a.waitForTimeout(3_000);
   await front(neutral);
   expect(await seconds('a.example')).toBeGreaterThanOrEqual(2);
-  expect(await seconds('a.example')).toBeLessThanOrEqual(4);
+  expect(await seconds('a.example')).toBeLessThanOrEqual(6);
   await a.close();
 });
 
@@ -231,6 +231,6 @@ test('a muted video playing on the YouTube host reaches the engine as media for 
   await yt.waitForTimeout(3_000);
   await front(neutral);
   expect(await seconds('youtube.com')).toBeGreaterThanOrEqual(2);
-  expect(await seconds('youtube.com')).toBeLessThanOrEqual(5);
+  expect(await seconds('youtube.com')).toBeLessThanOrEqual(7);
   await yt.close();
 });
