@@ -69,9 +69,8 @@ export function isTrackedChange(change: TabChange): boolean {
   return isNavigation(change) || change.audible !== undefined;
 }
 
-/** `tabs.onUpdated`: a url event for a tracked change (`isTrackedChange`), otherwise null. */
-export function updatedEvent(tabId: number, change: TabChange, tab: TabLike, grouping: Grouping, at: number): UrlEvent | null {
-  if (!isTrackedChange(change)) return null;
+/** `tabs.onUpdated`: the url event for a tracked change. Untracked ones are dropped before they are queued (`isTrackedChange`). */
+export function updatedEvent(tabId: number, change: TabChange, tab: TabLike, grouping: Grouping, at: number): UrlEvent {
   const nav = isNavigation(change);
   const audible = change.audible ?? tab.audible;
   const event = withAudible({ type: 'url', at, tabId, site: siteOfTab(tab, grouping, change.url ?? tab.url) }, audible);

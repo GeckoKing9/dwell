@@ -4,9 +4,10 @@
  * on, this marks everything after the post with `data-dwell-hidden`, and `instagram.css` hides it.
  *
  * A post opened in Instagram's pop-up (a `[role="dialog"]` holding the post) over another page leaves that
- * page alone. A video post on its own page is drawn as a pop-up too (`instagram-pop-up.ts`). The rules read link addresses and the document's structure only, never visible text, so they hold in every
- * language (`blocker/post.ts`). The grid loads after the post, so the page is checked again on every DOM
- * change, at most once per animation frame. Bundled into Instagram's guard (`guard-instagram.ts`), which
+ * page alone. A video post on its own page is drawn as a pop-up too (`instagram-pop-up.ts`). The rules read
+ * link addresses and the document's structure only, never visible text, so they hold in every language
+ * (`blocker/post.ts`). The grid loads after the post, so the page is checked again on every DOM change, on
+ * the next frame and at most every 100 ms. Bundled into Instagram's guard (`guard-instagram.ts`), which
  * calls `syncPostPage`; nothing is stored or sent.
  */
 import { MIN_OTHER_POSTS, isOtherPostLink, singlePostCode } from '../blocker/post.ts';
@@ -19,13 +20,18 @@ const MARK = 'data-dwell-hidden';
  * would otherwise be taken for the post's own page in between.
  */
 const LOADED_CODE = singlePostCode(location.pathname);
-/** The page is checked at most this often while it changes: marks and the pop-up are cosmetic, and Instagram changes the page constantly. */
-const CHECK_MS = 120;
+/**
+ * The page is checked on the frame after it changes, and at most this often while it keeps changing. Frames
+ * do not run in a background tab, so a hidden Instagram tab does no checks at all.
+ */
+const MIN_GAP_MS = 100;
 
 /** The post Dwell last opened as a page in this document through Instagram's router (`markInAppPost`). */
 let inAppCode: string | null = null;
 let observer: MutationObserver | null = null;
-let timer: ReturnType<typeof setTimeout> | null = null;
+let frame: number | null = null;
+let wait: ReturnType<typeof setTimeout> | null = null;
+let lastRun = Number.NEGATIVE_INFINITY;
 
 /** Records that the guard opened `code` as a page in this document, so it gets the same treatment as a loaded one. */
 export function markInAppPost(code: string): void {
@@ -123,7 +129,6 @@ function ownPageCode(): string | null {
 }
 
 function run(): void {
-  timer = null;
   const code = ownPageCode();
   const main = document.querySelector('main');
   // The post in a pop-up over another page: that page is not this post's page, so it is left alone.
@@ -140,8 +145,23 @@ function run(): void {
   syncPopUp(ownVideo(main, otherSet), main, code !== LOADED_CODE);
 }
 
+function onFrame(now: number): void {
+  frame = null;
+  const early = lastRun + MIN_GAP_MS - now;
+  if (early > 0) {
+    // Checked moments ago: once more after the gap, on a frame again (only a visible tab reaches here).
+    wait = setTimeout(() => {
+      wait = null;
+      schedule();
+    }, early);
+    return;
+  }
+  lastRun = now;
+  run();
+}
+
 function schedule(): void {
-  if (timer === null) timer = setTimeout(run, CHECK_MS);
+  if (frame === null && wait === null) frame = requestAnimationFrame(onFrame);
 }
 
 /**
@@ -161,8 +181,10 @@ export function syncPostPage(on: boolean): void {
   }
   observer?.disconnect();
   observer = null;
-  if (timer !== null) clearTimeout(timer);
-  timer = null;
+  if (frame !== null) cancelAnimationFrame(frame);
+  if (wait !== null) clearTimeout(wait);
+  frame = null;
+  wait = null;
   mark([]);
   resetPopUp();
 }

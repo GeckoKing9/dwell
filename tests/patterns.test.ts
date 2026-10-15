@@ -436,7 +436,7 @@ describe('redirect sinks in src/ (KTD5)', () => {
   });
 
   it('keep the guard navigating only inside go(), after the allowlist check', () => {
-    const guard = readFileSync(join(root, 'content/guard.ts'), 'utf8');
+    const guard = readFileSync(join(root, 'content/guard-core.ts'), 'utf8');
     const start = guard.indexOf('function go(');
     const end = guard.indexOf('\n}\n', start);
     const body = guard.slice(start, end);

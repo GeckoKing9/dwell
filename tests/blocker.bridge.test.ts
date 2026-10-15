@@ -35,6 +35,16 @@ describe('readOpenAnswer: how the bridge says it opened the post', () => {
 describe('isPopUpPath: the one path form the bridge opens', () => {
   it('accepts only /p/<code>/', () => {
     expect(isPopUpPath(`/p/${CODE}/`)).toBe(true);
-    for (const bad of [`/p/${CODE}`, `/reel/${CODE}/`, `/p/${CODE}/?x=1`, `//evil.example/p/${CODE}/`, '/p/ab/']) expect(isPopUpPath(bad)).toBe(false);
+    for (const bad of [
+      `/p/${CODE}`,
+      `/reel/${CODE}/`,
+      `/p/${CODE}/?x=1`,
+      `//evil.example/p/${CODE}/`,
+      '/p/ab/',
+      `/p/${CODE}/../x/`,
+      `https://www.instagram.com/p/${CODE}/`,
+    ]) {
+      expect(isPopUpPath(bad)).toBe(false);
+    }
   });
 });

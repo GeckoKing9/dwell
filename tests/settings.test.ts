@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { memoryStore } from '../src/store/adapter.ts';
-import { loadSettings, saveSettings, validateSettings } from '../src/shared/settings.ts';
+import { loadSettings, repairBlockers, repairSettings, saveSettings, validateSettings } from '../src/shared/settings.ts';
 import type { SettingsResult } from '../src/shared/settings.ts';
 import { themeOf } from '../src/shared/theme.ts';
 import { DEFAULT_SETTINGS, SETTINGS_KEY } from '../src/store/schema.ts';
@@ -222,6 +222,42 @@ describe('a stored value with one bad field (F3)', () => {
   it('reads the theme of a stored value whose other fields are bad', () => {
     expect(themeOf(stored)).toBe('dark');
     expect(themeOf({ theme: 'neon', paused: true })).toBe('system');
+  });
+});
+
+describe('repairBlockers: the one rule for stored blocker flags (settings repair and the guard)', () => {
+  it('keeps every valid flag and reads a missing one as its default, so v0.1.0 flags keep X on', () => {
+    expect(repairBlockers(V010_BLOCKERS)).toEqual({ ...V010_BLOCKERS, xVideos: true });
+  });
+
+  it('reads a flag that is not true or false as its default and ignores an unknown key', () => {
+    expect(repairBlockers({ xVideos: 'off', youtubeShorts: false, tiktok: true })).toEqual({ ...DEFAULT_SETTINGS.blockers, youtubeShorts: false });
+  });
+
+  it('accepts an object without a prototype, as a plain one', () => {
+    const bare = Object.assign(Object.create(null) as Record<string, unknown>, { facebookReels: false });
+    expect(repairBlockers(bare)).toEqual({ ...DEFAULT_SETTINGS.blockers, facebookReels: false });
+  });
+
+  it.each<[string, unknown]>([
+    ['nothing', undefined],
+    ['null', null],
+    ['a string', 'off'],
+    ['a list', [false, false]],
+    ['an object with a prototype of its own', Object.assign(Object.create({}) as Record<string, unknown>, { youtubeShorts: false })],
+  ])('reads %s as the default flags', (_name, stored) => {
+    expect(repairBlockers(stored)).toEqual(DEFAULT_SETTINGS.blockers);
+  });
+
+  it('returns a new object every time, never the defaults themselves', () => {
+    expect(repairBlockers(undefined)).not.toBe(DEFAULT_SETTINGS.blockers);
+  });
+
+  it('is what a stored value’s blockers repair to', () => {
+    const odd = Object.assign(Object.create({}) as Record<string, unknown>, { youtubeShorts: false });
+    for (const blockers of [V010_BLOCKERS, { xVideos: 'off', youtubeShorts: false }, odd, [], 'off']) {
+      expect(repairSettings({ blockers }).blockers).toEqual(repairBlockers(blockers));
+    }
   });
 });
 

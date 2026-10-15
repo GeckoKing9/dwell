@@ -8,6 +8,7 @@ import {
   mediaEvent,
   pauseEvent,
   tickEvent,
+  isTrackedChange,
   updatedEvent,
   urlEvent,
 } from '../src/background/events.ts';
@@ -94,7 +95,6 @@ describe('updated', () => {
       audible: true,
       nav: true,
     });
-    expect(updatedEvent(9, { status: 'complete' }, tab, NONE, AT)).toBeNull();
   });
 
   it('maps an audible change to a url event carrying the change and the current site, not a navigation', () => {
@@ -108,12 +108,18 @@ describe('updated', () => {
     });
   });
 
-  it('ignores changes that are neither the URL nor audible', () => {
-    expect(updatedEvent(9, {}, tab, NONE, AT)).toBeNull();
+  it('uses the event tab id, not the tab object', () => {
+    expect(updatedEvent(9, { url: 'https://a.example/' }, { url: 'https://a.example/', incognito: false }, NONE, AT).tabId).toBe(9);
+  });
+});
+
+describe('isTrackedChange: which tab updates tracking needs, decided before they are queued', () => {
+  it.each([{ url: 'https://a.example/' }, { status: 'loading' }, { audible: true }, { audible: false }])('tracks %o', (change) => {
+    expect(isTrackedChange(change)).toBe(true);
   });
 
-  it('uses the event tab id, not the tab object', () => {
-    expect(updatedEvent(9, { url: 'https://a.example/' }, { url: 'https://a.example/', incognito: false }, NONE, AT)?.tabId).toBe(9);
+  it.each([{}, { status: 'complete' }, { title: 'Inbox (3)' }, { favIconUrl: 'https://a.example/f.ico' }])('drops %o', (change) => {
+    expect(isTrackedChange(change)).toBe(false);
   });
 });
 

@@ -13,7 +13,7 @@
  * stored or sent.
  */
 import { DIM_FACTOR, dimColor, leaveBy, popUpBox } from '../blocker/post.ts';
-import { usesInput } from '../blocker/scroll.ts';
+import { takesText } from '../blocker/scroll.ts';
 import { editable } from './viewer-lock.ts';
 
 const POST = 'data-dwell-post';
@@ -155,10 +155,10 @@ function onClick(event: MouseEvent): void {
   leave();
 }
 
-/** Escape closes it, unless the focused element takes keys itself or one of Instagram's own dialogs or menus is open. */
+/** Escape closes it, unless the user is typing (the same rule the input lock uses) or one of Instagram's own dialogs or menus is open. */
 function onKeyDown(event: KeyboardEvent): void {
   if (shown === null || event.key !== 'Escape' || !document.documentElement.hasAttribute(OPEN)) return;
-  if (usesInput(editable(event.target)) || document.querySelector(OVERLAY) !== null) return;
+  if (takesText(editable(event.composedPath()[0])) || document.querySelector(OVERLAY) !== null) return;
   event.preventDefault();
   leave();
 }

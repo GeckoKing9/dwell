@@ -16,7 +16,11 @@
  * - settle (a commit, an undo's deadline, a re-check): a viewer that moved anyway goes back to its first
  *   video, a blocked page on screen goes to its target, and the input lock and Instagram's post page follow.
  * - settings: the first read or a change; a stripped `#dwell=<site>` landing is counted once, after the first.
- * - opened: a post Instagram's router opened for the guard.
+ * - opened: a post the site's router opened for the guard (Instagram).
+ *
+ * A site whose router opens a post in this document (Instagram) gives the machine its post rule at start
+ * (`PostCode`); with none, the swap and the pop-up's one-post lock never apply, and the site's bundle carries
+ * no post paths.
  */
 import {
   admitRedirect,
@@ -31,10 +35,10 @@ import {
   type NavigationKind,
 } from './decide.ts';
 import { classify } from './patterns.ts';
-import { popUpPath, singlePostCode } from './post.ts';
-import { instagramPostTarget } from './targets.ts';
-import { VIEWER_TOGGLE, decideViewerMove, viewerLocked, type ViewerMove } from './viewer.ts';
+import { VIEWER_TOGGLE, decideViewerMove, lockTarget, viewerLocked, type ViewerMove } from './viewer.ts';
+import { repairBlockers } from '../shared/settings.ts';
 import { DEFAULT_SETTINGS, type BlockedSite, type Settings } from '../store/schema.ts';
+import { isPlainObject } from '../store/validate.ts';
 
 type Blockers = Settings['blockers'];
 type Lock = Extract<ViewerMove, { action: 'lock' }>;
@@ -48,8 +52,13 @@ export interface Logs {
   undos: readonly number[];
 }
 
+/** Which post an address shows on its own page, or null: the post rule of a site whose router opens posts in this document. */
+export type PostCode = (url: string) => string | null;
+
 export interface GuardState {
   readonly site: BlockedSite;
+  /** The site's post rule, or null on a site that has none. */
+  readonly postCode: PostCode | null;
   readonly blockers: Blockers;
   /** The stored settings are known. Before that, navigations meet the default toggles and nothing settles. */
   readonly loaded: boolean;
@@ -61,10 +70,12 @@ export interface GuardState {
   readonly lastNav: { url: string; nav: NavigationInfo } | null;
   /** An undo in flight: the page its Back returns to, and until when the guard waits for it. */
   readonly undo: { from: string; until: number } | null;
-  /** The post a Reel opened on through Instagram's router: a move from it to another post is undone. */
+  /** The post a Reel opened on through the site's router: a move from it to another post is undone. */
   readonly popUp: string | null;
-  /** An Instagram move being swapped for its post: its own commit is not loaded a second time. */
+  /** A move let through to be replaced by its post in this document: its own commit is not loaded a second time. */
   readonly swap: string | null;
+  /** When the re-check a refused viewer move asked for runs: one timer at a time. */
+  readonly recheckAt: number | null;
 }
 
 /** What every input carries: the URL on screen, the time, and the logs, read only when a decision needs them. */
@@ -94,15 +105,14 @@ export type Input = Navigate | SettingsInput | (Moment & { type: 'opened'; code:
 /**
  * `cancel`: prevent the navigation being reported. `count`: report one block (`landing`: the stripped
  * marker, reported as is; otherwise at most once a second). `load`: go to an allowlisted target, on the next
- * task when `deferred`. `back`: one step back in history. `later`: bring `input` back after `after` ms.
+ * task when `deferred`, opened in this document when the site can (`replace`: in place of the entry on
+ * screen). `back`: one step back in history. `later`: bring `input` back after `after` ms.
  * `saveLog`: store a log. `hider`: the site's hider attribute. `sync`: the input lock and the post page.
  */
 export type Effect =
   | { type: 'cancel' }
   | { type: 'count'; site: BlockedSite; landing: boolean }
   | { type: 'load'; target: string; mode: 'assign' | 'replace'; deferred: boolean }
-  /** Instagram: once the navigation has committed, Instagram's router replaces its entry with `target`'s post, else it loads. */
-  | { type: 'swap'; target: string }
   | { type: 'back' }
   | { type: 'later'; after: number; input: Later }
   | { type: 'saveLog'; log: keyof Logs; times: number[] }
@@ -135,28 +145,11 @@ function sync(state: GuardState, here: string): Effect {
   return { type: 'sync', lock: viewerLocked(here, state.blockers), posts: state.blockers.instagramReels };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/**
- * Blocker flags from stored settings; a missing or malformed flag falls back to its default, so settings
- * stored before a toggle existed (v0.1.0 has no `xVideos`) read that toggle as on.
- */
-function readBlockers(stored: unknown): Blockers {
-  const raw: Record<string, unknown> = isRecord(stored) && isRecord(stored.blockers) ? stored.blockers : {};
-  const out: Blockers = { ...DEFAULT_SETTINGS.blockers };
-  for (const key of Object.keys(out) as (keyof Blockers)[]) {
-    const flag = raw[key];
-    if (typeof flag === 'boolean') out[key] = flag;
-  }
-  return out;
-}
-
 /** The guard at document_start, on `here`: the default toggles until the stored settings arrive. */
-export function start(site: BlockedSite, here: string, marker: boolean): Step {
+export function start(site: BlockedSite, here: string, marker: boolean, postCode: PostCode | null = null): Step {
   const state: GuardState = {
     site,
+    postCode,
     blockers: { ...DEFAULT_SETTINGS.blockers },
     loaded: false,
     marker,
@@ -165,6 +158,7 @@ export function start(site: BlockedSite, here: string, marker: boolean): Step {
     undo: null,
     popUp: null,
     swap: null,
+    recheckAt: null,
   };
   return { state, effects: [hider(state), sync(state, here)] };
 }
@@ -213,28 +207,20 @@ function holds(state: GuardState, from: string, input: Navigate): boolean {
   return move.action === 'lock' || classify(input.destination, state.blockers) !== null;
 }
 
-/** The post a single-post address shows, or null. */
-function postCode(url: string): string | null {
-  try {
-    return singlePostCode(new URL(url).pathname);
-  } catch {
-    // Not an address: not a post.
-    return null;
-  }
-}
-
 /**
- * A move from the post a Reel's pop-up shows to another post, as a lock on the first one. Leaving the
- * pop-up (closing it, opening a profile) forgets it; with the Reels blocker off it is kept but not locked.
+ * A move from the post a Reel's pop-up shows to another post, as a lock on the first one. A move to that
+ * post keeps it (the router may commit the post after it answered, from the page under the pop-up); leaving
+ * the pop-up (closing it, opening a profile) forgets it; with the Reels blocker off it is kept but not locked.
  */
 function popUpMove(state: GuardState, input: Navigate): { anchor: string | null; move: Lock | null } {
-  if (state.popUp === null) return { anchor: null, move: null };
-  const from = postCode(input.here);
-  const to = postCode(input.destination);
+  if (state.popUp === null || state.postCode === null) return { anchor: null, move: null };
+  const from = state.postCode(input.here);
+  const to = state.postCode(input.destination);
+  if (to === state.popUp) return { anchor: state.popUp, move: null };
   if (from !== state.popUp || to === null) return { anchor: null, move: null };
-  if (!state.blockers.instagramReels || to === from) return { anchor: from, move: null };
-  const target = instagramPostTarget(from);
-  return { anchor: from, move: target === null ? null : { action: 'lock', site: 'instagram', target } };
+  if (!state.blockers[VIEWER_TOGGLE[state.site]]) return { anchor: from, move: null };
+  const target = lockTarget(state.site, from);
+  return { anchor: from, move: target === null ? null : { action: 'lock', site: state.site, target } };
 }
 
 /** Carries out a decision on a cancelable navigation: undo it after it commits, or cancel it and count or load. */
@@ -246,11 +232,11 @@ function apply(state: GuardState, decision: Decision, mode: 'assign' | 'replace'
       return { state, effects: [CANCEL, count(decision.site)] };
     case 'redirect':
       if (swaps(state, decision.target, input)) {
-        // Not cancelled: a cancelled move stays in Instagram's router as this entry's route, and Back would
-        // bring it back. It commits, then the router replaces it with the post.
+        // Not cancelled: a cancelled move stays in the site's router as this entry's route, and Back would
+        // bring it back. It commits, then the post replaces it, through the router when it can.
         return {
           state: { ...state, swap: input.destination },
-          effects: [saveLog('redirects', decision.redirects), { type: 'swap', target: decision.target }],
+          effects: [saveLog('redirects', decision.redirects), { type: 'load', target: decision.target, mode: 'replace', deferred: true }],
         };
       }
       // The target page is the destination (R15); its marker is what gets counted on landing.
@@ -268,13 +254,13 @@ function apply(state: GuardState, decision: Decision, mode: 'assign' | 'replace'
   }
 }
 
-/** On Instagram, an in-app push or replace bound for one post is swapped through its router rather than cancelled. */
+/** On a site with a post rule, an in-app push or replace bound for one post is swapped for it rather than cancelled. */
 function swaps(state: GuardState, target: string, input: Navigate): boolean {
   return (
-    state.site === 'instagram' &&
+    state.postCode !== null &&
     input.sameDocument &&
     (input.navigationType === 'push' || input.navigationType === 'replace') &&
-    popUpPath(target) !== null
+    state.postCode(target) !== null
   );
 }
 
@@ -309,7 +295,7 @@ function load(target: string): Effect {
 function settings(prior: GuardState, input: SettingsInput): Step {
   // The first read arriving after a change is older than it.
   if (input.initial && prior.loaded) return none(prior);
-  const blockers = readBlockers(input.stored);
+  const blockers = repairBlockers(isPlainObject(input.stored) ? input.stored.blockers : undefined);
   const landing = prior.marker && markerCounts(prior.site, blockers);
   const state: GuardState = { ...prior, blockers, loaded: true, marker: false };
   const settled = settle(state, input);
@@ -324,7 +310,8 @@ function settings(prior: GuardState, input: SettingsInput): Step {
  * (Instagram's router) is followed last.
  */
 function settle(prior: GuardState, input: Moment): Step {
-  let state = prior;
+  // A re-check whose time has come is no longer pending, whichever settle this is.
+  let state: GuardState = prior.recheckAt !== null && input.now >= prior.recheckAt ? { ...prior, recheckAt: null } : prior;
   // Settled before the settings check, so an undo started before they load cannot hold every move after it.
   if (state.undo !== null) {
     const landed = input.here === state.undo.from;
@@ -349,7 +336,8 @@ function settle(prior: GuardState, input: Moment): Step {
 /**
  * A viewer that moved to another video without being stopped: undone when the move was a same-document
  * push, else sent back to the first video's page. Refused by both guards, the first video stays the
- * anchor, and the guard looks again once the loop guard admits a load.
+ * anchor, and the guard looks again once the loop guard admits a load: one re-check at a time, so a later
+ * commit on the moved page sets none unless it would run sooner.
  */
 function settleMove(state: GuardState, move: Lock, from: string, input: Moment): Step {
   const nav = state.lastNav !== null && state.lastNav.url === input.here ? state.lastNav.nav : null;
@@ -361,7 +349,9 @@ function settleMove(state: GuardState, move: Lock, from: string, input: Moment):
   }
   if (decision.action === 'redirect') return loadPath(state, decision);
   const retryAt = admitsAt(ctx);
-  return { state: { ...state, href: from }, effects: retryAt > input.now ? [{ type: 'later', after: retryAt - input.now, input: SETTLE }] : [] };
+  const anchored = { ...state, href: from };
+  if (retryAt <= input.now || (state.recheckAt !== null && state.recheckAt <= retryAt)) return none(anchored);
+  return { state: { ...anchored, recheckAt: retryAt }, effects: [{ type: 'later', after: retryAt - input.now, input: SETTLE }] };
 }
 
 /** A blocked page on screen goes to its target, when the loop guard admits it. */

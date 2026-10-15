@@ -1033,6 +1033,26 @@ test('with instagramReels off the Reels scroller opens untouched, and turning it
   await page.close();
 });
 
+test('turning instagramReels on over the Reels scroller replaces it with its post through the router: no load, and Back skips the scroller', async () => {
+  await setBlockers({ instagramReels: false });
+  const page = await context.newPage();
+  await page.goto(`${IG}/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'off');
+  expect(await tapReelsCode(page)).toEqual({ path: `/reels/${CODE}/`, added: 1 });
+  await installRouter(page, false);
+  await markPage(page);
+
+  await setBlockers({ instagramReels: true });
+  await expect.poll(() => path(page)).toBe(`/p/${CODE}/`);
+  // The router replaced the scroller's entry rather than pushing the post on top of it.
+  expect((await pageState(page)).goCalls).toEqual([[`/p/${CODE}/`, { replace: true }]]);
+  expect(await page.evaluate(() => navigation.entries().map((entry) => new URL(entry.url ?? '').pathname))).toEqual(['/', `/p/${CODE}/`]);
+  expect(await pageMark(page)).toBe('kept');
+  expect(served).toEqual([`${IG}/`]);
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'instagram' }]);
+  await page.close();
+});
+
 test('toggling the blocker in storage flips the hider attribute without a reload', async () => {
   const page = await context.newPage();
   await page.goto(`${IG}/`);

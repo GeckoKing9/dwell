@@ -18,7 +18,7 @@ dwell/
 │   ├── tracker/                  # PURE engine: reduce(state, event) -> attributions; hour buckets; eTLD+1 grouping
 │   ├── store/                    # day keys in storage.local, hot state in storage.session, prune, export, hardened import
 │   ├── blocker/                  # pure URL classifier, allowlisted redirect targets, rulesets/*.json
-│   ├── content/                  # guard.ts (Navigation API cancel), media.ts (video playing), <site>.css hiders
+│   ├── content/                  # guard-core.ts (the guard's adapter) and its entries guard.ts, guard-instagram.ts; media.ts (video playing); <site>.css hiders
 │   ├── stats/                    # pure aggregation: weeks, deltas, categories, formatting
 │   ├── popup/                    # Preact popup (360 x 560)
 │   ├── dashboard/                # Preact dashboard page: Week, Day, MostUsed, Categories, Blocked, Settings, Privacy

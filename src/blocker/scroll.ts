@@ -40,10 +40,10 @@ const SCROLLABLE = new Set(['auto', 'scroll', 'overlay']);
 const VERTICAL_SNAP = /\b(?:y|block|both)\b/;
 const LOCKED_KEYS = new Set(['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp']);
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
+/** Roles whose keys are typed text. */
+const TEXT_ROLES = new Set(['textbox', 'searchbox']);
 /** ARIA widgets that use the arrow keys or a drag themselves: a volume slider, a menu, a list. */
 const WIDGET_ROLES = new Set([
-  'textbox',
-  'searchbox',
   'slider',
   'spinbutton',
   'scrollbar',
@@ -102,14 +102,19 @@ export interface TouchMove {
   readonly touches: number;
 }
 
-/** True when the target takes keys or drags itself: a text field, an editable area, a slider, a menu, a list. */
-export function usesInput(target: EditableLike | null): boolean {
+/** True when keys on the target are typed text: a text field, a select, an editable area, a textbox role. */
+export function takesText(target: EditableLike | null): boolean {
   if (target === null) return false;
   return (
     target.isContentEditable ||
-    (target.role !== null && WIDGET_ROLES.has(target.role)) ||
+    (target.role !== null && TEXT_ROLES.has(target.role)) ||
     EDITABLE_TAGS.has(target.tagName.toUpperCase())
   );
+}
+
+/** True when the target takes keys or drags itself: text entry (`takesText`), or a slider, a menu, a list. */
+function usesInput(target: EditableLike | null): boolean {
+  return takesText(target) || (target?.role != null && WIDGET_ROLES.has(target.role));
 }
 
 /**

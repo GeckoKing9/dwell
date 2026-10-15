@@ -84,10 +84,7 @@ export function createBackground(): Background {
       // A title, favicon or load-complete update is dropped here, before it costs a queued storage round trip.
       if (!isTrackedChange(change)) return Promise.resolve();
       return done(
-        queue.track(({ at, settings }) => {
-          const event = updatedEvent(tabId, change, tab, settings, at);
-          return event === null ? [] : [event];
-        }),
+        queue.track(({ at, settings }) => [updatedEvent(tabId, change, tab, settings, at)]),
       );
     },
     onTabRemoved: (tabId) => done(queue.track(({ at }) => [closeEvent(tabId, at)])),

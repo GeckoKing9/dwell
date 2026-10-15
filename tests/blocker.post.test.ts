@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DIM_FACTOR, MIN_OTHER_POSTS, popUpPath, POP_UP_EDGE_PX, POP_UP_MARGIN_PX, POP_UP_SIDE_PX, dimColor, isOtherPostLink, leaveBy, popUpBox, singlePostCode } from '../src/blocker/post.ts';
+import { DIM_FACTOR, MIN_OTHER_POSTS, popUpPath, POP_UP_EDGE_PX, POP_UP_MARGIN_PX, POP_UP_SIDE_PX, dimColor, isOtherPostLink, leaveBy, popUpBox, shownPostCode, singlePostCode } from '../src/blocker/post.ts';
 
 const CODE = 'DeewiSPpCrm';
 const IG = 'https://www.instagram.com';
@@ -31,6 +31,20 @@ describe('singlePostCode: the post a single-post page shows', () => {
     `p/${CODE}/`,
   ])('finds no single post in %s', (path) => {
     expect(singlePostCode(path)).toBeNull();
+  });
+});
+
+describe('shownPostCode: the post an address shows on its own page (the guard\'s rule for Instagram)', () => {
+  it.each([
+    [`${IG}/p/${CODE}/`, CODE],
+    [`${IG}/someuser/reel/${CODE}/?img_index=2`, CODE],
+    [`${IG}/p/${CODE}/#dwell=instagram`, CODE],
+  ])('reads %s as the post %s', (url, code) => {
+    expect(shownPostCode(url)).toBe(code);
+  });
+
+  it.each([`${IG}/reels/${CODE}/`, `${IG}/someuser/`, `${IG}/#dwell=instagram`, 'not an address'])('reads %s as no post', (url) => {
+    expect(shownPostCode(url)).toBeNull();
   });
 });
 

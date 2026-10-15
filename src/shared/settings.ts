@@ -164,15 +164,23 @@ function salvage(key: keyof Settings, value: unknown): unknown {
     for (const [site, category] of valid.slice(0, MAX_LIST_ENTRIES)) out[site] = category as Category;
     return out;
   }
-  if (key === 'blockers' && isPlainObject(value)) {
-    const out = nullRecord<boolean>();
-    for (const name of BLOCKER_KEYS) {
-      const on = value[name];
-      if (typeof on === 'boolean') out[name] = on;
-    }
-    return out;
-  }
+  if (key === 'blockers') return repairBlockers(value);
   return value;
+}
+
+/**
+ * The flags of a stored `blockers` value: each true or false flag kept, a missing or malformed one at its
+ * default, so settings stored before a toggle existed (v0.1.0 has no `xVideos`) read that toggle as on. The
+ * one rule for stored flags: the settings repair and the guard (`blocker/guard-machine.ts`) both read them here.
+ */
+export function repairBlockers(stored: unknown): Blockers {
+  const out: Blockers = { ...DEFAULT_SETTINGS.blockers };
+  if (!isPlainObject(stored)) return out;
+  for (const key of BLOCKER_KEYS) {
+    const flag = stored[key];
+    if (typeof flag === 'boolean') out[key as keyof Blockers] = flag;
+  }
+  return out;
 }
 
 /**

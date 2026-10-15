@@ -20,11 +20,11 @@ Last run 2026-10-15 on `refactor/blocker-cleanup` before its merge.
 |---|---|---|
 | Typecheck | `npm run typecheck` | 0 errors |
 | Lint | `npm run lint` | 0 problems |
-| Unit and simulation | `npm test` | 1431 passed, 1 skipped (the real-day replay, no real export present). Coverage: statements 98.17%, branches 96.12%, lines 98.49%; `src/content` (DOM adapters) is excluded, the guard's decisions are in `src/blocker/guard-machine.ts` at full line coverage |
-| Time zones | `npm run test:tz` | 1431 of 1431 under each of UTC, America/Toronto, Asia/Kolkata, Australia/Lord_Howe |
+| Unit and simulation | `npm test` | 1471 passed, 1 skipped (the real-day replay, no real export present). Coverage: statements 98.17%, branches 96.22%, lines 98.49%; `src/content` (DOM adapters) is excluded, the guard's decisions are in `src/blocker/guard-machine.ts` at full line coverage |
+| Time zones | `npm run test:tz` | 1471 of 1471 under each of UTC, America/Toronto, Asia/Kolkata, Australia/Lord_Howe |
 | Privacy bundle | `npm run check:privacy` | passed: 21 files scanned, manifest matches the declared list (one page-world script, Instagram only; Chrome 111+) |
-| Build | `npm run build` | guard.js 16.0 KB (YouTube, Facebook, X), guard-instagram.js 23.7 KB, instagram-router.js 1.6 KB, media.js 0.9 KB |
-| Real browser | `npm run test:e2e` | 87 passed, headless Chromium with the extension loaded, site hosts served by fixtures (Instagram's with a router that remembers each entry's route, as Comet does) |
+| Build | `npm run build` | guard.js 15.9 KB (YouTube, Facebook, X), guard-instagram.js 24.3 KB, instagram-router.js 1.6 KB, media.js 0.9 KB |
+| Real browser | `npm run test:e2e` | 88 passed, headless Chromium with the extension loaded, site hosts served by fixtures (Instagram's with a router that remembers each entry's route, as Comet does) |
 | Live sites, signed out | scratch probes, 2026-10-15 | Instagram's router moving to the Reels scroller is replaced by the post in the same document, framed as a pop-up; closing goes back to the profile and stays; one document load end to end. YouTube Shorts land on the watch page. Signed-in Instagram, Facebook and X not checked live |
 | Dependencies | `npm audit --audit-level=high` | 0 vulnerabilities |
 | Audit | independent staff-level audit, 2026-10-15 | 9 findings: 8 fixed on `refactor/blocker-cleanup`; one declined (a single redirect limit would leave a third move to a bare cancel) |

@@ -19,6 +19,16 @@ export function singlePostCode(path: string): string | null {
   return SINGLE_POST.exec(path)?.[1] ?? null;
 }
 
+/** The code of the post `url` (an absolute address) shows on its own page, or null when it shows none. */
+export function shownPostCode(url: string): string | null {
+  try {
+    return singlePostCode(new URL(url).pathname);
+  } catch {
+    // Not an address: not a post.
+    return null;
+  }
+}
+
 /**
  * The code of the one post or Reel `url` (an absolute link address) opens on Instagram, or null when it opens
  * something else. Shared by the "More posts" hider and the pop-up, so both read links the same way.

@@ -8,9 +8,12 @@ import {
   type GuardState,
   type Logs,
   type Moment,
+  type PostCode,
   type PushCheck,
   type Step,
 } from '../src/blocker/guard-machine.ts';
+import { shownPostCode } from '../src/blocker/post.ts';
+import { repairSettings } from '../src/shared/settings.ts';
 import { DEFAULT_SETTINGS, type BlockedSite, type Settings } from '../src/store/schema.ts';
 
 type Blockers = Settings['blockers'];
@@ -70,9 +73,9 @@ function at(here: string, logs: Partial<Logs> = {}, now = NOW): Moment {
   return { here, now, logs: () => ({ redirects: [], undos: [], ...logs }) };
 }
 
-/** A guard on `site` started on `here` whose stored settings have loaded. */
-function loaded(site: BlockedSite, here: string, blockers: Blockers = ALL_ON): GuardState {
-  return step(start(site, here, false).state, { type: 'settings', ...at(here), stored: { blockers }, initial: true }).state;
+/** A guard on `site` started on `here` whose stored settings have loaded; Instagram gives its post rule, as its entry does. */
+function loaded(site: BlockedSite, here: string, blockers: Blockers = ALL_ON, postCode: PostCode | null = site === 'instagram' ? shownPostCode : null): GuardState {
+  return step(start(site, here, false, postCode).state, { type: 'settings', ...at(here), stored: { blockers }, initial: true }).state;
 }
 
 interface Move {
@@ -117,6 +120,8 @@ describe('start: the guard at document_start', () => {
       undo: null,
       popUp: null,
       swap: null,
+      recheckAt: null,
+      postCode: null,
     });
     expect(effects).toEqual([{ type: 'hider', on: true }, sync(true)]);
   });
@@ -156,6 +161,15 @@ describe('settings: the stored settings arriving, then every change', () => {
     expect(read('not settings')).toEqual(DEFAULT_SETTINGS.blockers);
     expect(read({ blockers: [] })).toEqual(DEFAULT_SETTINGS.blockers);
     expect(read(undefined)).toEqual(DEFAULT_SETTINGS.blockers);
+  });
+
+  it('reads the toggles exactly as the settings repair does, an object with a prototype of its own included', () => {
+    const read = (stored: unknown): Blockers =>
+      step(start('x', X_TWEET, false).state, { type: 'settings', ...at(X_TWEET), stored, initial: true }).state.blockers;
+    const odd = Object.assign(Object.create({}) as Record<string, unknown>, { youtubeShorts: false });
+    for (const stored of [{ blockers: odd }, odd, { blockers: { xVideos: 'off', youtubeShorts: false } }, 'not settings']) {
+      expect(read(stored)).toEqual(repairSettings(stored).blockers);
+    }
   });
 
   it('sets the hider attribute from the site’s one-video toggle', () => {
@@ -232,14 +246,14 @@ describe('navigate: a navigation the Navigation API reports', () => {
   it('on Instagram lets an in-app move to the Reels scroller on one Reel commit, then swaps it for the post through the router', () => {
     // Cancelling it would leave Instagram's router remembering the scroller for this entry: Back would bring it back.
     const out = navigate(loaded('instagram', IG_SEARCH), REELS_CODE, { logs: { redirects: [] } });
-    expect(out.effects).toEqual([saveLog('redirects', [NOW]), { type: 'swap', target: REELS_CODE_TARGET }]);
+    expect(out.effects).toEqual([saveLog('redirects', [NOW]), load(REELS_CODE_TARGET, 'replace', true)]);
   });
 
   it('does not load the post a second time when the swapped move commits, and forgets the swap once the post is on screen', () => {
     const swapped = navigate(loaded('instagram', IG_SEARCH), REELS_CODE, { logs: { redirects: [] } });
     expect(swapped.state.swap).toBe(REELS_CODE);
     const committed = settle(swapped.state, REELS_CODE, { redirects: [NOW] });
-    expect(committed.effects.some((effect) => effect.type === 'load' || effect.type === 'swap')).toBe(false);
+    expect(committed.effects.some((effect) => effect.type === 'load')).toBe(false);
     const onPost = settle(committed.state, POST_D);
     expect(onPost.state.swap).toBeNull();
     expect(onPost.effects.some((effect) => effect.type === 'load')).toBe(false);
@@ -247,7 +261,7 @@ describe('navigate: a navigation the Navigation API reports', () => {
 
   it('on Instagram also swaps an in-app move the address replaces, not only a push', () => {
     const out = navigate(loaded('instagram', IG_SEARCH), REELS_CODE, { type: 'replace', logs: { redirects: [] } });
-    expect(out.effects).toEqual([saveLog('redirects', [NOW]), { type: 'swap', target: REELS_CODE_TARGET }]);
+    expect(out.effects).toEqual([saveLog('redirects', [NOW]), load(REELS_CODE_TARGET, 'replace', true)]);
   });
 
   it('still cancels and loads a move to the scroller that loads a new document', () => {
@@ -255,10 +269,10 @@ describe('navigate: a navigation the Navigation API reports', () => {
     expect(out.effects).toEqual([CANCEL, saveLog('redirects', [NOW]), load(REELS_CODE_TARGET, 'assign', true)]);
   });
 
-  it('swaps nothing on the other sites: a Short tapped in-app is cancelled and loaded on its watch page', () => {
-    const out = navigate(loaded('youtube', YT_HOME), `${YT_HOME}shorts/dQw4w9WgXcQ`, { logs: { redirects: [] } });
-    expect(out.effects.some((effect) => effect.type === 'swap')).toBe(false);
-    expect(out.effects[0]).toEqual(CANCEL);
+  it('swaps nothing on a site that gives no post rule: an in-app move bound for a post is cancelled and loaded', () => {
+    const out = navigate(loaded('instagram', IG_SEARCH, ALL_ON, null), REELS_CODE, { logs: { redirects: [] } });
+    expect(out.effects).toEqual([CANCEL, saveLog('redirects', [NOW]), load(REELS_CODE_TARGET, 'assign', true)]);
+    expect(out.state.swap).toBeNull();
   });
 
   it('only cancels a feed, counted in place, when the loop guard refuses the load', () => {
@@ -380,11 +394,28 @@ describe('navigate from a post a Reel opened on through Instagram’s router', (
     });
   });
 
-  it('lets a move to the next post by replace commit, then swaps the first post back through the router', () => {
+  it('lets a move to the next post by replace commit, then loads the first post over it, in place when the site can', () => {
     expect(navigate(popUp(), POST_F, { here: POST_E, type: 'replace' }).effects).toEqual([
       saveLog('redirects', [NOW]),
-      { type: 'swap', target: POST_E_TARGET },
+      load(POST_E_TARGET, 'replace', true),
     ]);
+  });
+
+  it('keeps no post on a site that gives no post rule: the next post goes through', () => {
+    const state = step(loaded('instagram', IG_SEARCH, ALL_ON, null), { type: 'opened', ...at(POST_E), code: 'EEEEE5' }).state;
+    const out = navigate(state, POST_F, { here: POST_E });
+    expect(out.effects).toEqual([]);
+    expect(out.state.popUp).toBeNull();
+  });
+
+  it('keeps the post when the router commits it after opening it, so the next post is still undone', () => {
+    // The router answered at once but moves on its own time: its navigation starts from the page under the pop-up.
+    const opening = navigate(popUp(), POST_E, { here: IG_SEARCH });
+    expect(opening.effects).toEqual([]);
+    expect(opening.state.popUp).toBe('EEEEE5');
+    const onPost = settle(opening.state, POST_E).state;
+    const next = navigate(onPost, POST_F, { here: POST_E });
+    expect(next.state.undo).toEqual({ from: POST_E, until: NOW + UNDO_SETTLE_MS });
   });
 
   it('lets the same post through and keeps it', () => {
@@ -518,6 +549,28 @@ describe('settle: a committed URL, an undo’s deadline, a re-check', () => {
     expect(refused.effects).toEqual([sync(true), settleIn(4000)]);
     const retried = settle(refused.state, FB_222, logs, NOW + 4000);
     expect(retried.effects).toEqual([sync(true), saveLog('redirects', [NOW - 500, NOW + 4000]), load(FB_LOCK, 'replace')]);
+  });
+
+  it('sets one re-check for a refused move however often the moved page commits, and a new one once it has run', () => {
+    const traversed = navigate(loaded('facebook', FB_111), FB_222, { cancelable: false, type: 'traverse' }).state;
+    const logs = { redirects: [NOW - 1000, NOW - 500], undos: FULL };
+    const refused = settle(traversed, FB_222, logs);
+    expect(refused.effects).toEqual([sync(true), settleIn(4000)]);
+    const again = settle(refused.state, FB_222, logs, NOW + 100);
+    expect(again.effects).toEqual([sync(true)]);
+    // The re-check runs and is refused again (the log moved on): it sets the next one.
+    const later = { redirects: [NOW + 3000, NOW + 3500], undos: FULL };
+    const rerun = settle(again.state, FB_222, later, NOW + 4000);
+    expect(rerun.effects).toEqual([sync(true), settleIn(4000)]);
+  });
+
+  it('sets a re-check when one that came due ran while the viewer was back on its first video', () => {
+    const traversed = navigate(loaded('facebook', FB_111), FB_222, { cancelable: false, type: 'traverse' }).state;
+    const logs = { redirects: [NOW - 1000, NOW - 500], undos: FULL };
+    const refused = settle(traversed, FB_222, logs).state;
+    const due = settle(refused, FB_111, logs, NOW + 4000).state;
+    const fresh = { redirects: [NOW + 5000, NOW + 5500], undos: FULL };
+    expect(settle(due, FB_222, fresh, NOW + 6000).effects).toEqual([sync(true), settleIn(4000)]);
   });
 
   it('redirects a blocked page that committed anyway, unless the loop guard refuses', () => {

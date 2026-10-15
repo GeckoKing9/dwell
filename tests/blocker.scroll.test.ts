@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAbsorb, keySwallowed, touchSwallowed, wheelSwallowed, type ScrollBox } from '../src/blocker/scroll.ts';
+import { canAbsorb, keySwallowed, takesText, touchSwallowed, wheelSwallowed, type ScrollBox } from '../src/blocker/scroll.ts';
 
 /** A scroll container 100 px tall over 300 px of content with no video inside, scrolled to `top`. */
 function panel(top: number, patch: Partial<ScrollBox> = {}): ScrollBox {
@@ -198,4 +198,26 @@ describe('keySwallowed', () => {
       expect(keySwallowed('ArrowDown', { tagName: 'DIV', isContentEditable: false, role })).toBe(false);
     },
   );
+});
+
+describe('takesText: where a key is typed text, not a command', () => {
+  it.each([
+    { tagName: 'INPUT', isContentEditable: false, role: null },
+    { tagName: 'textarea', isContentEditable: false, role: null },
+    { tagName: 'SELECT', isContentEditable: false, role: null },
+    { tagName: 'DIV', isContentEditable: true, role: null },
+    { tagName: 'DIV', isContentEditable: false, role: 'textbox' },
+    { tagName: 'DIV', isContentEditable: false, role: 'searchbox' },
+  ])('is true for %o', (target) => {
+    expect(takesText(target)).toBe(true);
+  });
+
+  it.each([
+    { tagName: 'DIV', isContentEditable: false, role: 'slider' },
+    { tagName: 'DIV', isContentEditable: false, role: 'menu' },
+    { tagName: 'BUTTON', isContentEditable: false, role: null },
+    null,
+  ])('is false for %o: Escape there still closes the pop-up', (target) => {
+    expect(takesText(target)).toBe(false);
+  });
 });
