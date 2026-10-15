@@ -42,6 +42,7 @@ describe('classify: Instagram', () => {
     'https://www.instagram.com/reels/?igsh=xyz',
     'https://www.instagram.com/reels/#top',
     'https://www.instagram.com/reels/abcd/',
+    'https://www.instagram.com/reel/abcd/',
     'https://www.instagram.com/reel/ab.cde/',
     'https://www.instagram.com/reel/ab%2Fcde/',
     'https://www.instagram.com/reels/audio/1234567890/',
@@ -51,18 +52,30 @@ describe('classify: Instagram', () => {
   });
 
   it.each([
-    [`https://www.instagram.com/reel/${CODE}/`, CODE],
-    [`https://www.instagram.com/reel/${CODE}`, CODE],
     [`https://www.instagram.com/reels/${CODE}/`, CODE],
+    [`https://www.instagram.com/reels/${CODE}`, CODE],
     [`https://instagram.com/reels/${CODE}/?igsh=xyz`, CODE],
-    [`https://www.instagram.com/reel/${CODE}/#comments`, CODE],
-    [`https://www.instagram.com/someuser/reel/${CODE}/`, CODE],
+    [`https://www.instagram.com/reels/${CODE}/#comments`, CODE],
     [`https://www.instagram.com/some.user_1/reels/${CODE}/`, CODE],
-    ['https://WWW.INSTAGRAM.COM/Reel/C0abc/', 'C0abc'],
-    ['https://www.instagram.com/reel/a-b_c/', 'a-b_c'],
-    [`https://www.instagram.com/reel/${'x'.repeat(80)}/`, 'x'.repeat(80)],
-  ])('rewrites the single Reel %s to the post page for %s', (url, code) => {
+    ['https://WWW.INSTAGRAM.COM/Reels/C0abc/', 'C0abc'],
+    ['https://www.instagram.com/reels/a-b_c/', 'a-b_c'],
+    [`https://www.instagram.com/reels/${'x'.repeat(80)}/`, 'x'.repeat(80)],
+  ])('rewrites the Reels scroller on one Reel, %s, to the post page for %s', (url, code) => {
     expectHit(url, 'instagram', 'reel', `https://www.instagram.com/p/${code}/#dwell=instagram`);
+  });
+
+  it.each([
+    `https://www.instagram.com/reel/${CODE}/`,
+    `https://www.instagram.com/reel/${CODE}`,
+    `https://instagram.com/reel/${CODE}/?igsh=xyz`,
+    `https://www.instagram.com/reel/${CODE}/#comments`,
+    `https://www.instagram.com/someuser/reel/${CODE}/`,
+    `https://www.instagram.com/some.user_1/reel/${CODE}`,
+    'https://WWW.INSTAGRAM.COM/Reel/C0abc/',
+    'https://www.instagram.com/reel/a-b_c/',
+    `https://www.instagram.com/reel/${'x'.repeat(80)}/`,
+  ])('lets the single Reel %s load: it opens in Instagram’s own pop-up or post page', (url) => {
+    expect(classify(url, ALL_ON)).toBeNull();
   });
 
   it.each([
@@ -70,6 +83,7 @@ describe('classify: Instagram', () => {
     'https://instagram.com/explore',
     'https://www.instagram.com/explore/tags/cats/',
     'https://www.instagram.com/EXPLORE/',
+    `https://www.instagram.com/explore/reel/${CODE}/`,
   ])('blocks %s as explore when the explore toggle is on', (url) => {
     expectHit(url, 'instagram', 'explore', IG_HOME);
   });
@@ -271,7 +285,7 @@ describe('targets', () => {
   it('come from the allowlist for every classification', () => {
     const urls = [
       'https://www.instagram.com/reels/x/',
-      `https://www.instagram.com/someuser/reel/${CODE}/`,
+      `https://www.instagram.com/someuser/reels/${CODE}/`,
       'https://www.instagram.com/explore/',
       `https://m.youtube.com/shorts/${ID}`,
       'https://www.facebook.com/reels/',

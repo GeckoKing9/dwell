@@ -9,17 +9,35 @@
     </script>
   </head>
   <body>
-    <main>
+    <main data-shown="">
       <a id="open-video" href="/someuser/status/123/video/1">Open a video</a>
       <a id="open-photo" href="/someuser/status/123/photo/1">Open a photo</a>
     </main>
     <script>
-      // The site's own router: an in-page route change, like a video tapped in the timeline.
+      // The site's own router. Like a real single-page app it draws the route it was asked for, whatever
+      // the URL ends up being, and draws the URL's route again on Back and Forward.
+      const screen = document.querySelector('main');
+      function show(path) {
+        screen.dataset.shown = path;
+      }
+      window.router = {
+        push(path) {
+          history.pushState({}, '', path);
+          show(path);
+        },
+        replace(path) {
+          history.replaceState({}, '', path);
+          show(path);
+        },
+      };
+      window.addEventListener('popstate', () => show(location.pathname));
+      show(location.pathname);
+      // An in-page route change, like a video tapped in the timeline.
       for (const id of ['open-video', 'open-photo']) {
         const link = document.getElementById(id);
         link.addEventListener('click', (event) => {
           event.preventDefault();
-          history.pushState({}, '', link.getAttribute('href'));
+          window.router.push(link.getAttribute('href'));
         });
       }
     </script>

@@ -14,13 +14,23 @@
   },
   {
     "id": 2,
-    "priority": 2,
+    "priority": 3,
     "action": {
       "type": "redirect",
       "redirect": { "regexSubstitution": "https://www.instagram.com/p/\\1/#dwell=instagram" }
     },
     "condition": {
-      "regexFilter": "^https://(?:www\\.)?instagram\\.com/(?:[^/?]+/)?reels?/([A-Za-z0-9_-]{5,})/?(?:\\?.*)?$",
+      "regexFilter": "^https://(?:www\\.)?instagram\\.com/(?:[^/?]+/)?reels/([A-Za-z0-9_-]{5,})/?(?:\\?.*)?$",
+      "isUrlFilterCaseSensitive": false,
+      "resourceTypes": ["main_frame"]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": { "type": "allow" },
+    "condition": {
+      "regexFilter": "^https://(?:www\\.)?instagram\\.com/(?:[^/?]+/)?reel/[A-Za-z0-9_-]{5,}/?(?:\\?.*)?$",
       "isUrlFilterCaseSensitive": false,
       "resourceTypes": ["main_frame"]
     }

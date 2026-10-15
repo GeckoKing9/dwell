@@ -7,6 +7,13 @@
       // Runs after the guard (document_start) and before first paint: records the hash it found.
       document.documentElement.dataset.hashAtHead = location.hash;
     </script>
+    <style>
+      [role='dialog'] {
+        position: fixed;
+        inset: 40px;
+        background: #fff;
+      }
+    </style>
   </head>
   <body>
     <nav aria-label="Primary">
@@ -15,17 +22,37 @@
     </nav>
     <main>
       <a id="open-reel" href="/reel/DeewiSPpCrm/">Open a reel</a>
+      <a id="open-user-reel" href="/someuser/reel/DeewiSPpCrm/">Open a reel from a profile</a>
+      <a id="open-reels-code" href="/reels/DeewiSPpCrm/">Open the Reels scroller on one reel</a>
       <a id="open-feed" href="/reels/">Open the Reels feed</a>
       <a id="profile-reels" href="/someone/reels/">Profile reels</a>
       <video id="clip" muted playsinline width="32" height="32"></video>
+      <div id="grid">
+        <a id="tile-1" href="/p/AAAAA1/">post one</a>
+        <a id="tile-2" href="/p/BBBBB2/">post two</a>
+        <a id="tile-3" href="/reel/CCCCC3/">reel three</a>
+        <a id="tile-4" href="/p/DDDDD4/">post four</a>
+      </div>
     </main>
     <script>
-      // The site's own router: an in-page route change, like a Reel or the Reels tab tapped in the feed.
-      for (const id of ['open-reel', 'open-feed']) {
-        const link = document.getElementById(id);
+      // The site's own router: every link in the page is an in-page route change. A post or a single
+      // reel opens in a pop-up over the page you were on, as Instagram does.
+      function openDialog() {
+        const dialog = document.createElement('div');
+        dialog.setAttribute('role', 'dialog');
+        const video = document.createElement('video');
+        video.muted = true;
+        video.width = 32;
+        video.height = 32;
+        dialog.append(video);
+        document.body.append(dialog);
+      }
+      for (const link of document.querySelectorAll('main a')) {
         link.addEventListener('click', (event) => {
           event.preventDefault();
-          history.pushState({}, '', link.getAttribute('href'));
+          const href = link.getAttribute('href');
+          history.pushState({}, '', href);
+          if (/^\/(?:[^/]+\/)?(?:p|reel)\//.test(href)) openDialog();
         });
       }
     </script>

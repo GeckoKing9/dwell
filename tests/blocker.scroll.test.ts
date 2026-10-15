@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { canAbsorb, keySwallowed, touchSwallowed, wheelSwallowed, type ScrollBox } from '../src/blocker/scroll.ts';
 
-/** A scroll container 100 px tall over 300 px of content, scrolled to `top`. */
+/** A scroll container 100 px tall over 300 px of content with no video inside, scrolled to `top`. */
 function panel(top: number, patch: Partial<ScrollBox> = {}): ScrollBox {
-  return { overflowY: 'auto', snapType: 'none', scrollTop: top, scrollHeight: 300, clientHeight: 100, ...patch };
+  return { overflowY: 'auto', snapType: 'none', scrollTop: top, scrollHeight: 300, clientHeight: 100, hasVideo: false, ...patch };
 }
 
-const PLAIN: ScrollBox = { overflowY: 'visible', snapType: 'none', scrollTop: 0, scrollHeight: 50, clientHeight: 50 };
-const FEED: ScrollBox = panel(100, { overflowY: 'scroll', snapType: 'y mandatory' });
+const PLAIN: ScrollBox = { overflowY: 'visible', snapType: 'none', scrollTop: 0, scrollHeight: 50, clientHeight: 50, hasVideo: false };
+const FEED: ScrollBox = panel(100, { overflowY: 'scroll', snapType: 'y mandatory', hasVideo: true });
+/** A viewer drawn as a plain scroller, no scroll-snap, with the videos inside it. */
+const PLAIN_VIEWER: ScrollBox = panel(100, { hasVideo: true });
 
 describe('canAbsorb: can an ancestor below the page scroller take this scroll', () => {
   it('absorbs nothing with no ancestors', () => {
@@ -39,6 +41,13 @@ describe('canAbsorb: can an ancestor below the page scroller take this scroll', 
       expect(canAbsorb([panel(50, { snapType })], 0)).toBe(false);
     },
   );
+
+  it('never counts a scroller that holds a video as absorbing, snap or not', () => {
+    expect(canAbsorb([PLAIN_VIEWER], 1)).toBe(false);
+    expect(canAbsorb([PLAIN_VIEWER], -1)).toBe(false);
+    expect(canAbsorb([PLAIN_VIEWER], 0)).toBe(false);
+    expect(canAbsorb([panel(50, { overflowY: 'scroll', hasVideo: true })], 1)).toBe(false);
+  });
 
   it('counts a horizontal-only snap container as absorbing', () => {
     expect(canAbsorb([panel(50, { snapType: 'x mandatory' })], 1)).toBe(true);
@@ -94,6 +103,15 @@ describe('wheelSwallowed', () => {
     expect(wheelSwallowed(0, -120, [panel(200), FEED])).toBe(false);
   });
 
+  it('swallows a wheel over a viewer that is a plain scroller holding the videos, with no scroll-snap', () => {
+    expect(wheelSwallowed(0, 120, [PLAIN, PLAIN_VIEWER])).toBe(true);
+    expect(wheelSwallowed(0, -120, [PLAIN_VIEWER])).toBe(true);
+  });
+
+  it('lets a wheel through a comments panel with no video, beside a plain-scroller viewer', () => {
+    expect(wheelSwallowed(0, 120, [panel(0), PLAIN_VIEWER])).toBe(false);
+  });
+
   it('swallows a wheel inside a comments panel already at its end', () => {
     expect(wheelSwallowed(0, 120, [panel(200), FEED])).toBe(true);
     expect(wheelSwallowed(0, -120, [panel(0), FEED])).toBe(true);
@@ -109,6 +127,10 @@ describe('touchSwallowed', () => {
     expect(touchSwallowed(up, body, [PLAIN])).toBe(true);
     expect(touchSwallowed({ dx: 0, dy: -40, touches: 1 }, body, [FEED])).toBe(true);
     expect(touchSwallowed(up, body, [panel(100), FEED])).toBe(false);
+  });
+
+  it('swallows a swipe over a plain-scroller viewer that holds the videos', () => {
+    expect(touchSwallowed(up, body, [PLAIN_VIEWER])).toBe(true);
   });
 
   it('swallows a swipe in a panel already at its end, so it does not chain to the viewer', () => {

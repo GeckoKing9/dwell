@@ -656,7 +656,7 @@
     "description": "Settings row: Instagram Reels blocker."
   },
   "bIgReelsD": {
-    "message": "Open one Reel at a time; the Reels feed and scrolling to the next Reel are blocked.",
+    "message": "A Reel you open plays on its own, in Instagram’s pop-up; the Reels feed and scrolling to the next Reel are blocked.",
     "description": "Settings row description."
   },
   "bYtShorts": {

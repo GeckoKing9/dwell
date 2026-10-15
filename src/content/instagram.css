@@ -2,9 +2,16 @@
  * Instagram hiders. Selectors as found 2026-10-14; cosmetic, expect churn.
  * The guard and the DNR rules do the blocking: a selector that stops matching hides nothing and breaks
  * nothing. Every rule is scoped by the guard's data-dwell-instagram attribute ("on" or "off").
- * Navigation only: nothing inside <main> is hidden (feed Reels rely on obfuscated class names).
+ * Navigation links, plus what instagram-post.ts marks: the "More posts" under a full single-post page,
+ * found by link addresses and structure, never by class names or text. Feed Reels inside <main> are not
+ * hidden (they rely on obfuscated class names).
  */
 
 html[data-dwell-instagram="on"] a[href^="/reels"]:not(main a) {
+  display: none !important;
+}
+
+/* Everything after the post on a full single-post page: the "More posts from" grid (2026-10-15). */
+html[data-dwell-instagram="on"] [data-dwell-hidden] {
   display: none !important;
 }

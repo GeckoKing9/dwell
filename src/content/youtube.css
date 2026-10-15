@@ -24,7 +24,15 @@ html[data-dwell-youtube="on"] grid-shelf-view-model:has(ytm-shorts-lockup-view-m
   display: none !important;
 }
 
-/* Related videos. Search results keep their Shorts: one found by search opens on its watch page (ADR-4). */
+/* Search results, hidden again at the owner's request (2026-10-15). A Short opened anyway still lands on its watch page. */
+html[data-dwell-youtube="on"] ytd-search ytd-video-renderer:has(a[href^="/shorts"]) {
+  display: none !important;
+}
+html[data-dwell-youtube="on"] ytd-search ytd-reel-shelf-renderer {
+  display: none !important;
+}
+
+/* Related videos */
 html[data-dwell-youtube="on"] #related ytd-compact-video-renderer:has(a[href^="/shorts"]) {
   display: none !important;
 }

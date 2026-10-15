@@ -1,8 +1,10 @@
 /**
- * Pure URL classifier for the blocker (U5), in one-video mode: a single Reel, Short or X video viewer is
- * rewritten to a page that plays only that video, and the feeds go home. No Chrome APIs, no DOM: the guard
- * content script, the DNR ruleset tests and the worker all agree with this function. Matching is
- * case-insensitive on whole path segments and reads only the pathname (never the query or the fragment).
+ * Pure URL classifier for the blocker (U5), in one-video mode: a Short, the Instagram Reels scroller on one
+ * Reel and X's video viewer are rewritten to a page that plays only that video, and the feeds go home. A
+ * single Instagram Reel (`/reel/<code>`) loads: Instagram shows it in its own pop-up or post page. No Chrome
+ * APIs, no DOM: the guard content script, the DNR ruleset tests and the worker all agree with this function.
+ * Matching is case-insensitive on whole path segments and reads only the pathname (never the query or the
+ * fragment).
  */
 import type { BlockedSite, Settings } from '../store/schema.ts';
 import {
@@ -17,8 +19,8 @@ import {
 } from './targets.ts';
 
 /**
- * `reels`: a Reels feed, sent home. `reel`, `shorts` and `video` (X's video viewer): one video, rewritten
- * to its single-video page.
+ * `reels`: a Reels feed, sent home. `reel` (Instagram's Reels scroller on one Reel), `shorts` and `video`
+ * (X's video viewer): one video, rewritten to its single-video page.
  */
 export type BlockKind = 'reels' | 'reel' | 'shorts' | 'video' | 'explore';
 
@@ -44,10 +46,14 @@ const REEL_FEED = /^\/reels?(?:\/|$)/i;
 /** A bare `/reel` or `/reels` as the first path segment, with nothing after it. */
 const REEL_FEED_BARE = /^\/reels?\/?$/i;
 /**
- * One Instagram Reel: `/reel(s)/<code>` as the end of the path, optionally under one profile segment
- * (`/<user>/reel/<code>`). A deeper path (`/reels/audio/<id>/`, `/reel/<code>/liked_by/`) is not one Reel.
+ * One Instagram Reel in a viewer: `/reel(s)/<code>` as the end of the path, optionally under one profile
+ * segment (`/<user>/reel/<code>`). A deeper path (`/reels/audio/<id>/`, `/reel/<code>/liked_by/`) is not one Reel.
  */
 export const INSTAGRAM_REEL = new RegExp(`^/(?:[^/]+/)?reels?/(${REEL_CODE_SOURCE})/?$`, 'i');
+/** The Reels scroller opened on one Reel: plural `/reels/<code>`, optionally under one profile segment. */
+const INSTAGRAM_REELS_CODE = new RegExp(`^/(?:[^/]+/)?reels/(${REEL_CODE_SOURCE})/?$`, 'i');
+/** A single Reel: singular `/reel/<code>`, optionally under one profile segment. It loads untouched. */
+const INSTAGRAM_SINGLE_REEL = new RegExp(`^/(?:[^/]+/)?reel/${REEL_CODE_SOURCE}/?$`, 'i');
 const EXPLORE_SEGMENT = /\/explore(?:\/|$)/i;
 /** `/shorts/<id>` where the id is exactly one 11-character segment. */
 export const SHORTS_SEGMENT = new RegExp(`/shorts/(${SHORTS_ID_SOURCE})(?:/|$)`, 'i');
@@ -75,11 +81,15 @@ function parse(url: string): URL | null {
 }
 
 /**
- * A single Reel goes to its post page, which plays it with no feed below. The Reels feed goes home.
- * A profile's Reels grid (`/<user>/reels/`) is a grid like search, so it loads.
+ * A single Reel (`/reel/<code>`) loads: in the app it opens in Instagram's own pop-up over the page, and a
+ * hard load shows Instagram's single post page. The Reels scroller on one Reel (`/reels/<code>`) goes to
+ * that Reel's post page, which plays it with no feed below. The Reels feed goes home, and so does any
+ * other path under `/reel` or `/reels`. A profile's Reels grid (`/<user>/reels/`) is a grid like search,
+ * so it loads.
  */
 function instagramReels(path: string): Classification | null {
-  const code = INSTAGRAM_REEL.exec(path)?.[1];
+  if (INSTAGRAM_SINGLE_REEL.test(path)) return null;
+  const code = INSTAGRAM_REELS_CODE.exec(path)?.[1];
   const target = code === undefined ? null : instagramPostTarget(code);
   if (target !== null) return { site: 'instagram', kind: 'reel', target };
   return REEL_FEED.test(path) ? { site: 'instagram', kind: 'reels', target: REDIRECT_TARGETS.instagram } : null;

@@ -38,11 +38,26 @@
     </style>
   </head>
   <body>
-    <div id="viewer">
+    <div id="viewer" data-shown="">
       <div class="clip">reel one</div>
       <div class="clip">reel two</div>
     </div>
     <aside id="comments"><div id="comments-body">comments</div></aside>
+    <div id="left-column">
+      <ul>
+        <li id="left-reels"><div><a href="/reel/">Reels</a></div></li>
+        <li id="left-friends"><div><a href="/friends/">Friends</a></div></li>
+      </ul>
+    </div>
+    <div role="feed">
+      <div id="feed-reels-unit">
+        <div><span>Reels</span></div>
+        <div><a href="/reel/?s=see_more">See more</a></div>
+      </div>
+      <div id="feed-post">
+        <div><a href="/someone/posts/1">A post</a></div>
+      </div>
+    </div>
     <script>
       // What the page itself hears: an event the guard swallows never reaches these listeners.
       window.heard = [];
@@ -52,6 +67,30 @@
         { passive: true },
       );
       document.addEventListener('keydown', (event) => window.heard.push(`key:${event.key}`));
+      // A key listener the page adds on window, capture phase, after the guard started.
+      window.heardOnWindow = [];
+      window.addEventListener('keydown', (event) => window.heardOnWindow.push(event.key), true);
+
+      // The site's own router. Like a real single-page app it draws the route it was asked for, whatever
+      // the URL ends up being (a cancelled push leaves the old URL under the new reel), and draws the
+      // URL's route again on Back and Forward.
+      const viewer = document.getElementById('viewer');
+      function show(path) {
+        const reel = /^\/reel\/(\d+)/.exec(path);
+        viewer.dataset.shown = reel === null ? path : reel[1];
+      }
+      window.router = {
+        push(path) {
+          history.pushState({}, '', path);
+          show(path);
+        },
+        replace(path) {
+          history.replaceState({}, '', path);
+          show(path);
+        },
+      };
+      window.addEventListener('popstate', () => show(location.pathname));
+      show(location.pathname);
     </script>
   </body>
 </html>

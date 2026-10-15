@@ -3,10 +3,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { classify } from '../../src/blocker/patterns.ts';
 import { DEFAULT_SETTINGS, type Settings } from '../../src/store/schema.ts';
-import { swipeTo, tapFeed, tapPhoto, tapReel, tapShort, tapVideo } from './fixtures/taps.ts';
+import { routeTo, swipeTo, tapFeed, tapLink, tapPhoto, tapReel, tapReelsCode, tapShort, tapUserReel, tapVideo } from './fixtures/taps.ts';
 
 const dist = fileURLToPath(new URL('../../dist', import.meta.url));
 const fixture = readFileSync(new URL('./fixtures/instagram.html', import.meta.url), 'utf8');
+const igPostFixture = readFileSync(new URL('./fixtures/instagram-post.html', import.meta.url), 'utf8');
+/** Instagram's full single-post page: `/p/<code>/` or `/reel/<code>/`, also under a profile. */
+const IG_POST_PATH = /^\/(?:[^/]+\/)?(?:p|reel)\/[^/]+\/?$/;
 const fbFixture = readFileSync(new URL('./fixtures/facebook.html', import.meta.url), 'utf8');
 const xFixture = readFileSync(new URL('./fixtures/x.html', import.meta.url), 'utf8');
 const SHORT_ID = 'dQw4w9WgXcQ';
@@ -26,6 +29,7 @@ const TOGGLE: Record<(typeof RULESETS)[number], keyof Settings['blockers']> = {
 
 interface StaticRule {
   id: number;
+  action: { type: string };
   condition: { regexFilter: string; isUrlFilterCaseSensitive?: boolean };
 }
 
@@ -43,8 +47,10 @@ test.beforeAll(async () => {
   });
   worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
   await context.route(`${IG}/**`, async (route) => {
-    served.push(route.request().url());
-    await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fixture });
+    const url = route.request().url();
+    served.push(url);
+    const body = IG_POST_PATH.test(new URL(url).pathname) ? igPostFixture : fixture;
+    await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body });
   });
   await context.route('https://www.youtube.com/**', async (route) => {
     served.push(route.request().url());
@@ -115,6 +121,26 @@ async function heard(page: Page): Promise<string[]> {
   return page.evaluate(() => [...(window as unknown as { heard: string[] }).heard]);
 }
 
+/** The keys a window listener the Facebook fixture added after the guard started received. */
+async function heardOnWindow(page: Page): Promise<string[]> {
+  return page.evaluate(() => [...(window as unknown as { heardOnWindow: string[] }).heardOnWindow]);
+}
+
+/** Leaves a value on the page that only survives while no reload happens. */
+async function markPage(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    document.documentElement.dataset.draft = 'kept';
+  });
+}
+
+async function pageMark(page: Page): Promise<string | undefined> {
+  return page.evaluate(() => document.documentElement.dataset.draft);
+}
+
+async function hiddenMarks(page: Page): Promise<number> {
+  return page.locator('[data-dwell-hidden]').count();
+}
+
 async function scrollTop(page: Page, selector: string): Promise<number> {
   return page.locator(selector).evaluate((el) => el.scrollTop);
 }
@@ -136,7 +162,11 @@ test('every DNR rule compiles under Chrome RE2 limits and matches what the class
     `${IG}/reels/abc/`,
     `${IG}/reels/`,
     `${IG}/reels/${CODE}/`,
+    `${IG}/reel/${CODE}/`,
     `https://instagram.com/someone/reel/${CODE}/?igsh=x`,
+    `https://instagram.com/someone/reels/${CODE}/?igsh=x`,
+    `${IG}/reel/`,
+    `${IG}/explore/reel/${CODE}/`,
     `${IG}/someone/reels/`,
     `${IG}/explore/`,
     `${IG}/p/abc/`,
@@ -179,9 +209,12 @@ test('every DNR rule compiles under Chrome RE2 limits and matches what the class
       }
       await chrome.declarativeNetRequest.updateEnabledRulesets({ enableRulesetIds: ['instagram-explore'] });
       const matched: string[][] = [];
+      // An allow rule that wins lets the request through: only redirects count as a match.
+      const redirects = (r: { rulesetId: string; ruleId: number }): boolean =>
+        rules[r.rulesetId]?.find((rule) => rule.id === r.ruleId)?.action.type === 'redirect';
       for (const url of samples) {
         const { matchedRules } = await chrome.declarativeNetRequest.testMatchOutcome({ url, type: 'main_frame' });
-        matched.push([...new Set(matchedRules.map((r) => r.rulesetId))].sort());
+        matched.push([...new Set(matchedRules.filter(redirects).map((r) => r.rulesetId))].sort());
       }
       // A Reel or Short embedded as a frame in another page is left alone (ADR-3).
       const framed = await Promise.all(
@@ -218,7 +251,7 @@ test('a hard load of a Shorts URL is redirected by DNR to the watch page for the
   await page.close();
 });
 
-test('a hard load of a single Instagram Reel lands on its post page, counted once, marker stripped', async () => {
+test('a hard load of the Instagram Reels scroller on one Reel lands on its post page, counted once, marker stripped', async () => {
   const page = await context.newPage();
   await page.goto(`${IG}/reels/${CODE}/`);
   await expect.poll(() => page.url()).toBe(`${IG}/p/${CODE}/`);
@@ -241,31 +274,141 @@ test('a hard load of the Instagram Reels feed lands on the home page, counted on
   await page.close();
 });
 
-test('an in-page move to the Reels feed is cancelled before it commits and counted with no marker', async () => {
+test('a hard load of a single Instagram Reel loads untouched and uncounted: Instagram’s own post page', async () => {
   const page = await context.newPage();
-  await page.goto(`${IG}/`);
+  await page.goto(`${IG}/reel/${CODE}/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+  await page.waitForTimeout(600);
+  expect(path(page)).toBe(`/reel/${CODE}/`);
+  expect(served).toEqual([`${IG}/reel/${CODE}/`]);
+  expect(await blocked()).toEqual([]);
+  await page.close();
+});
+
+test('an in-app move to the Reels feed lands on the home page by a real load, counted once on landing', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/someuser/`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
   await expect(page.locator('#nav-reels')).toBeHidden();
   await expect(page.locator('#profile-reels')).toBeVisible();
+  await markPage(page);
+
+  expect(await tapFeed(page)).toEqual({ path: '/someuser/', added: 0 });
+  // A cancel alone would leave the app drawing the feed under the old URL: the home page is loaded instead.
+  await expect.poll(() => page.url()).toBe(`${IG}/`);
+  expect(served).toEqual([`${IG}/someuser/`, `${IG}/`]);
+  expect(await pageMark(page)).toBeUndefined();
+  expect(await page.evaluate(() => document.documentElement.dataset.hashAtHead)).toBe('');
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'instagram' }]);
+  await page.waitForTimeout(600);
+  expect(await blocked()).toHaveLength(1);
+  await page.close();
+});
+
+test('an in-app move to the Reels feed from the home page reloads the home page', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+  await markPage(page);
 
   expect(await tapFeed(page)).toEqual({ path: '/', added: 0 });
-  await page.waitForTimeout(600);
-  expect(page.url()).toBe(`${IG}/`);
+  await expect.poll(() => served).toEqual([`${IG}/`, `${IG}/`]);
+  await expect.poll(() => page.url()).toBe(`${IG}/`);
+  expect(await pageMark(page)).toBeUndefined();
   await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'instagram' }]);
   await page.close();
 });
 
-test('an in-page tap on a single Instagram Reel lands on its post page, counted once on landing', async () => {
+test('an in-app tap on a single Reel, also under a profile, opens in the pop-up untouched and uncounted', async () => {
   const page = await context.newPage();
   await page.goto(`${IG}/`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
 
-  expect(await tapReel(page)).toEqual({ path: '/', added: 0 });
+  expect(await tapReel(page)).toEqual({ path: `/reel/${CODE}/`, added: 1 });
+  await expect(page.locator('[role="dialog"]')).toBeVisible();
+  await page.goto(`${IG}/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+  expect(await tapUserReel(page)).toEqual({ path: `/someuser/reel/${CODE}/`, added: 1 });
+  await page.waitForTimeout(600);
+  expect(path(page)).toBe(`/someuser/reel/${CODE}/`);
+  expect(served).toEqual([`${IG}/`, `${IG}/`]);
+  expect(await blocked()).toEqual([]);
+  await page.close();
+});
+
+test('an in-app move to the Reels scroller on one Reel lands on its post page, counted once on landing', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+
+  expect(await tapReelsCode(page)).toEqual({ path: '/', added: 0 });
   await expect.poll(() => page.url()).toBe(`${IG}/p/${CODE}/`);
-  expect(served.some((url) => url.includes('/reel/'))).toBe(false);
+  expect(served.some((url) => url.includes('/reels/'))).toBe(false);
   await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'instagram' }]);
   await page.waitForTimeout(600);
   expect(await blocked()).toHaveLength(1);
+  await page.close();
+});
+
+test('a full single-post page hides the "More posts" that load under the post, and nothing of the post', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/p/${CODE}/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+  await expect(page.locator('#more-grid')).toBeAttached();
+
+  for (const id of ['#separator', '#more-heading', '#more-grid', '#more-footer']) await expect(page.locator(id)).toBeHidden();
+  for (const id of ['#post-video', '#comments', '#post-time']) await expect(page.locator(id)).toBeVisible();
+  expect(await hiddenMarks(page)).toBe(4);
+  await page.close();
+});
+
+test('a sign-up prompt or any pop-up without the post in it does not bring the "More posts" back', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/p/${CODE}/`);
+  await expect(page.locator('#more-grid')).toBeAttached();
+  await expect(page.locator('#more-grid')).toBeHidden();
+
+  await page.evaluate(() => {
+    const prompt = document.createElement('div');
+    prompt.setAttribute('role', 'dialog');
+    prompt.innerHTML = '<img src="data:," alt=""><p>Never miss a post</p><a href="/accounts/emailsignup/">Sign up</a>';
+    document.body.append(prompt);
+  });
+  await page.waitForTimeout(300);
+  await expect(page.locator('#more-grid')).toBeHidden();
+  expect(await hiddenMarks(page)).toBe(4);
+  await page.close();
+});
+
+test('a post opened in the pop-up over a profile grid leaves the page behind it alone', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/someuser/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+
+  expect(await tapLink(page, 'tile-1')).toEqual({ path: '/p/AAAAA1/', added: 1 });
+  await expect(page.locator('[role="dialog"]')).toBeVisible();
+  await page.waitForTimeout(600);
+  expect(await hiddenMarks(page)).toBe(0);
+  for (const id of ['#grid', '#tile-4', '#clip', '#open-feed']) await expect(page.locator(id)).toBeVisible();
+  await page.close();
+});
+
+test('with instagramReels off the "More posts" stay, and turning it off on an open post shows them again', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/reel/${CODE}/`);
+  await expect(page.locator('#more-grid')).toBeAttached();
+  await expect(page.locator('#more-grid')).toBeHidden();
+
+  await setBlockers({ instagramReels: false });
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'off');
+  await expect(page.locator('#more-grid')).toBeVisible();
+  expect(await hiddenMarks(page)).toBe(0);
+
+  await page.goto(`${IG}/p/${CODE}/`);
+  await expect(page.locator('#more-grid')).toBeAttached();
+  await page.waitForTimeout(300);
+  await expect(page.locator('#more-grid')).toBeVisible();
+  expect(await hiddenMarks(page)).toBe(0);
   await page.close();
 });
 
@@ -278,15 +421,35 @@ test('a profile Reels grid loads untouched', async () => {
   await page.close();
 });
 
-test('a Facebook viewer that moves to the next reel ends back on the first one, counted once', async () => {
+test('a Facebook viewer pushed to the next reel is taken back to the first by Back, with no reload, counted once', async () => {
+  const page = await context.newPage();
+  await page.goto(`${FB}/reel/111`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+  await markPage(page);
+
+  expect(await routeTo(page, '/reel/222')).toEqual({ path: '/reel/222', added: 1 });
+  await expect.poll(() => path(page)).toBe('/reel/111');
+  // The site's own router drew the first reel again: what is on screen matches the URL.
+  await expect(page.locator('#viewer')).toHaveAttribute('data-shown', '111');
+  expect(await pageMark(page)).toBe('kept');
+  expect(served).toEqual([`${FB}/reel/111`]);
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'facebook' }]);
+  await page.waitForTimeout(600);
+  expect(path(page)).toBe('/reel/111');
+  expect(await blocked()).toHaveLength(1);
+  await page.close();
+});
+
+test('a Facebook viewer moved by replaceState is cancelled and the first reel loaded again, counted once', async () => {
   const page = await context.newPage();
   await page.goto(`${FB}/reel/111`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
 
-  expect(await swipeTo(page, '/reel/222')).toEqual({ path: '/reel/111', added: 0 });
+  expect(await routeTo(page, '/reel/222', 'replace')).toEqual({ path: '/reel/111', added: 0 });
   // The first reel is loaded again, so whatever the viewer drew for the next one is gone.
   await expect.poll(() => served).toEqual([`${FB}/reel/111`, `${FB}/reel/111`]);
   await expect.poll(() => page.url()).toBe(`${FB}/reel/111`);
+  await expect(page.locator('#viewer')).toHaveAttribute('data-shown', '111');
   expect(await page.evaluate(() => document.documentElement.dataset.hashAtHead)).toBe('');
   await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'facebook' }]);
   await page.waitForTimeout(600);
@@ -294,11 +457,33 @@ test('a Facebook viewer that moves to the next reel ends back on the first one, 
   await page.close();
 });
 
-test('a Facebook viewer move is still cancelled, and counted in place, when the loop guard refuses the redirect', async () => {
+test('a third viewer push within 5 s is not undone: it is cancelled and the first reel loaded again', async () => {
   const page = await context.newPage();
   await page.goto(`${FB}/reel/111`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
-  await page.evaluate(() => sessionStorage.setItem('dwell:redirects', JSON.stringify([Date.now(), Date.now()])));
+
+  for (let i = 0; i < 2; i += 1) {
+    // The push commits; after the first undo it replaces the forward entry, so history does not grow.
+    expect((await routeTo(page, '/reel/222')).path).toBe('/reel/222');
+    await expect.poll(() => path(page)).toBe('/reel/111');
+    await expect(page.locator('#viewer')).toHaveAttribute('data-shown', '111');
+  }
+  expect(served).toEqual([`${FB}/reel/111`]);
+
+  expect(await routeTo(page, '/reel/222')).toEqual({ path: '/reel/111', added: 0 });
+  await expect.poll(() => served).toEqual([`${FB}/reel/111`, `${FB}/reel/111`]);
+  await expect.poll(() => page.url()).toBe(`${FB}/reel/111`);
+  await expect(page.locator('#viewer')).toHaveAttribute('data-shown', '111');
+  await page.close();
+});
+
+test('a Facebook viewer move is still cancelled, and counted in place, when the undo and loop guards both refuse', async () => {
+  const page = await context.newPage();
+  await page.goto(`${FB}/reel/111`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+  await page.evaluate(() => {
+    for (const key of ['dwell:redirects', 'dwell:undos']) sessionStorage.setItem(key, JSON.stringify([Date.now(), Date.now()]));
+  });
 
   expect(await swipeTo(page, '/reel/222')).toEqual({ path: '/reel/111', added: 0 });
   await page.waitForTimeout(600);
@@ -323,6 +508,32 @@ test('on a Facebook viewer the wheel and arrow keys never reach the page, while 
   await expect.poll(() => scrollTop(page, '#comments')).toBeGreaterThan(0);
   expect(path(page)).toBe('/reel/111');
   expect(await blocked()).toEqual([]);
+  await page.close();
+});
+
+test('arrow keys on a viewer entered in-app never reach a window listener the page added after the guard started', async () => {
+  const page = await context.newPage();
+  await page.goto(`${FB}/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+
+  expect(await routeTo(page, '/reel/111')).toEqual({ path: '/reel/111', added: 1 });
+  // The guard's poll turns the input lock on for the viewer it now shows.
+  await page.waitForTimeout(600);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('PageDown');
+  await page.keyboard.press('a');
+  await expect.poll(() => heardOnWindow(page)).toEqual(['a']);
+  await page.close();
+});
+
+test('the Facebook left-column Reels entry and the feed’s Reels suggestions are hidden, other entries are not', async () => {
+  const page = await context.newPage();
+  await page.goto(`${FB}/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+  await expect(page.locator('#left-reels')).toBeHidden();
+  await expect(page.locator('#feed-reels-unit')).toBeHidden();
+  await expect(page.locator('#left-friends')).toBeVisible();
+  await expect(page.locator('#feed-post')).toBeVisible();
   await page.close();
 });
 
@@ -356,6 +567,8 @@ test('with every blocker off, Reels, viewer moves and the wheel all pass untouch
   await fb.goto(`${FB}/reels/`);
   await expect(fb.locator('html')).toHaveAttribute('data-dwell-facebook', 'off');
   expect(path(fb)).toBe('/reels/');
+  await expect(fb.locator('#left-reels')).toBeVisible();
+  await expect(fb.locator('#feed-reels-unit')).toBeVisible();
   await fb.goto(`${FB}/reel/111`);
   await expect(fb.locator('html')).toHaveAttribute('data-dwell-facebook', 'off');
   expect(await swipeTo(fb, '/reel/222')).toEqual({ path: '/reel/222', added: 1 });
@@ -395,16 +608,16 @@ test('with instagramReels off a landing on the marker is stripped and not counte
   await page.close();
 });
 
-test('with instagramReels off the same tap lands on the Reel untouched, and turning it on rewrites it', async () => {
+test('with instagramReels off the Reels scroller opens untouched, and turning it on rewrites it', async () => {
   await setBlockers({ instagramReels: false });
   const page = await context.newPage();
   await page.goto(`${IG}/`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'off');
   await expect(page.locator('#nav-reels')).toBeVisible();
 
-  expect(await tapReel(page)).toEqual({ path: `/reel/${CODE}/`, added: 1 });
+  expect(await tapReelsCode(page)).toEqual({ path: `/reels/${CODE}/`, added: 1 });
   await page.waitForTimeout(600);
-  expect(path(page)).toBe(`/reel/${CODE}/`);
+  expect(path(page)).toBe(`/reels/${CODE}/`);
   expect(await blocked()).toEqual([]);
 
   await setBlockers({ instagramReels: true });
@@ -432,12 +645,12 @@ test('the loop guard stops after 2 redirects in 5 s on the same tab', async () =
   const page = await context.newPage();
   await page.goto(`${IG}/`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'off');
-  await tapReel(page);
+  await tapReelsCode(page);
   await page.evaluate(() => sessionStorage.setItem('dwell:redirects', JSON.stringify([Date.now(), Date.now()])));
   await setBlockers({ instagramReels: true });
   await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
   await page.waitForTimeout(600);
-  expect(path(page)).toBe(`/reel/${CODE}/`);
+  expect(path(page)).toBe(`/reels/${CODE}/`);
   await page.close();
 });
 
@@ -483,19 +696,20 @@ test('an in-page tap on an X video lands on its tweet page, counted once on land
   await page.close();
 });
 
-test('a tap on the video of the tweet page you are on stays there, no reload, counted once', async () => {
+test('a tap on the video of the tweet page you are on is taken back by Back, no reload, counted once', async () => {
   const page = await context.newPage();
   await page.goto(`${X}/someuser/status/123`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-x', 'on');
-  await page.evaluate(() => {
-    document.documentElement.dataset.draft = 'kept';
-  });
+  await markPage(page);
 
-  expect(await swipeTo(page, '/someuser/status/123/video/1')).toEqual({ path: '/someuser/status/123', added: 0 });
+  expect(await routeTo(page, '/someuser/status/123/video/1')).toEqual({ path: '/someuser/status/123/video/1', added: 1 });
+  await expect.poll(() => path(page)).toBe('/someuser/status/123');
+  // The site's own router drew the tweet again: what is on screen matches the URL.
+  await expect(page.locator('main')).toHaveAttribute('data-shown', '/someuser/status/123');
   await page.waitForTimeout(600);
   expect(path(page)).toBe('/someuser/status/123');
   // Same document: nothing was reloaded, so what the user had on the page is still there.
-  expect(await page.evaluate(() => document.documentElement.dataset.draft)).toBe('kept');
+  expect(await pageMark(page)).toBe('kept');
   expect(served).toEqual([`${X}/someuser/status/123`]);
   await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'x' }]);
   await page.close();
@@ -514,14 +728,16 @@ test('an X photo viewer and the rest of X load untouched', async () => {
   await page.close();
 });
 
-test('an X viewer reached while the loop guard refused stays on its tweet: a move to the next video is cancelled', async () => {
+test('an X viewer reached while the loop guard refused stays on its video: a move to the next one is undone', async () => {
   const page = await context.newPage();
   await page.goto(`${X}/home`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-x', 'on');
   await page.evaluate(() => sessionStorage.setItem('dwell:redirects', JSON.stringify([Date.now(), Date.now()])));
 
   expect(await tapVideo(page)).toEqual({ path: '/someuser/status/123/video/1', added: 1 });
-  expect(await swipeTo(page, '/other/status/456/video/1')).toEqual({ path: '/someuser/status/123/video/1', added: 0 });
+  expect(await routeTo(page, '/other/status/456/video/1')).toEqual({ path: '/other/status/456/video/1', added: 1 });
+  await expect.poll(() => path(page)).toBe('/someuser/status/123/video/1');
+  await expect(page.locator('main')).toHaveAttribute('data-shown', '/someuser/status/123/video/1');
   await page.waitForTimeout(600);
   expect(path(page)).toBe('/someuser/status/123/video/1');
   await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'x' }]);
@@ -560,6 +776,25 @@ test('settings stored before X existed read the missing X toggle as on, live in 
   expect(await tapVideo(page)).toEqual({ path: '/home', added: 0 });
   await expect.poll(() => page.url()).toBe(`${X}/someuser/status/123`);
   await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'x' }]);
+  await page.close();
+});
+
+test('YouTube search results hide Short videos and the Shorts shelf, and keep regular videos', async () => {
+  const page = await context.newPage();
+  await page.goto(`${YT}/results?search_query=cats`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-youtube', 'on');
+  await page.evaluate(() => {
+    document.body.innerHTML = [
+      '<ytd-search>',
+      '<ytd-video-renderer id="short-result"><a href="/shorts/AAAAAAAAAAA">a Short</a></ytd-video-renderer>',
+      '<ytd-video-renderer id="video-result"><a href="/watch?v=AAAAAAAAAAA">a video</a></ytd-video-renderer>',
+      '<ytd-reel-shelf-renderer id="shorts-shelf">Shorts</ytd-reel-shelf-renderer>',
+      '</ytd-search>',
+    ].join('');
+  });
+  await expect(page.locator('#short-result')).toBeHidden();
+  await expect(page.locator('#shorts-shelf')).toBeHidden();
+  await expect(page.locator('#video-result')).toBeVisible();
   await page.close();
 });
 

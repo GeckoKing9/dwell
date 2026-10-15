@@ -4,8 +4,10 @@
  * rules run in Node.
  *
  * A wheel, key or touch that would advance a short-video viewer to the next video is swallowed, unless
- * an ancestor can take the scroll itself: a scroll container that does not snap vertically and still has
- * room in that direction (a comments panel at its end would otherwise chain the scroll to the viewer).
+ * an ancestor can take the scroll itself: a scroll container that does not snap vertically, holds no
+ * video, and still has room in that direction (a comments panel at its end would otherwise chain the
+ * scroll to the viewer). A scroller with a video inside is the viewer, snap or not: Facebook's may be a
+ * plain `overflow-y: auto` container.
  */
 
 /** What the lock needs to know about one ancestor of the event target. */
@@ -15,6 +17,8 @@ export interface ScrollBox {
   readonly scrollTop: number;
   readonly scrollHeight: number;
   readonly clientHeight: number;
+  /** True when a `<video>` is inside it; only read for an ancestor that overflows. */
+  readonly hasVideo: boolean;
 }
 
 /** What the lock needs to know about a key event's target; null when it is not an element. */
@@ -69,6 +73,7 @@ function absorbs(box: ScrollBox, direction: Direction): boolean {
     SCROLLABLE.has(box.overflowY) &&
     box.scrollHeight > box.clientHeight + SLACK_PX &&
     !VERTICAL_SNAP.test(box.snapType) &&
+    !box.hasVideo &&
     hasRoom(box, direction)
   );
 }

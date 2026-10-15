@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Instagram single post fixture</title>
+    <script>
+      // Runs after the guard (document_start) and before first paint: records the hash it found.
+      document.documentElement.dataset.hashAtHead = location.hash;
+    </script>
+  </head>
+  <body>
+    <nav aria-label="Primary">
+      <a id="nav-home" href="/">Home</a>
+      <a id="nav-reels" href="/reels/">Reels</a>
+    </nav>
+    <main>
+      <div id="page">
+        <div id="post">
+          <div id="media"><video id="post-video" muted playsinline width="32" height="32"></video></div>
+          <div id="comments">
+            <a id="post-time" href="/">2h</a>
+            <p>a comment that mentions <a href="/p/OTHERx1/">another post</a></p>
+          </div>
+        </div>
+        <hr id="separator" />
+      </div>
+    </main>
+    <script>
+      // The post links to itself, as Instagram's timestamp does.
+      document.getElementById('post-time').setAttribute('href', location.pathname);
+      // "More posts from" arrives after the post, as Instagram loads it lazily.
+      setTimeout(() => {
+        const page = document.getElementById('page');
+        const heading = document.createElement('h2');
+        heading.id = 'more-heading';
+        heading.textContent = 'More posts from someuser';
+        const grid = document.createElement('div');
+        grid.id = 'more-grid';
+        for (const code of ['AAAAA1', 'BBBBB2', 'CCCCC3', 'DDDDD4', 'EEEEE5', 'FFFFF6']) {
+          const tile = document.createElement('a');
+          tile.href = `/p/${code}/`;
+          tile.textContent = code;
+          grid.append(tile);
+        }
+        const footer = document.createElement('footer');
+        footer.id = 'more-footer';
+        footer.textContent = 'About';
+        page.append(heading, grid, footer);
+      }, 300);
+    </script>
+  </body>
+</html>

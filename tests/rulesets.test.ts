@@ -21,10 +21,11 @@ import type { Settings } from '../src/store/schema.ts';
 
 type Blockers = Settings['blockers'];
 
+/** A redirect, or an `allow` that lets one kind of URL through the lower-priority redirects. */
 interface Rule {
   id: number;
   priority: number;
-  action: { type: 'redirect'; redirect: { url?: string; regexSubstitution?: string } };
+  action: { type: 'redirect' | 'allow'; redirect?: { url?: string; regexSubstitution?: string } };
   condition: { regexFilter: string; isUrlFilterCaseSensitive?: boolean; resourceTypes: string[] };
 }
 
@@ -36,6 +37,7 @@ const RULESETS: Record<string, keyof Blockers> = {
   'x-videos': 'xVideos',
 };
 const NONE: Blockers = { instagramReels: false, youtubeShorts: false, facebookReels: false, xVideos: false, instagramExplore: false };
+const ALL_ON: Blockers = { instagramReels: true, youtubeShorts: true, facebookReels: true, xVideos: true, instagramExplore: true };
 const ID = 'dQw4w9WgXcQ';
 const CODE = 'DeewiSPpCrm';
 const TARGETS = [
@@ -64,6 +66,10 @@ const SAMPLES = [
   `https://www.instagram.com/a/b/reels/${CODE}/`,
   `https://www.instagram.com/reels/${CODE}/`,
   `https://www.instagram.com/reel/${CODE}/#comments`,
+  `https://www.instagram.com/reel/${CODE}/?igsh=x`,
+  `https://www.instagram.com/explore/reel/${CODE}/`,
+  `https://www.instagram.com/explore/reels/${CODE}/`,
+  'https://www.instagram.com/reels/explore/',
   'https://www.instagram.com/reels/audio/1234567890/',
   `https://www.instagram.com/reel/${CODE}/liked_by/?x=1`,
   `https://www.instagram.com/someuser/reel/${CODE}/liked_by/`,
@@ -160,16 +166,25 @@ function compile(rule: Rule): RegExp {
   return new RegExp(rule.condition.regexFilter, rule.condition.isUrlFilterCaseSensitive === true ? '' : 'i');
 }
 
-/** The redirect DNR would perform, or null when no rule in the set matches. The highest priority wins. */
+/**
+ * The redirect DNR would perform, or null when no rule matches or an `allow` wins. The highest priority
+ * wins; at equal priority Chrome ranks `allow` above `redirect`.
+ */
 function redirectFor(set: Rule[], url: string): string | null {
-  for (const rule of [...set].sort((a, b) => b.priority - a.priority)) {
+  const rank = (rule: Rule): number => rule.priority * 2 + (rule.action.type === 'allow' ? 1 : 0);
+  for (const rule of [...set].sort((a, b) => rank(b) - rank(a))) {
     const re = compile(rule);
     if (!re.test(url)) continue;
+    if (rule.action.type === 'allow' || rule.action.redirect === undefined) return null;
     const { url: fixed, regexSubstitution } = rule.action.redirect;
     if (fixed !== undefined) return fixed;
     return url.replace(re, (regexSubstitution ?? '').replace(/\\(\d)/g, '$$$1'));
   }
   return null;
+}
+
+function redirects(set: Rule[]): Rule[] {
+  return set.filter((rule) => rule.action.type === 'redirect');
 }
 
 describe.each(Object.entries(RULESETS))('ruleset %s', (name, toggle) => {
@@ -185,8 +200,9 @@ describe.each(Object.entries(RULESETS))('ruleset %s', (name, toggle) => {
       expect(Object.keys(rule).sort()).toEqual(['action', 'condition', 'id', 'priority']);
       expect(Number.isInteger(rule.id) && rule.id > 0).toBe(true);
       expect(Number.isInteger(rule.priority) && rule.priority > 0).toBe(true);
-      expect(rule.action.type).toBe('redirect');
-      expect(Object.keys(rule.action.redirect)).toHaveLength(1);
+      expect(['redirect', 'allow']).toContain(rule.action.type);
+      if (rule.action.type === 'allow') expect(Object.keys(rule.action)).toEqual(['type']);
+      else expect(Object.keys(rule.action.redirect ?? {})).toHaveLength(1);
       expect(Object.keys(rule.condition).sort()).toEqual(['isUrlFilterCaseSensitive', 'regexFilter', 'resourceTypes']);
       expect(typeof rule.condition.regexFilter).toBe('string');
     }
@@ -206,8 +222,8 @@ describe.each(Object.entries(RULESETS))('ruleset %s', (name, toggle) => {
   });
 
   it('redirects only to allowlisted targets', () => {
-    for (const rule of set) {
-      const { url, regexSubstitution } = rule.action.redirect;
+    for (const rule of redirects(set)) {
+      const { url, regexSubstitution } = rule.action.redirect ?? {};
       const target = url ?? (regexSubstitution ?? '').replace('\\1', ID).replace('\\2', '1234567890');
       expect(isAllowedTarget(target)).toBe(true);
       expect(new URL(target).searchParams.has('dwell')).toBe(false);
@@ -227,5 +243,25 @@ describe.each(Object.entries(RULESETS))('ruleset %s', (name, toggle) => {
       expect(redirectFor(set, target)).toBeNull();
       expect(redirectFor(set, requestUrl(target))).toBeNull();
     }
+  });
+});
+
+describe('all five rulesets enabled together', () => {
+  const all = Object.keys(RULESETS).flatMap((name) => rules(name));
+
+  it('agree with the classifier under every toggle: priorities follow its order across rulesets', () => {
+    for (const sample of SAMPLES) {
+      const expected = classify(sample, ALL_ON)?.target ?? null;
+      expect({ sample, redirect: redirectFor(all, requestUrl(sample)) }).toEqual({ sample, redirect: expected });
+    }
+  });
+
+  it('let a single Instagram Reel through with an allow rule, and nothing else', () => {
+    const allows = all.filter((rule) => rule.action.type === 'allow');
+    expect(allows).toHaveLength(1);
+    expect(rules('instagram-reels')).toContainEqual(allows[0]);
+    expect(redirectFor(all, `https://www.instagram.com/reel/${CODE}/`)).toBeNull();
+    expect(redirectFor(all, `https://www.instagram.com/someuser/reel/${CODE}/?igsh=x`)).toBeNull();
+    expect(redirectFor(all, 'https://www.instagram.com/reel/')).toBe(REDIRECT_TARGETS.instagram);
   });
 });

@@ -1,7 +1,12 @@
 /**
  * Pure decisions for the guard content script (KTD4, KTD4b): what to do with an in-page navigation,
  * the loop guard, and whether a `#dwell=<site>` landing counts. No Chrome APIs, no DOM, no clock:
- * the guard passes in the time and the redirect log it keeps in sessionStorage.
+ * the guard passes in the time and the redirect and undo logs it keeps in sessionStorage.
+ *
+ * Cancelling alone does not stop a single-page app: when a `pushState` is cancelled the URL stays, but the
+ * app's router has usually drawn (or still draws) the new route, so the blocked screen shows under the old
+ * URL. So every block ends in a real page load or in an undo, and a bare cancel is only the last resort
+ * when the loop guard refuses both.
  */
 import type { BlockedSite, Settings } from '../store/schema.ts';
 import type { BlockKind, Classification } from './patterns.ts';
@@ -19,16 +24,38 @@ export interface LoopState {
   redirects: readonly number[];
 }
 
+/** The Navigation API's `navigationType`, kept as a plain union so this module needs no DOM types. */
+export type NavigationKind = 'push' | 'replace' | 'reload' | 'traverse';
+
+/** What the guard knows about the navigation: its type and whether it stays in the current document. */
+export interface NavigationInfo {
+  type: NavigationKind;
+  sameDocument: boolean;
+}
+
+/**
+ * Everything a decision reads: the page the navigation leaves, the navigation (null when the poll noticed
+ * the change and cannot tell how it happened), the time, the redirect log and the undo log.
+ */
+export interface GuardContext extends LoopState {
+  from: string;
+  nav: NavigationInfo | null;
+  undos: readonly number[];
+}
+
+/** The hard-load path: go to `target`, or, when the loop guard refuses, cancel and count in place. */
+export type Fallback = { action: 'cancel'; site: BlockedSite } | { action: 'redirect'; target: string; redirects: number[] };
+
 /**
  * `allow`: let the navigation proceed untouched. `cancel`: cancel it and count a block for `site`.
- * `redirect`: cancel it, store `redirects` as the new loop log, then go to `target`.
+ * `redirect`: cancel it, store `redirects` as the new loop log, then load `target`.
+ * `undo`: let the push commit, store `undos` as the new undo log, then go back one entry so the site's
+ * own router draws the previous page again, with no reload; count once. `fallback` is what to do instead
+ * when the push turns out not to have committed.
  */
-export type Decision =
-  | { action: 'allow' }
-  | { action: 'cancel'; site: BlockedSite }
-  | { action: 'redirect'; target: string; redirects: number[] };
+export type Decision = { action: 'allow' } | Fallback | { action: 'undo'; site: BlockedSite; undos: number[]; fallback: Fallback };
 
-/** Kinds rewritten to a single-video page rather than cancelled in place. */
+/** Kinds rewritten to a single-video page; the others (feeds, Explore) go home. */
 const REWRITTEN: ReadonlySet<BlockKind> = new Set(['shorts', 'reel', 'video']);
 
 /** The site's toggles that put a `#dwell=<site>` marker on a landing. */
@@ -41,7 +68,8 @@ const SITE_TOGGLES: Readonly<Record<BlockedSite, readonly (keyof Blockers)[]>> =
 
 /**
  * Loop guard: at most LOOP_MAX_REDIRECTS redirects per tab within LOOP_WINDOW_MS. Returns the log
- * with `now` added when one more redirect is allowed, or null when it is not.
+ * with `now` added when one more redirect is allowed, or null when it is not. The undo guard reuses it
+ * with its own log.
  */
 export function admitRedirect(loop: LoopState): number[] | null {
   const recent = loop.redirects.filter((t) => loop.now - t >= 0 && loop.now - t < LOOP_WINDOW_MS);
@@ -49,29 +77,70 @@ export function admitRedirect(loop: LoopState): number[] | null {
 }
 
 /**
- * What the guard does with a cancelable in-page navigation the classifier judged as `hit`.
- * A Reels feed and Explore are cancelled in place and counted. A single Reel, Short or X video viewer is
- * cancelled only when its redirect to the single-video page will happen: when the loop guard or the allowlist refuses
- * it, the tap goes through (and the viewer lock keeps that viewer to the one video).
+ * Host, path (any trailing slash dropped) and query: the fragment does not make another page, the query
+ * can (a YouTube watch page is `/watch?v=<id>`).
  */
-export function decide(hit: Classification | null, loop: LoopState): Decision {
+function pageOf(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.host}${parsed.pathname.replace(/\/+$/, '')}${parsed.search}`;
+  } catch {
+    // Not an absolute URL: it is no page the guard could be on.
+    return null;
+  }
+}
+
+function samePage(a: string, b: string): boolean {
+  const page = pageOf(a);
+  return page !== null && page === pageOf(b);
+}
+
+/** Load `target` when the allowlist and the loop guard admit it; otherwise cancel and count in place. */
+function redirectOrCancel(site: BlockedSite, target: string, ctx: GuardContext): Fallback {
+  const redirects = isAllowedTarget(target) ? admitRedirect(ctx) : null;
+  return redirects === null ? { action: 'cancel', site } : { action: 'redirect', target, redirects };
+}
+
+/**
+ * Undo a same-document push when the undo guard admits it (at most 2 per tab in 5 s, its own log):
+ * the push commits and Back takes it away again. A replace, a traverse, a cross-document navigation, a
+ * change only the poll saw, or a refused undo takes `fallback`.
+ */
+function undoOr(site: BlockedSite, ctx: GuardContext, fallback: Fallback): Decision {
+  const pushed = ctx.nav !== null && ctx.nav.type === 'push' && ctx.nav.sameDocument;
+  const undos = pushed ? admitRedirect({ now: ctx.now, redirects: ctx.undos }) : null;
+  return undos === null ? fallback : { action: 'undo', site, undos, fallback };
+}
+
+/**
+ * What the guard does with a cancelable in-page navigation the classifier judged as `hit`.
+ * A Reels feed and Explore are cancelled and the site's home page is loaded instead, counted on landing;
+ * only when the loop guard refuses that load is the cancel left alone, counted in place.
+ * A Short, the Instagram Reels scroller on one Reel or an X video viewer is cancelled and its single-video
+ * page loaded, but only when the loop guard admits that redirect: otherwise the tap goes through (and the
+ * viewer lock keeps that viewer to the one video). When that page is the one already open (the video of
+ * the tweet being read), the push is undone instead, so nothing is reloaded; failing that, the page is
+ * reloaded.
+ */
+export function decide(hit: Classification | null, ctx: GuardContext): Decision {
   if (hit === null) return { action: 'allow' };
-  if (!REWRITTEN.has(hit.kind)) return { action: 'cancel', site: hit.site };
+  if (!REWRITTEN.has(hit.kind)) return redirectOrCancel(hit.site, hit.target, ctx);
   if (!isAllowedTarget(hit.target)) return { action: 'allow' };
-  const redirects = admitRedirect(loop);
+  if (samePage(hit.target, ctx.from)) return undoOr(hit.site, ctx, redirectOrCancel(hit.site, hit.target, ctx));
+  const redirects = admitRedirect(ctx);
   return redirects === null ? { action: 'allow' } : { action: 'redirect', target: hit.target, redirects };
 }
 
 /**
- * What the guard does with a move from one viewer video to another (`decideViewerMove`). The move is
- * always cancelled. The tab then goes back to the first video's page, because some viewers draw the next
- * video before they change the URL; when the loop guard or the allowlist refuses that redirect, the
+ * What the guard does with a move from one viewer video to another (`decideViewerMove`). A same-document
+ * push is undone: it commits, and Back makes the site's own router draw the first video again. Anything
+ * else is cancelled and the tab goes back to the first video's page by a load, because a viewer can draw
+ * the next video before it changes the URL; when the loop guard or the allowlist refuses that load, the
  * cancel stands alone and is counted in place.
  */
-export function decideLock(move: ViewerMove, loop: LoopState): Decision {
+export function decideLock(move: ViewerMove, ctx: GuardContext): Decision {
   if (move.action === 'allow') return { action: 'allow' };
-  const redirects = isAllowedTarget(move.target) ? admitRedirect(loop) : null;
-  return redirects === null ? { action: 'cancel', site: move.site } : { action: 'redirect', target: move.target, redirects };
+  return undoOr(move.site, ctx, redirectOrCancel(move.site, move.target, ctx));
 }
 
 /** A `#dwell=<site>` landing counts only while one of that site's blockers is on. */

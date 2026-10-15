@@ -119,7 +119,7 @@ test('a full tracking and blocking session makes no request outside the fixture 
     await b.goto('https://b.example/');
     const ig = await context.newPage();
     await ig.goto('https://www.instagram.com/');
-    await ig.evaluate(() => document.getElementById('open-reel')?.click());
+    await ig.evaluate(() => document.getElementById('open-reels-code')?.click());
     const shorts = await context.newPage();
     await shorts.goto('https://www.youtube.com/shorts/dQw4w9WgXcQ');
     const x = await context.newPage();

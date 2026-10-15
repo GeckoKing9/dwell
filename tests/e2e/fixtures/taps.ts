@@ -7,7 +7,7 @@ export interface Tap {
 }
 
 /** Clicks one of a fixture's in-page links (Instagram, X); its own router pushes the link's path. */
-async function tapLink(page: Page, id: string): Promise<Tap> {
+export async function tapLink(page: Page, id: string): Promise<Tap> {
   return page.evaluate((linkId) => {
     const before = history.length;
     document.getElementById(linkId)?.click();
@@ -15,9 +15,19 @@ async function tapLink(page: Page, id: string): Promise<Tap> {
   }, id);
 }
 
-/** Taps a single Reel in the Instagram fixture: its router pushes `/reel/DeewiSPpCrm/`. */
+/** Taps a single Reel in the Instagram fixture: its router pushes `/reel/DeewiSPpCrm/` and opens the pop-up. */
 export async function tapReel(page: Page): Promise<Tap> {
   return tapLink(page, 'open-reel');
+}
+
+/** Taps a single Reel under a profile in the Instagram fixture: `/someuser/reel/DeewiSPpCrm/`, in the pop-up. */
+export async function tapUserReel(page: Page): Promise<Tap> {
+  return tapLink(page, 'open-user-reel');
+}
+
+/** Opens the Reels scroller on one Reel in the Instagram fixture: its router pushes `/reels/DeewiSPpCrm/`. */
+export async function tapReelsCode(page: Page): Promise<Tap> {
+  return tapLink(page, 'open-reels-code');
 }
 
 /** Taps the Reels tab in the Instagram fixture: its router pushes the bare feed `/reels/`. */
@@ -33,6 +43,22 @@ export async function tapVideo(page: Page): Promise<Tap> {
 /** Taps a photo in the X fixture's timeline: its router pushes `/someuser/status/123/photo/1`. */
 export async function tapPhoto(page: Page): Promise<Tap> {
   return tapLink(page, 'open-photo');
+}
+
+/**
+ * Changes the route through the Facebook or X fixture's own router, which draws the route it was asked
+ * for (`data-shown`) whatever the URL ends up being, like a real single-page app.
+ */
+export async function routeTo(page: Page, path: string, mode: 'push' | 'replace' = 'push'): Promise<Tap> {
+  return page.evaluate(
+    ({ next, how }) => {
+      const before = history.length;
+      const router = (window as unknown as { router: Record<'push' | 'replace', (path: string) => void> }).router;
+      router[how](next);
+      return { path: location.pathname, added: history.length - before };
+    },
+    { next: path, how: mode },
+  );
 }
 
 /** Does what a viewer does when the user scrolls to the next video: a pushState to that video's path. */
