@@ -26,6 +26,10 @@
   "action": {
     "default_popup": "src/popup/index.html"
   },
+  "options_ui": {
+    "page": "src/dashboard/index.html",
+    "open_in_tab": true
+  },
   "content_scripts": [
     {
       "matches": ["https://www.instagram.com/*", "https://instagram.com/*"],

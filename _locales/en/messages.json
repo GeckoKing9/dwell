@@ -6,5 +6,223 @@
   "extDescription": {
     "message": "Screen time for websites, counted the way a person would count it, kept entirely in your browser.",
     "description": "Extension description shown on the extensions page."
+  },
+  "lang": {
+    "message": "en",
+    "description": "Language code of this catalog (en, fr). Durations and dates follow it. Set it to the catalog language; it is not shown as text."
+  },
+  "today": {
+    "message": "Today",
+    "description": "Popup hero label in the first-run state, and the label under today's bar in charts."
+  },
+  "todaySoFar": {
+    "message": "Today so far",
+    "description": "Popup hero label above today's total."
+  },
+  "usually": {
+    "message": "Usually $D$ by this time of day",
+    "description": "Popup comparison: the mean of the last 7 recorded days up to the current minute.",
+    "placeholders": {
+      "d": {
+        "content": "$1",
+        "example": "1h 55m"
+      }
+    }
+  },
+  "avg7": {
+    "message": "7-day average: $D$ a day",
+    "description": "Popup comparison when all 7 previous days have data.",
+    "placeholders": {
+      "d": {
+        "content": "$1",
+        "example": "3h 32m"
+      }
+    }
+  },
+  "avg7one": {
+    "message": "Average of the 1 recorded day: $D$",
+    "description": "Popup comparison when only one of the previous 7 days has data.",
+    "placeholders": {
+      "d": {
+        "content": "$1",
+        "example": "3h 32m"
+      }
+    }
+  },
+  "avg7few": {
+    "message": "Average of the $N$ recorded days: $D$",
+    "description": "Popup comparison when 2 to 6 of the previous 7 days have data.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "5"
+      },
+      "d": {
+        "content": "$2",
+        "example": "3h 32m"
+      }
+    }
+  },
+  "last7": {
+    "message": "Last 7 days",
+    "description": "Popup week chart name, used in its accessible label."
+  },
+  "last7Caption": {
+    "message": "Last 7 days · each dot is 30 minutes",
+    "description": "Popup week chart caption: names the chart and the unit of its time-dots."
+  },
+  "weekAria": {
+    "message": "$CHART$: $LIST$",
+    "description": "Accessible summary of the popup week chart: chart name, then each day and its total.",
+    "placeholders": {
+      "chart": {
+        "content": "$1",
+        "example": "Last 7 days"
+      },
+      "list": {
+        "content": "$2",
+        "example": "Thu 2h 10m, Fri 3h 5m"
+      }
+    }
+  },
+  "dayAria": {
+    "message": "$DAY$, $TIME$",
+    "description": "Accessible label of one day in a chart.",
+    "placeholders": {
+      "day": {
+        "content": "$1",
+        "example": "Wednesday"
+      },
+      "time": {
+        "content": "$2",
+        "example": "3h 12m"
+      }
+    }
+  },
+  "firstCap": {
+    "message": "Your week fills in as you browse",
+    "description": "Popup week chart caption before anything is recorded."
+  },
+  "topToday": {
+    "message": "Top sites today",
+    "description": "Popup section title above the three busiest sites of the day."
+  },
+  "thisSite": {
+    "message": "This site",
+    "description": "Popup card label for the site in the current tab."
+  },
+  "visits1": {
+    "message": "1 visit",
+    "description": "Visit count when it is exactly one."
+  },
+  "visitsN": {
+    "message": "$N$ visits",
+    "description": "Visit count for any other number.",
+    "placeholders": {
+      "n": {
+        "content": "$1",
+        "example": "7"
+      }
+    }
+  },
+  "reelsOff": {
+    "message": "Reels off",
+    "description": "Blocker row title while the Reels blocker is on."
+  },
+  "reelsOn": {
+    "message": "Reels on",
+    "description": "Blocker row title while the Reels blocker is off."
+  },
+  "shortsOff": {
+    "message": "Shorts off",
+    "description": "Blocker row title while the Shorts blocker is on."
+  },
+  "shortsOn": {
+    "message": "Shorts on",
+    "description": "Blocker row title while the Shorts blocker is off."
+  },
+  "reelsOffSub": {
+    "message": "Reels links open your feed instead",
+    "description": "Blocker row detail while the Reels blocker is on."
+  },
+  "reelsOnSub": {
+    "message": "Switch on to send Reels links to your feed",
+    "description": "Blocker row detail while the Reels blocker is off."
+  },
+  "shortsOffSub": {
+    "message": "Shorts open as regular videos",
+    "description": "Blocker row detail while the Shorts blocker is on."
+  },
+  "shortsOnSub": {
+    "message": "Switch on to open Shorts as regular videos",
+    "description": "Blocker row detail while the Shorts blocker is off."
+  },
+  "openDash": {
+    "message": "Open dashboard",
+    "description": "Popup footer button that opens the dashboard page."
+  },
+  "pause": {
+    "message": "Pause tracking",
+    "description": "Popup footer switch label while tracking runs."
+  },
+  "paused": {
+    "message": "Paused",
+    "description": "Popup footer switch label while tracking is paused."
+  },
+  "pausedTitle": {
+    "message": "Tracking is paused",
+    "description": "Popup band shown while tracking is paused."
+  },
+  "pausedSub": {
+    "message": "Nothing is recorded until you resume.",
+    "description": "Popup paused band detail."
+  },
+  "resume": {
+    "message": "Resume",
+    "description": "Popup paused band button that resumes tracking."
+  },
+  "pausedSite": {
+    "message": "Not recording while paused",
+    "description": "This-site card detail while tracking is paused."
+  },
+  "pausedHero": {
+    "message": "Recorded today before pausing",
+    "description": "Popup hero label while tracking is paused."
+  },
+  "firstTitle": {
+    "message": "Nothing recorded yet",
+    "description": "Popup hero before anything has been recorded."
+  },
+  "firstBody": {
+    "message": "Dwell counts time while a tab is in front and you are active. Today’s first minutes will show here.",
+    "description": "Popup first-run explanation of how counting works."
+  },
+  "firstTop": {
+    "message": "Your top sites appear after a few minutes of browsing.",
+    "description": "Popup top-sites placeholder when today has no data."
+  },
+  "justStarted": {
+    "message": "Just started",
+    "description": "This-site card detail before anything has been recorded."
+  },
+  "untrackTitle": {
+    "message": "New tab",
+    "description": "This-site card title on the new tab page."
+  },
+  "browserTitle": {
+    "message": "Browser page",
+    "description": "This-site card title on a page that is not a website, such as settings or an extension page."
+  },
+  "untrackBody": {
+    "message": "Browser pages such as new tabs and settings aren’t recorded.",
+    "description": "This-site card detail on a page that is not a website."
+  },
+  "ignoredBody": {
+    "message": "On your Never record list, so time here isn’t written down.",
+    "description": "This-site card detail for a site on the ignore list."
+  },
+  "loadError": {
+    "message": "Dwell couldn’t read its numbers. Close and reopen this window to try again.",
+    "description": "Popup message when reading storage fails."
   }
 }

@@ -1,0 +1,56 @@
+/* Popup, ported from design/prototype.html. Chrome draws the popup frame, so the artboard treatment
+   applies: no radius, border or shadow of our own. */
+body { background: var(--surface); }
+.popup {
+  width: 360px; max-width: 100%; height: 560px; display: flex; flex-direction: column;
+  background: var(--surface); color: var(--ink); overflow: hidden;
+}
+.pp-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 12px; }
+.pp-hero .label { display: flex; justify-content: space-between; gap: 8px; font-size: var(--t-12); color: var(--ink-2); font-weight: 500; }
+.pp-hero .label .date { color: var(--ink-3); font-weight: 400; }
+.hero-num { display: block; font-size: 2.5rem; font-weight: 400; letter-spacing: -0.03em; line-height: 1.05; margin-top: 2px; }
+.hero-num.is-quiet { color: var(--ink-2); }
+.hero-num.is-first { font-size: var(--t-28); font-weight: 500; letter-spacing: -0.02em; }
+.pp-compare { margin-top: 6px; color: var(--ink-2); font-size: var(--t-13); line-height: 1.4; }
+.pp-compare b { color: var(--ink); font-weight: 600; }
+.pp-section-title { font-size: var(--t-12); font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
+.site-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; }
+.site-row + .site-row { margin-top: 8px; }
+.site-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--f-mono); font-size: var(--t-13); }
+.site-row .time { font-variant-numeric: tabular-nums; font-size: var(--t-13); font-weight: 500; }
+.site-row .track { grid-column: 2 / 4; }
+.empty-note { color: var(--ink-2); font-size: var(--t-13); line-height: 1.45; }
+.pp-site { border-radius: var(--r-well); background: var(--surface-2); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.pp-site-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pp-site-top .meta { min-width: 0; flex: 1; }
+.pp-site-top .dom { font-family: var(--f-mono); font-size: var(--t-13); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-site-top .page { font-weight: 600; }
+.pp-site-top .facts { font-size: var(--t-12); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.pp-site-top .facts-r { flex: none; max-width: 55%; text-align: right; font-size: var(--t-13); font-weight: 500; font-variant-numeric: tabular-nums; }
+.pp-site-top .facts-r span { display: block; font-size: var(--t-12); font-weight: 400; color: var(--ink-2); }
+.pp-site-label { font-size: var(--t-11); color: var(--ink-3); font-weight: 500; letter-spacing: 0.02em; }
+.blocker-row { display: flex; align-items: center; gap: 12px; padding-top: 8px; border-top: 1px solid var(--rule); }
+.blocker-row .txt { flex: 1; min-width: 0; }
+.blocker-row .state { font-weight: 650; font-size: var(--t-14); }
+.blocker-row .sub { font-size: var(--t-12); color: var(--ink-2); }
+.pp-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 6px 12px 6px 8px; border-top: 1px solid var(--rule); background: var(--surface);
+}
+.pause-ctl { display: inline-flex; align-items: center; gap: 8px; font-size: var(--t-13); color: var(--ink-2); }
+.pp-paused {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px 8px 16px; background: var(--inverse-bg); color: var(--inverse-fg);
+}
+.pp-paused .txt { flex: 1; min-width: 0; }
+.pp-paused strong { display: block; font-size: var(--t-14); font-weight: 650; }
+.pp-paused .txt span { font-size: var(--t-12); }
+.pp-paused button { border: 0; border-radius: var(--r-ctl); padding: 6px 12px; background: var(--inverse-btn); color: var(--inverse-fg); font-weight: 600; font-size: var(--t-13); }
+.pp-paused button:focus-visible { outline-color: var(--inverse-fg); }
+.popup.is-paused .pp-foot { background: var(--surface-2); }
+.pp-error { padding: 16px; color: var(--ink-2); font-size: var(--t-13); }
+
+/* Popup week chart */
+.pw-cap { font-size: 12px; fill: var(--ink-3); }
+.pw-max { font-size: 11px; fill: var(--ink-3); }
+.pw-day { font-size: 11px; font-weight: 450; fill: var(--ink-3); }
+.pw-day.is-today { font-weight: 650; fill: var(--accent-text); }
