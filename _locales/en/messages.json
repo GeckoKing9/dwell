@@ -142,19 +142,19 @@
     "description": "Blocker row title while the Shorts blocker is off."
   },
   "reelsOffSub": {
-    "message": "Reels links open your feed instead",
+    "message": "One Reel at a time, no scrolling to the next",
     "description": "Blocker row detail while the Reels blocker is on."
   },
   "reelsOnSub": {
-    "message": "Switch on to send Reels links to your feed",
+    "message": "Switch on to watch one Reel at a time",
     "description": "Blocker row detail while the Reels blocker is off."
   },
   "shortsOffSub": {
-    "message": "Shorts open as regular videos",
+    "message": "One Short at a time, as a regular video",
     "description": "Blocker row detail while the Shorts blocker is on."
   },
   "shortsOnSub": {
-    "message": "Switch on to open Shorts as regular videos",
+    "message": "Switch on to watch one Short at a time",
     "description": "Blocker row detail while the Shorts blocker is off."
   },
   "openDash": {
@@ -636,7 +636,7 @@
     "description": "Settings row: Instagram Reels blocker."
   },
   "bIgReelsD": {
-    "message": "Reels links open your Instagram feed.",
+    "message": "Open one Reel at a time; the Reels feed and scrolling to the next Reel are blocked.",
     "description": "Settings row description."
   },
   "bYtShorts": {
@@ -644,7 +644,7 @@
     "description": "Settings row: YouTube Shorts blocker."
   },
   "bYtShortsD": {
-    "message": "Shorts open as regular videos with the normal player.",
+    "message": "Open one Short at a time as a regular video; the Shorts feed and swiping to the next Short are blocked.",
     "description": "Settings row description."
   },
   "bFbReels": {
@@ -652,7 +652,7 @@
     "description": "Settings row: Facebook Reels blocker."
   },
   "bFbReelsD": {
-    "message": "Reels links open your Facebook feed.",
+    "message": "Open one Reel at a time; the Reels feed and scrolling to the next Reel are blocked.",
     "description": "Settings row description."
   },
   "bIgExplore": {
@@ -1026,11 +1026,11 @@
     "description": "Why the alarms permission exists."
   },
   "perm_dnr": {
-    "message": "Redirects Reels and Shorts addresses before the page loads.",
+    "message": "Sends Reels and Shorts addresses to a single-video page, and their feeds home, before the page loads.",
     "description": "Why the declarativeNetRequest permission exists."
   },
   "perm_hosts": {
-    "message": "Hides Reels and Shorts links on these three sites and notices when a video is playing.",
+    "message": "Hides Reels and Shorts links on these three sites, keeps their viewers to one video, and notices when a video is playing.",
     "description": "Why the site access exists."
   },
   "catsEmpty": {

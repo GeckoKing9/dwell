@@ -20,11 +20,15 @@ For each local day: the registrable domain of each site (`youtube.com`, not the 
 
 The event log is off by default. When you turn it on in Settings, Dwell keeps the last 24 hours of tracking events, each holding only a time, an event kind from a fixed list, a domain, Chrome's integer window and tab ids, and the audible flag. The ordinary data export never includes it; it has its own export button, described under [Replay a real day](#replay-a-real-day).
 
-## Reels and Shorts off
+## One Reel at a time
 
-Two layers do the blocking. A guard script runs at `document_start` in the top frame of the three sites, in the extension's isolated world. It listens to the Navigation API and cancels an in-page navigation to a Reels, Shorts or (optionally) Explore address before it commits: an Instagram or Facebook Reel tap leaves you where you were. If a blocked address ever becomes current anyway, fallbacks (`popstate`, YouTube's `yt-navigate-finish`, a 250 ms check of the address) replace it, at most twice per tab in five seconds. Direct loads, such as a shared link or a typed address, are redirected by static `declarativeNetRequest` rules before any request leaves Chrome, for top-level page loads only (`main_frame`); a Reel embedded in another site's page is left alone.
+The Reels and Shorts switches turn on one-video mode: you can open and watch the one Reel or Short you tapped, but not scroll, swipe or arrow on to the next one. Search, posts and profiles keep working.
 
-A Shorts address becomes the normal watch page for the same video (`/shorts/<id>` to `/watch?v=<id>`), so a shared Short still plays, without the swipe feed. Reels and Explore addresses go to the site's home page. Instagram Reels, YouTube Shorts and Facebook Reels each have their own switch, on by default; Instagram Explore is a fourth switch, off by default. The popup shows the switch for the site you are on: one tap, no confirmation. Redirects stay within the three sites, and every target comes from one allowlist in `src/blocker/targets.ts`.
+Two layers do the blocking. A guard script runs at `document_start` in the top frame of the three sites, in the extension's isolated world. It listens to the Navigation API and cancels an in-page navigation to a blocked address before it commits. A single Short or Instagram Reel goes on to a page that plays only that video: `/shorts/<id>` becomes `/watch?v=<id>`, and Instagram's `/reel/<code>` or `/reels/<code>` (also under a profile) becomes the post page `/p/<code>/`. The Reels feeds (`/reels/` on Instagram, `/reel/` and `/reels/` on Facebook) and, optionally, Explore go to the site's home page; a profile's Reels grid loads like any other page. If a blocked address ever becomes current anyway, fallbacks (`popstate`, YouTube's `yt-navigate-finish`, a 250 ms check of the address) replace it, at most twice per tab in five seconds. Direct loads, such as a shared link or a typed address, are redirected by static `declarativeNetRequest` rules before any request leaves Chrome, for top-level page loads only (`main_frame`); a Reel embedded in another site's page is left alone.
+
+Facebook has no single-video page, so a Facebook Reel opens in Facebook's own viewer, and the guard keeps that viewer to the one reel: a move to another reel is cancelled and the first one is loaded again. The same lock applies to any viewer the redirects did not leave. While a viewer is open, the guard also swallows the wheel, the arrow and page keys and touch moves that would advance it, unless they scroll a panel that can still scroll, such as the comments. It reads only the scroll position and the overflow and scroll-snap styles of the elements under the pointer, and keeps nothing.
+
+Instagram Reels, YouTube Shorts and Facebook Reels each have their own switch, on by default; Instagram Explore is a fourth switch, off by default. The popup shows the switch for the site you are on: one tap, no confirmation. Redirects stay within the three sites, and every target comes from one allowlist in `src/blocker/targets.ts`.
 
 Small stylesheets also hide the Reels and Shorts links and shelves on the three sites. They are cosmetic: they depend on the sites' current markup, will lag behind redesigns, and a missed link is still caught by the guard or the redirect rules.
 
@@ -36,7 +40,7 @@ Small stylesheets also hide the Reels and Shorts links and shelves on the three 
 | `idle` | Stops the count after your idle threshold, and at once when the screen locks. |
 | `storage` | Keeps your totals and settings in this Chrome profile. |
 | `alarms` | Saves the running total once a minute and deletes days older than 90 once a day. |
-| `declarativeNetRequest` | Redirects Reels and Shorts addresses before the page loads. |
+| `declarativeNetRequest` | Sends Reels and Shorts addresses to a single-video page, and their feeds home, before the page loads. |
 | `https://` www, m and bare hosts of instagram.com, youtube.com, facebook.com (eight patterns) | Runs the guard, the media reporter and the hiders on those sites, top frame only, and lets the redirect rules act there. |
 
 The manifest also sets `incognito: not_allowed`, declares no `externally_connectable` (no web page or other extension can message Dwell), no optional permissions and no `<all_urls>`. Dwell's own pages and service worker run under this content security policy:
@@ -98,7 +102,7 @@ The privacy checks are themselves tested with planted violations: `tests/lint.pr
 The Playwright specs load the built extension in Chromium with routed fixture pages:
 
 - `tests/e2e/tracking.spec.ts`: real tab switches give the expected seconds, a worker stopped mid-session resumes with the totals intact, pause records nothing, the worker refuses misdirected messages, a redirect landing is counted once, and a muted video on YouTube counts as media.
-- `tests/e2e/blocker.spec.ts`: Chrome itself accepts every redirect rule (`isRegexSupported`) and matches the same URLs as the classifier (`testMatchOutcome`); a Shorts load lands on the watch page without the Shorts request reaching the server; a Reel tap is cancelled before it commits; switches take effect without a reload; the loop guard holds.
+- `tests/e2e/blocker.spec.ts`: Chrome itself accepts every redirect rule (`isRegexSupported`) and matches the same URLs as the classifier (`testMatchOutcome`); a Shorts load lands on the watch page without the Shorts request reaching the server; an Instagram Reel lands on its post page and a Reels feed tap is cancelled before it commits; a Facebook viewer stays on its first reel and its wheel and arrow keys never reach the page; switches take effect without a reload; the loop guard holds.
 - `tests/e2e/privacy.spec.ts`: the refused requests and the recorded session described above.
 - `tests/e2e/ui.spec.ts`: popup states and the one-tap switch, pause everywhere, week navigation bounds, the day view, export and re-import, delete with undo, no horizontal overflow at three widths in both themes, and a privacy panel that lists exactly the manifest's permissions.
 

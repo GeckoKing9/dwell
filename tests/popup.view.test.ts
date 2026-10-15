@@ -64,7 +64,7 @@ describe('popup, normal state', () => {
     expect(text(byClass(card, 'dom'))).toBe('instagram.com');
     expect(text(byClass(card, 'facts-r'))).toBe('16m11 visits');
     expect(text(byClass(card, 'state'))).toBe('Reels off');
-    expect(text(byClass(card, 'sub'))).toBe('Reels links open your feed instead');
+    expect(text(byClass(card, 'sub'))).toBe('One Reel at a time, no scrolling to the next');
     expect(byId(tree, 'blocker-switch')?.props['aria-checked']).toBe('true');
     expect(byId(tree, 'blocker-switch')?.props['aria-labelledby']).toBe('blocker-label');
   });
@@ -185,7 +185,7 @@ describe('popup, other states', () => {
     const off = { ...DEFAULT_SETTINGS.blockers, youtubeShorts: false };
     const tree = render(model({ url: 'https://www.youtube.com/' }, { blockers: off }));
     expect(text(byClass(tree, 'state'))).toBe('Shorts on');
-    expect(text(byClass(tree, 'sub'))).toBe('Switch on to open Shorts as regular videos');
+    expect(text(byClass(tree, 'sub'))).toBe('Switch on to watch one Short at a time');
     expect(byId(tree, 'blocker-switch')?.props['aria-checked']).toBe('false');
   });
 
