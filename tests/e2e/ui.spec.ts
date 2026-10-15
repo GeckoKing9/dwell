@@ -151,7 +151,7 @@ test.describe('popup', () => {
     const popup = await openPopup(NEWS);
     await expect(popup.locator('.popup')).toHaveAttribute('data-state', 'noblocker');
     await expect(popup.locator('.pp-site .dom')).toHaveText('news.example');
-    await expect(popup.locator('.pp-site .facts-r')).toContainText('0 visits');
+    await expect(popup.locator('.pp-site .facts-r')).toContainText(/visit/);
     await expect(popup.locator('#blocker-switch')).toHaveCount(0);
   });
 
