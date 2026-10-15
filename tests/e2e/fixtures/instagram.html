@@ -33,6 +33,10 @@
         <a id="tile-3" href="/reel/CCCCC3/">reel three</a>
         <a id="tile-4" href="/p/DDDDD4/">post four</a>
       </div>
+      <div id="search-grid">
+        <!-- Instagram sends a Reel tapped in search to its Reels feed, whatever the tile's own address. -->
+        <a id="search-reel" href="/reel/EEEEE5/" data-opens="/reels/EEEEE5/">search reel</a>
+      </div>
     </main>
     <script>
       // The site's own router: every link in the page is an in-page route change. A post or a single
@@ -50,7 +54,8 @@
       for (const link of document.querySelectorAll('main a')) {
         link.addEventListener('click', (event) => {
           event.preventDefault();
-          const href = link.getAttribute('href');
+          window.siteHandledTap = true;
+          const href = link.dataset.opens ?? link.getAttribute('href');
           history.pushState({}, '', href);
           if (/^\/(?:[^/]+\/)?(?:p|reel)\//.test(href)) openDialog();
         });

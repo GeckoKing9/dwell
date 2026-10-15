@@ -42,6 +42,7 @@ import { classify, siteForHost } from '../blocker/patterns.ts';
 import { TARGET_FRAGMENT, isAllowedTarget } from '../blocker/targets.ts';
 import { VIEWER_TOGGLE, decideViewerMove, viewerLocked, type ViewerMove } from '../blocker/viewer.ts';
 import { DEFAULT_SETTINGS, SETTINGS_KEY, type BlockedSite, type Settings } from '../store/schema.ts';
+import { watchPostTaps } from './instagram-open.ts';
 import { syncPostPage } from './instagram-post.ts';
 import { extensionAlive, sendToWorker } from './runtime.ts';
 import { setInputLock, startKeyLock } from './viewer-lock.ts';
@@ -379,6 +380,8 @@ function main(site: BlockedSite): void {
   setHiderAttribute(site);
   lastHref = location.href;
   watchesPosts = site === 'instagram';
+  // A tap on a post or Reel opens in Instagram's own pop-up while the Reels switch is on (`instagram-open.ts`).
+  if (watchesPosts) cleanups.push(watchPostTaps(() => alive && blockers.instagramReels));
 
   if ('navigation' in window) {
     const nav = window.navigation;

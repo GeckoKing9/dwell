@@ -100,3 +100,34 @@ export function dimColor(computed: string): string | null {
   const [r, g, b] = [m[1], m[2], m[3]].map((v) => Math.round(Number(v) * DIM_FACTOR));
   return `rgb(${r}, ${g}, ${b})`;
 }
+
+/** The event Dwell's guard sends to the page-world bridge (`content/instagram-router.ts`), with a post path. */
+export const OPEN_POST_EVENT = 'dwell:open-post';
+/** Where the bridge answers, on `<html>`: `opened`, or `refused` when Instagram's router could not. */
+export const OPENED_ATTR = 'data-dwell-opened';
+
+/** A link to one post or Reel: `/p/`, `/reel/` or `/reels/` and a code, optionally under one profile segment. */
+const POP_UP_LINK = new RegExp(`^/(?:[^/]+/)?(?:p|reels?)/(${REEL_CODE_SOURCE})/?$`, 'i');
+const POP_UP_PATH = new RegExp(`^/p/${REEL_CODE_SOURCE}/$`);
+
+/**
+ * The post address a link opens in Instagram's pop-up, always `/p/<code>/` (Instagram's post route shows a
+ * Reel too), or null when the link does not open one post or Reel on Instagram.
+ */
+export function popUpPath(url: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    // Not an absolute URL: not a link to a post.
+    return null;
+  }
+  if (parsed.protocol !== 'https:' || siteForHost(parsed.hostname) !== 'instagram') return null;
+  const code = POP_UP_LINK.exec(parsed.pathname)?.[1];
+  return code === undefined ? null : `/p/${code}/`;
+}
+
+/** True only for a path in exactly the form `popUpPath` builds: what the page-world bridge will open. */
+export function isPopUpPath(path: string): boolean {
+  return POP_UP_PATH.test(path);
+}

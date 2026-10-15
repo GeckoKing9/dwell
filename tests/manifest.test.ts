@@ -52,11 +52,41 @@ describe('source manifest', () => {
     expect(dnr.rule_resources).toContainEqual({ id: 'x-videos', enabled: true, path: 'src/blocker/rulesets/x-videos.json' });
   });
 
+  it('runs one script in Instagram\'s own page, the bridge to its router, and nothing else outside the isolated world', () => {
+    const scripts = source.content_scripts as { matches: string[]; js: string[]; world?: string }[];
+    const main = scripts.filter((s) => s.world !== undefined);
+    expect(main).toEqual([
+      {
+        matches: ['https://www.instagram.com/*', 'https://instagram.com/*'],
+        js: ['src/content/instagram-router.ts'],
+        run_at: 'document_start',
+        all_frames: false,
+        match_about_blank: false,
+        world: 'MAIN',
+      },
+    ]);
+    expect(manifestProblems(source)).toEqual([]);
+  });
+
+  it.each([
+    ['another file', { js: ['src/content/guard.ts'] }],
+    ['two files', { js: ['src/content/instagram-router.ts', 'src/content/media.ts'] }],
+    ['another site', { matches: ['https://www.facebook.com/*'] }],
+    ['another world name', { world: 'ISOLATED_PLUS' }],
+  ])('refuses a page-world script with %s', (_label, patch) => {
+    const m = structuredClone(source) as Record<string, unknown>;
+    const scripts = m.content_scripts as Record<string, unknown>[];
+    const index = scripts.findIndex((s) => s.world !== undefined);
+    scripts[index] = { ...scripts[index], ...patch };
+    expect(manifestProblems(m).some((p) => p.includes('world'))).toBe(true);
+  });
+
   it('runs every content script in the top frame only', () => {
     const scripts = source.content_scripts as { all_frames: boolean; matches: string[] }[];
-    expect(scripts.length).toBe(4);
+    expect(scripts.length).toBe(5);
     for (const script of scripts) expect(script.all_frames).toBe(false);
-    expect(scripts.flatMap((s) => s.matches).sort()).toEqual([...SITE_PATTERNS].sort());
+    // Instagram has two entries: the guard and the router bridge.
+    expect([...new Set(scripts.flatMap((s) => s.matches))].sort()).toEqual([...SITE_PATTERNS].sort());
   });
 
   it('forbids incognito and external connections', () => {

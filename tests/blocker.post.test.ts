@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DIM_FACTOR, MIN_OTHER_POSTS, POP_UP_EDGE_PX, POP_UP_MARGIN_PX, POP_UP_SIDE_PX, dimColor, isOtherPostLink, leaveBy, popUpBox, singlePostCode } from '../src/blocker/post.ts';
+import { DIM_FACTOR, MIN_OTHER_POSTS, isPopUpPath, popUpPath, POP_UP_EDGE_PX, POP_UP_MARGIN_PX, POP_UP_SIDE_PX, dimColor, isOtherPostLink, leaveBy, popUpBox, singlePostCode } from '../src/blocker/post.ts';
 
 const CODE = 'DeewiSPpCrm';
 const IG = 'https://www.instagram.com';
@@ -129,5 +129,43 @@ describe('dimColor: the page colour behind the pop-up, dimmed like the parts of 
 
   it.each(['transparent', 'rgba(0, 0, 0, 0)', '', 'red', 'color(srgb 1 1 1)'])('cannot read %j and says so', (color) => {
     expect(dimColor(color)).toBeNull();
+  });
+});
+
+describe('popUpPath: the post address a link opens in Instagram\'s pop-up', () => {
+  it.each([
+    [`${IG}/p/${CODE}/`, `/p/${CODE}/`],
+    [`${IG}/p/${CODE}`, `/p/${CODE}/`],
+    [`${IG}/reel/${CODE}/`, `/p/${CODE}/`],
+    [`${IG}/reels/${CODE}/`, `/p/${CODE}/`],
+    [`${IG}/someuser/reel/${CODE}/`, `/p/${CODE}/`],
+    [`${IG}/someuser/p/${CODE}/?igsh=x#c`, `/p/${CODE}/`],
+    [`https://instagram.com/reel/${CODE}/`, `/p/${CODE}/`],
+  ])('opens %s as %s', (url, path) => {
+    expect(popUpPath(url)).toBe(path);
+  });
+
+  it.each([
+    `${IG}/`,
+    `${IG}/reels/`,
+    `${IG}/someuser/`,
+    `${IG}/someuser/reels/`,
+    `${IG}/reels/audio/123456/`,
+    `${IG}/p/${CODE}/liked_by/`,
+    `${IG}/direct/t/123/`,
+    `http://www.instagram.com/p/${CODE}/`,
+    `https://www.facebook.com/p/${CODE}/`,
+    'not a url',
+  ])('leaves %s to Instagram', (url) => {
+    expect(popUpPath(url)).toBeNull();
+  });
+});
+
+describe('isPopUpPath: what the page-world bridge accepts', () => {
+  it('accepts only a post path in the form popUpPath builds', () => {
+    expect(isPopUpPath(`/p/${CODE}/`)).toBe(true);
+    for (const bad of [`/p/${CODE}`, `/reel/${CODE}/`, `/p/${CODE}/?x=1`, `//evil.example/p/${CODE}/`, `/p/ab/`, `/p/${CODE}/../x/`, `https://www.instagram.com/p/${CODE}/`]) {
+      expect(isPopUpPath(bad)).toBe(false);
+    }
   });
 });

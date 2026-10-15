@@ -51,6 +51,14 @@
       "match_about_blank": false
     },
     {
+      "matches": ["https://www.instagram.com/*", "https://instagram.com/*"],
+      "js": ["src/content/instagram-router.ts"],
+      "run_at": "document_start",
+      "all_frames": false,
+      "match_about_blank": false,
+      "world": "MAIN"
+    },
+    {
       "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*", "https://youtube.com/*"],
       "js": ["src/content/guard.ts", "src/content/media.ts"],
       "css": ["src/content/youtube.css"],

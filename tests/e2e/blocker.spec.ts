@@ -350,6 +350,120 @@ test('an in-app move to the Reels scroller on one Reel lands on its post page, c
   await page.close();
 });
 
+/**
+ * Stands in for Instagram's router in the page: `go` records the call and opens the post in a pop-up, the
+ * way Instagram's `content` target does; `root` says whether the page on screen hosts pop-ups.
+ */
+async function installRouter(page: Page, root: boolean): Promise<void> {
+  await page.evaluate((isRoot) => {
+    const w = window as unknown as { goCalls: unknown[]; require: (name: string) => unknown; openDialog: () => void };
+    w.goCalls = [];
+    w.require = (name: string) =>
+      name === 'currentCometRouterInstance'
+        ? {
+            get_THIS_IS_NOT_WHAT_YOU_WANT: () => ({
+              getCurrentRouterState: () => ({ main: { route: { isCometRootContainer: isRoot } } }),
+              dispatcher: {
+                go: (path: string, options: unknown) => {
+                  w.goCalls.push([path, options]);
+                  history.pushState({}, '', path);
+                  w.openDialog();
+                },
+              },
+            }),
+          }
+        : undefined;
+  }, root);
+}
+
+async function pageState(page: Page): Promise<{ goCalls: unknown[]; siteHandledTap: boolean }> {
+  return page.evaluate(() => {
+    const w = window as unknown as { goCalls?: unknown[]; siteHandledTap?: boolean };
+    return { goCalls: w.goCalls ?? [], siteHandledTap: w.siteHandledTap === true };
+  });
+}
+
+test('a Reel tapped in search opens in Instagram\'s own pop-up through its router: no page load, nothing counted', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/explore/search/keyword/?q=hugo`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+  await installRouter(page, true);
+  await markPage(page);
+
+  await page.locator('#search-reel').click();
+  await expect(page.locator('[role="dialog"]')).toBeVisible();
+  expect(path(page)).toBe('/p/EEEEE5/');
+  expect(await pageState(page)).toEqual({ goCalls: [['/p/EEEEE5/', { target: 'content' }]], siteHandledTap: false });
+  expect(await pageMark(page)).toBe('kept');
+  expect(served).toEqual([`${IG}/explore/search/keyword/?q=hugo`]);
+  await page.waitForTimeout(400);
+  expect(await blocked()).toEqual([]);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+  expect(await page.evaluate(() => document.documentElement.hasAttribute('data-dwell-opened'))).toBe(false);
+  await page.close();
+});
+
+test('when the page under the tap hosts no pop-ups, the tap is Instagram\'s and its Reels feed still lands on the post page', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/explore/search/keyword/?q=hugo`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+  await installRouter(page, false);
+  await page.locator('#search-reel').click();
+  await expect.poll(() => page.url()).toBe(`${IG}/p/EEEEE5/`);
+  expect(served).toContain(`${IG}/p/EEEEE5/`);
+  await page.close();
+});
+
+test('with no router on the page (signed out, or Instagram changed it), a tap is left to Instagram', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/explore/search/keyword/?q=hugo`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+  await page.locator('#search-reel').click();
+  await expect.poll(() => page.url()).toBe(`${IG}/p/EEEEE5/`);
+  expect((await pageState(page)).goCalls).toEqual([]);
+  await page.close();
+});
+
+test('a Ctrl-click, a click a page script fakes, and every tap with instagramReels off stay Instagram\'s', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/explore/search/keyword/?q=hugo`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+  await installRouter(page, true);
+
+  await page.locator('#tile-1').click({ modifiers: ['Control'] });
+  expect(await pageState(page)).toEqual({ goCalls: [], siteHandledTap: true });
+
+  await page.evaluate(() => {
+    (window as unknown as { siteHandledTap: boolean }).siteHandledTap = false;
+    document.getElementById('tile-2')?.click();
+  });
+  expect(await pageState(page)).toEqual({ goCalls: [], siteHandledTap: true });
+
+  await page.goto(`${IG}/explore/search/keyword/?q=hugo`);
+  await setBlockers({ instagramReels: false });
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'off');
+  await installRouter(page, true);
+  await page.locator('#tile-4').click();
+  expect(await pageState(page)).toEqual({ goCalls: [], siteHandledTap: true });
+  await page.close();
+});
+
+test('a page script firing the bridge\'s event can open nothing but a post path', async () => {
+  const page = await context.newPage();
+  await page.goto(`${IG}/`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-instagram', 'on');
+  await installRouter(page, true);
+  const answers = await page.evaluate(() =>
+    ['https://evil.example/', '/reel/EEEEE5/', '/p/EEEEE5/?next=/evil', '/p/EEEEE5/'].map((detail) => {
+      document.dispatchEvent(new CustomEvent('dwell:open-post', { detail }));
+      return document.documentElement.getAttribute('data-dwell-opened');
+    }),
+  );
+  expect(answers).toEqual(['refused', 'refused', 'refused', 'opened']);
+  expect((await pageState(page)).goCalls).toEqual([['/p/EEEEE5/', { target: 'content' }]]);
+  await page.close();
+});
+
 test('a full single-post page hides the "More posts" that load under the post, and nothing of the post', async () => {
   const page = await context.newPage();
   await page.goto(`${IG}/p/${CODE}/`);

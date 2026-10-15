@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     crx({
       manifest: manifest as ManifestV3Export,
-      contentScripts: { standaloneFiles: ['src/content/guard.ts', 'src/content/media.ts'] },
+      contentScripts: { standaloneFiles: ['src/content/guard.ts', 'src/content/media.ts', 'src/content/instagram-router.ts'] },
     }),
   ],
   oxc: {

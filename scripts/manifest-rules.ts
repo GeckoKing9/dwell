@@ -45,6 +45,27 @@ function withinSites(actual: unknown): boolean {
   return list.length > 0 && list.every((item) => typeof item === 'string' && allowed.includes(item));
 }
 
+const INSTAGRAM_PATTERNS: readonly string[] = ['https://www.instagram.com/*', 'https://instagram.com/*'];
+/** The bridge to Instagram's router, as written in the source manifest (.ts) and as built (.js). */
+const ROUTER_BRIDGE = /^src\/content\/instagram-router\.(?:ts|js)$/;
+
+/**
+ * The one script allowed outside the isolated world: the bridge to Instagram's router, alone in its entry,
+ * in Instagram's own page (`MAIN`) and on Instagram only. It opens a post in Instagram's pop-up and nothing else.
+ */
+function isRouterBridge(entry: Json): boolean {
+  const js = asArray(entry.js);
+  const matches = asArray(entry.matches);
+  return (
+    entry.world === 'MAIN' &&
+    js.length === 1 &&
+    typeof js[0] === 'string' &&
+    ROUTER_BRIDGE.test(js[0]) &&
+    matches.length > 0 &&
+    matches.every((m) => typeof m === 'string' && INSTAGRAM_PATTERNS.includes(m))
+  );
+}
+
 export function manifestProblems(manifest: unknown): string[] {
   const problems: string[] = [];
   if (!isObject(manifest)) return ['manifest is not an object'];
@@ -79,7 +100,9 @@ export function manifestProblems(manifest: unknown): string[] {
     if (entry.all_frames !== false) problems.push(`content_scripts[${i}].all_frames must be false`);
     if (entry.match_about_blank !== false) problems.push(`content_scripts[${i}].match_about_blank must be false`);
     if (entry.run_at !== 'document_start') problems.push(`content_scripts[${i}].run_at must be document_start`);
-    if ('world' in entry) problems.push(`content_scripts[${i}].world is not allowed`);
+    if ('world' in entry && !isRouterBridge(entry)) {
+      problems.push(`content_scripts[${i}].world is allowed only for the Instagram router bridge`);
+    }
   });
   if (scripts.length > 0 && covered.size !== SITE_PATTERNS.length) {
     problems.push('content_scripts must cover every site pattern');
