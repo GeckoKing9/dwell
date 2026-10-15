@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Tag matches the manifest version
+        run: |
+          version="$(node -p "require('./manifest.json').version")"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match manifest version $version" >&2
+            exit 1
+          fi
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npm run check:privacy
+      - run: npm run zip
+      - name: Release notes
+        run: |
+          zip_file="$(ls release/dwell-*.zip)"
+          {
+            echo "Built by the release workflow from commit $GITHUB_SHA."
+            echo
+            echo "SHA-256 of $(basename "$zip_file"): $(sha256sum "$zip_file" | cut -d' ' -f1)"
+            echo
+            echo "The .sha256.txt file holds one SHA-256 per file inside the zip."
+            echo "Check an unpacked copy with: sha256sum -c $(basename release/dwell-*.sha256.txt)"
+          } > release/notes.md
+          cat release/notes.md
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "Dwell $GITHUB_REF_NAME" \
+            --notes-file release/notes.md \
+            release/dwell-*.zip release/dwell-*.sha256.txt

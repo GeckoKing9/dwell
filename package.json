@@ -18,7 +18,8 @@
     "test:e2e": "npm run build && playwright test",
     "check:privacy": "npm run build && node --experimental-strip-types scripts/check-privacy.ts",
     "simulate": "node --experimental-strip-types scripts/simulate.ts",
-    "zip": "node -e \"console.log('not yet')\""
+    "zip": "npm run build && node --experimental-strip-types scripts/zip.ts",
+    "screenshots": "npm run build && node --experimental-strip-types scripts/screenshots.ts"
   },
   "dependencies": {
     "preact": "11.0.1"

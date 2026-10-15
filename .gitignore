@@ -9,6 +9,7 @@ coverage/
 test-results/
 playwright-report/
 *.zip
+release/
 .DS_Store
 scratch/
 .claude/worktrees/
