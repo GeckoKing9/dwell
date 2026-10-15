@@ -17,6 +17,7 @@ const valid: Message[] = [
   { type: 'blocked', site: 'instagram' },
   { type: 'blocked', site: 'youtube' },
   { type: 'blocked', site: 'facebook' },
+  { type: 'blocked', site: 'x' },
   { type: 'media', playing: true },
   { type: 'media', playing: false },
   { type: 'settings', patch: { idleThresholdSec: 120 } },
@@ -26,7 +27,7 @@ const valid: Message[] = [
     patch: {
       idleThresholdSec: 300,
       mediaOverride: false,
-      blockers: { instagramReels: true, youtubeShorts: false, facebookReels: true, instagramExplore: true },
+      blockers: { instagramReels: true, youtubeShorts: false, facebookReels: true, xVideos: false, instagramExplore: true },
       overrides: ['docs.google.com'],
       ignore: ['localhost.test', 'xn--bcher-kva.example'],
       categories: { 'github.com': 'Work', 'youtube.com': 'Video' },

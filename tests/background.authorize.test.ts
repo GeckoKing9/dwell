@@ -23,7 +23,7 @@ function content(url: string, extra: Partial<SenderLike> = {}): SenderLike {
   return { id: ID, url, tab: { id: 7 }, frameId: 0, ...extra };
 }
 
-describe('authorize: content scripts on the three sites', () => {
+describe('authorize: content scripts on the four sites', () => {
   it.each(CONTENT)('accepts %j from a top-frame tab on www.instagram.com', (message) => {
     expect(authorize(message, content('https://www.instagram.com/'), ID)).toEqual({ ok: true, origin: 'content' });
   });
@@ -41,6 +41,8 @@ describe('authorize: content scripts on the three sites', () => {
     'https://www.facebook.com/',
     'https://m.facebook.com/',
     'https://facebook.com/',
+    'https://x.com/home',
+    'https://x.com/someuser/status/123',
   ])('accepts media from %s', (url) => {
     expect(authorize({ type: 'media', playing: false }, content(url), ID)).toEqual({ ok: true, origin: 'content' });
   });
@@ -49,12 +51,23 @@ describe('authorize: content scripts on the three sites', () => {
     expect(authorize({ type: 'blocked', site: 'youtube' }, content('https://www.youtube.com/'), ID).ok).toBe(true);
     expect(authorize({ type: 'blocked', site: 'youtube' }, content('https://www.instagram.com/'), ID).ok).toBe(false);
     expect(authorize({ type: 'blocked', site: 'facebook' }, content('https://m.youtube.com/'), ID).ok).toBe(false);
+    expect(authorize({ type: 'blocked', site: 'x' }, content('https://x.com/someuser/status/123'), ID)).toEqual({ ok: true, origin: 'content' });
+    expect(authorize({ type: 'blocked', site: 'x' }, content('https://www.instagram.com/'), ID).ok).toBe(false);
+    expect(authorize({ type: 'blocked', site: 'instagram' }, content('https://x.com/'), ID).ok).toBe(false);
+  });
+
+  it.each(PAGE)('rejects the page-only %j from a content script on x.com', (message) => {
+    expect(authorize(message, content('https://x.com/home'), ID).ok).toBe(false);
   });
 
   it.each([
     ['a tab on another site', 'https://a.example/'],
     ['a look-alike host', 'https://www.instagram.com.evil.example/'],
     ['a subdomain outside the list', 'https://music.youtube.com/'],
+    ['the www host of X, which X redirects away from', 'https://www.x.com/'],
+    ['twitter.com, which X redirects to x.com', 'https://twitter.com/'],
+    ['an X look-alike host', 'https://x.com.evil.example/'],
+    ['plain http on X', 'http://x.com/'],
     ['plain http', 'http://www.instagram.com/'],
     ['a non-web URL', 'about:blank'],
     ['a malformed URL', 'not a url'],

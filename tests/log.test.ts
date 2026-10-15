@@ -175,7 +175,8 @@ describe('exportLog', () => {
       format: 'dwell-event-log',
       version: 2,
       entries: [{ at: NOON - HOUR / 2, kind: 'tick' }, { at: NOON, kind: 'focus', win: 2 }],
-      days: { '2026-10-14': day },
+      // A day stored before X existed is read with an X count of 0.
+      days: { '2026-10-14': { ...day, blocked: { ...day.blocked, x: 0 } } },
       settings: { idleThresholdSec: 60, mediaOverride: true },
     });
     const custom = memoryStore({ settings: { idleThresholdSec: 300, mediaOverride: false } });

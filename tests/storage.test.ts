@@ -41,8 +41,9 @@ describe('applyAttributions', () => {
     expect(result).toEqual({ written: 2, skipped: 0 });
     expect(store.setCalls).toBe(1);
     expect(store.dump()).toEqual({
-      [`d:${D}`]: { sites: { 'a.com': { h: { '23': 140 }, v: 2 } }, blocked: { instagram: 1, youtube: 0, facebook: 0 } },
-      'd:2026-10-15': { sites: { 'a.com': { h: { '0': 25 }, v: 0 } }, blocked: { instagram: 0, youtube: 0, facebook: 0 } },
+      // The stored day predates X: writing it back adds its X count of 0.
+      [`d:${D}`]: { sites: { 'a.com': { h: { '23': 140 }, v: 2 } }, blocked: { instagram: 1, youtube: 0, facebook: 0, x: 0 } },
+      'd:2026-10-15': { sites: { 'a.com': { h: { '0': 25 }, v: 0 } }, blocked: { instagram: 0, youtube: 0, facebook: 0, x: 0 } },
     });
   });
 
@@ -90,7 +91,7 @@ describe('applyAttributions', () => {
 describe('loading days and blocked counts', () => {
   it('loadDay returns an empty record for a day with no data and rejects a bad key', async () => {
     const store = memoryStore();
-    expect(await loadDay(store, D)).toEqual({ sites: {}, blocked: { instagram: 0, youtube: 0, facebook: 0 } });
+    expect(await loadDay(store, D)).toEqual({ sites: {}, blocked: { instagram: 0, youtube: 0, facebook: 0, x: 0 } });
     await expect(loadDay(store, '2026-14-01')).rejects.toThrow(RangeError);
   });
 
@@ -103,16 +104,23 @@ describe('loading days and blocked counts', () => {
     });
     const days = await loadAllDays(store);
     expect(Object.keys(days).sort()).toEqual(['d:2026-10-13', 'd:2026-10-14']);
-    expect(days['d:2026-10-13']).toEqual({ sites: { 'a.com': { h: { '1': 5 }, v: 0 } }, blocked: { instagram: 2, youtube: 0, facebook: 0 } });
-    expect(days['d:2026-10-14']).toEqual({ sites: {}, blocked: { instagram: 0, youtube: 0, facebook: 0 } });
+    expect(days['d:2026-10-13']).toEqual({ sites: { 'a.com': { h: { '1': 5 }, v: 0 } }, blocked: { instagram: 2, youtube: 0, facebook: 0, x: 0 } });
+    expect(days['d:2026-10-14']).toEqual({ sites: {}, blocked: { instagram: 0, youtube: 0, facebook: 0, x: 0 } });
   });
 
   it('loadAllDays on an empty store is empty, and odd shapes read as empty parts', async () => {
     expect(await loadAllDays(memoryStore())).toEqual({});
     const store = memoryStore({ [`d:${D}`]: { sites: [], blocked: 'none' }, 'd:2026-10-13': { sites: { 'a.com': { h: [], v: 1 } } } });
     const days = await loadAllDays(store);
-    expect(days[`d:${D}`]).toEqual({ sites: {}, blocked: { instagram: 0, youtube: 0, facebook: 0 } });
+    expect(days[`d:${D}`]).toEqual({ sites: {}, blocked: { instagram: 0, youtube: 0, facebook: 0, x: 0 } });
     expect(days['d:2026-10-13']?.sites['a.com']).toEqual({ h: {}, v: 1 });
+  });
+
+  it('reads a day stored before X existed with an X count of 0, and counts X on top of it', async () => {
+    const store = memoryStore({ [`d:${D}`]: { sites: {}, blocked: { instagram: 3, youtube: 1, facebook: 2 } } });
+    expect((await loadDay(store, D)).blocked).toEqual({ instagram: 3, youtube: 1, facebook: 2, x: 0 });
+    await incrementBlocked(store, D, 'x');
+    expect((await loadDay(store, D)).blocked).toEqual({ instagram: 3, youtube: 1, facebook: 2, x: 1 });
   });
 
   it('incrementBlocked counts per site per day', async () => {
@@ -120,7 +128,8 @@ describe('loading days and blocked counts', () => {
     await incrementBlocked(store, `d:${D}`, 'youtube');
     await incrementBlocked(store, D, 'youtube');
     await incrementBlocked(store, D, 'instagram');
-    expect((await loadDay(store, D)).blocked).toEqual({ instagram: 1, youtube: 2, facebook: 0 });
+    await incrementBlocked(store, D, 'x');
+    expect((await loadDay(store, D)).blocked).toEqual({ instagram: 1, youtube: 2, facebook: 0, x: 1 });
     await expect(incrementBlocked(store, 'd:yesterday', 'youtube')).rejects.toThrow(RangeError);
     await expect(incrementBlocked(store, D, 'tiktok' as 'youtube')).rejects.toThrow(RangeError);
   });

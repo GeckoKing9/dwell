@@ -222,7 +222,7 @@ describe('start and alarms', () => {
     expect(fake.alarms.get('heartbeat')).toMatchObject({ periodInMinutes: 1 });
     expect(fake.alarms.get('prune')).toMatchObject({ periodInMinutes: 1440 });
     expect(fake.detectionInterval).toBe(60);
-    expect([...fake.enabledRulesets].sort()).toEqual(['facebook-reels', 'instagram-reels', 'youtube-shorts']);
+    expect([...fake.enabledRulesets].sort()).toEqual(['facebook-reels', 'instagram-reels', 'x-videos', 'youtube-shorts']);
     expect(fake.rulesetUpdates).toEqual([]);
 
     fake.local.data.set('settings', { ...DEFAULT_SETTINGS, idleThresholdSec: 300, blockers: { ...DEFAULT_SETTINGS.blockers, instagramExplore: true } });

@@ -6,7 +6,7 @@ export interface Tap {
   added: number;
 }
 
-/** Clicks one of the Instagram fixture's in-page links; its own router pushes the link's path. */
+/** Clicks one of a fixture's in-page links (Instagram, X); its own router pushes the link's path. */
 async function tapLink(page: Page, id: string): Promise<Tap> {
   return page.evaluate((linkId) => {
     const before = history.length;
@@ -23,6 +23,16 @@ export async function tapReel(page: Page): Promise<Tap> {
 /** Taps the Reels tab in the Instagram fixture: its router pushes the bare feed `/reels/`. */
 export async function tapFeed(page: Page): Promise<Tap> {
   return tapLink(page, 'open-feed');
+}
+
+/** Taps a video in the X fixture's timeline: its router pushes `/someuser/status/123/video/1`. */
+export async function tapVideo(page: Page): Promise<Tap> {
+  return tapLink(page, 'open-video');
+}
+
+/** Taps a photo in the X fixture's timeline: its router pushes `/someuser/status/123/photo/1`. */
+export async function tapPhoto(page: Page): Promise<Tap> {
+  return tapLink(page, 'open-photo');
 }
 
 /** Does what a viewer does when the user scrolls to the next video: a pushState to that video's path. */

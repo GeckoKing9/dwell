@@ -107,11 +107,12 @@ describe('week view', () => {
 
   it('counts the week’s redirects with one dot each', () => {
     const blocked = byId(tree, 'blocked') as El;
-    expect(text(byClass([blocked], 'blk-total'))).toBe('4Reels and Shorts redirects this week');
+    expect(text(byClass([blocked], 'blk-total'))).toBe('6Reels, Shorts and X video redirects this week');
     expect(byClass([blocked], 'blk-row').map((r) => [text(byClass([r], 'n')), text(byClass([r], 'c')), all([r], (el) => el.type === 'i').length])).toEqual([
       ['Instagram', '3', 3],
       ['YouTube', '1', 1],
       ['Facebook', '0', 0],
+      ['X', '2', 2],
     ]);
   });
 

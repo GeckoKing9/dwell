@@ -27,7 +27,7 @@ describe('validateSettings', () => {
       idleThresholdSec: 300,
       mediaOverride: false,
       paused: true,
-      blockers: { instagramReels: false, youtubeShorts: false, facebookReels: true, instagramExplore: true },
+      blockers: { instagramReels: false, youtubeShorts: false, facebookReels: true, xVideos: false, instagramExplore: true },
       overrides: ['music.youtube.com'],
       ignore: ['bank.example.ca'],
       categories: defaultCategories(),
@@ -130,6 +130,52 @@ describe('loadSettings and saveSettings', () => {
     const calls = store.setCalls;
     expectRejected(await saveSettings(store, { mediaOverride: 'off' }), 'mediaOverride');
     expect(store.setCalls).toBe(calls);
+  });
+});
+
+/** Settings exactly as v0.1.0 stored and exported them: four blockers, no `xVideos`. */
+const V010_SETTINGS = {
+  idleThresholdSec: 120,
+  mediaOverride: false,
+  paused: true,
+  blockers: { instagramReels: true, youtubeShorts: false, facebookReels: false, instagramExplore: true },
+  overrides: ['music.youtube.com'],
+  ignore: ['bank.example.ca'],
+  categories: { 'a.com': 'Work' },
+  eventLog: true,
+  theme: 'dark',
+};
+const V010_BLOCKERS = { instagramReels: true, youtubeShorts: false, facebookReels: false, instagramExplore: true };
+
+describe('settings saved before the X toggle existed (v0.1.0)', () => {
+  it('turns X videos on by default for a new install', () => {
+    expect(DEFAULT_SETTINGS.blockers.xVideos).toBe(true);
+  });
+
+  it('validates an old value whole and reads the missing X toggle as on, keeping every other field', () => {
+    const result = validateSettings(V010_SETTINGS);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.blockers).toEqual({ ...V010_BLOCKERS, xVideos: true });
+    expect(result.value).toMatchObject({ idleThresholdSec: 120, mediaOverride: false, paused: true, eventLog: true, theme: 'dark' });
+  });
+
+  it('loads an old stored value without resetting it, with the X toggle on', async () => {
+    const loaded = await loadSettings(memoryStore({ [SETTINGS_KEY]: V010_SETTINGS }));
+    expect(loaded.blockers).toEqual({ ...V010_BLOCKERS, xVideos: true });
+    expect(loaded).toMatchObject({ idleThresholdSec: 120, paused: true, ignore: ['bank.example.ca'], categories: { 'a.com': 'Work' } });
+  });
+
+  it('writes the X toggle next to the old flags on the next save, and can turn it off', async () => {
+    const store = memoryStore({ [SETTINGS_KEY]: V010_SETTINGS });
+    expect((await saveSettings(store, { mediaOverride: true })).ok).toBe(true);
+    expect((await loadSettings(store)).blockers).toEqual({ ...V010_BLOCKERS, xVideos: true });
+    expect((await saveSettings(store, { blockers: { xVideos: false } })).ok).toBe(true);
+    expect((await loadSettings(store)).blockers).toEqual({ ...V010_BLOCKERS, xVideos: false });
+  });
+
+  it('rejects an X toggle that is not true or false', () => {
+    expectRejected(validateSettings({ blockers: { xVideos: 'yes' } }), 'xVideos');
   });
 });
 

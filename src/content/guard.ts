@@ -1,6 +1,6 @@
 /**
  * In-page navigation guard for short-video routes (KTD4, KTD4b). Isolated world, document_start,
- * top frame, on the three sites only. It reads `location`, its own settings and its own loop-guard
+ * top frame, on the four sites only (Instagram, YouTube, Facebook, X). It reads `location`, its own settings and its own loop-guard
  * key, and sends only `{ type: 'blocked', site }`. Nothing else from the page is read or sent.
  *
  * 1. Navigation API: a cancelable `navigate` to a blocked URL is cancelled. A Reels feed and Explore
@@ -31,11 +31,12 @@ const COUNT_DEDUPE_MS = 1000;
 /** sessionStorage is per tab and per origin, so the loop guard survives the redirect it caused. */
 const LOOP_KEY = 'dwell:redirects';
 
-/** The blocker each site's hider CSS follows. */
+/** The blocker each site's hider CSS follows. X has no hider stylesheet; its attribute is set all the same. */
 const HIDER_TOGGLE: Readonly<Record<BlockedSite, keyof Blockers>> = {
   instagram: 'instagramReels',
   youtube: 'youtubeShorts',
   facebook: 'facebookReels',
+  x: 'xVideos',
 };
 
 let blockers: Blockers = { ...DEFAULT_SETTINGS.blockers };
@@ -52,7 +53,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Blocker flags from stored settings; a missing or malformed flag falls back to its default. */
+/**
+ * Blocker flags from stored settings; a missing or malformed flag falls back to its default, so settings
+ * stored before a toggle existed (v0.1.0 has no `xVideos`) read that toggle as on.
+ */
 function readBlockers(stored: unknown): Blockers {
   const raw: Record<string, unknown> = isRecord(stored) && isRecord(stored.blockers) ? stored.blockers : {};
   const out: Blockers = { ...DEFAULT_SETTINGS.blockers };

@@ -132,7 +132,7 @@ describe('week model cost', () => {
     const days: Record<string, DayRecord> = {};
     for (let d = 1; d <= 14; d++) {
       const key = `d:2026-10-${String(d).padStart(2, '0')}`;
-      const record = { ...day({ 'github.com': { 9: 600 }, 'netflix.com': { 20: 300 } }), blocked: { instagram: 1, youtube: 0, facebook: 0 } };
+      const record = { ...day({ 'github.com': { 9: 600 }, 'netflix.com': { 20: 300 } }), blocked: { instagram: 1, youtube: 0, facebook: 0, x: 0 } };
       days[key] = new Proxy(record, {
         get(target, prop, receiver) {
           if (prop === 'sites') reads.set(key, (reads.get(key) ?? 0) + 1);

@@ -8,8 +8,8 @@ export type Visits = number;
 export type Category = 'Social' | 'Video' | 'Work' | 'Shopping' | 'News' | 'Other';
 export const CATEGORIES: readonly Category[] = ['Social', 'Video', 'Work', 'Shopping', 'News', 'Other'];
 
-export type BlockedSite = 'instagram' | 'youtube' | 'facebook';
-export const BLOCKED_SITES: readonly BlockedSite[] = ['instagram', 'youtube', 'facebook'];
+export type BlockedSite = 'instagram' | 'youtube' | 'facebook' | 'x';
+export const BLOCKED_SITES: readonly BlockedSite[] = ['instagram', 'youtube', 'facebook', 'x'];
 
 export interface SiteRecord {
   h: Record<HourString, Seconds>;
@@ -32,6 +32,8 @@ export interface Settings {
     instagramReels: boolean;
     youtubeShorts: boolean;
     facebookReels: boolean;
+    /** Added after v0.1.0: settings stored or exported before it have no such flag, which reads as the default. */
+    xVideos: boolean;
     instagramExplore: boolean;
   };
   /** Hosts counted separately from their registrable domain. */
@@ -48,7 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
   idleThresholdSec: 60,
   mediaOverride: true,
   paused: false,
-  blockers: { instagramReels: true, youtubeShorts: true, facebookReels: true, instagramExplore: false },
+  blockers: { instagramReels: true, youtubeShorts: true, facebookReels: true, xVideos: true, instagramExplore: false },
   /** KTD8: apps that share a registrable domain but are used for different things, counted apart from the start. */
   overrides: ['music.youtube.com', 'docs.google.com', 'mail.google.com', 'drive.google.com', 'calendar.google.com', 'meet.google.com'],
   ignore: [],
@@ -108,5 +110,5 @@ export function parseDayKey(key: string): Date | null {
 }
 
 export function emptyDayRecord(): DayRecord {
-  return { sites: {}, blocked: { instagram: 0, youtube: 0, facebook: 0 } };
+  return { sites: {}, blocked: { instagram: 0, youtube: 0, facebook: 0, x: 0 } };
 }

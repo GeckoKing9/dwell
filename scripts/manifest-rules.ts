@@ -9,6 +9,8 @@ export const SITE_PATTERNS = [
   'https://www.facebook.com/*',
   'https://m.facebook.com/*',
   'https://facebook.com/*',
+  // x.com only: twitter.com, www.x.com and mobile.x.com redirect to x.com on the server first.
+  'https://x.com/*',
 ] as const;
 
 export const EXPECTED_CSP =
@@ -18,6 +20,7 @@ export const EXPECTED_RULESETS = [
   { id: 'instagram-reels', enabled: true },
   { id: 'youtube-shorts', enabled: true },
   { id: 'facebook-reels', enabled: true },
+  { id: 'x-videos', enabled: true },
   { id: 'instagram-explore', enabled: false },
 ] as const;
 

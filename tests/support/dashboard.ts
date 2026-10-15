@@ -23,9 +23,9 @@ export function sampleDays(): Record<string, DayRecord> {
     'd:2026-10-12': day({ 'github.com': { 10: H, 11: H }, 'instagram.com': { 20: 1800 } }, { 'github.com': 4, 'instagram.com': 6 }),
     'd:2026-10-13': {
       ...day({ 'github.com': { 9: 3000, 10: 3000, 11: 3000, 12: 1200 }, 'youtube.com': { 21: H } }, { 'github.com': 3, 'youtube.com': 2 }),
-      blocked: { instagram: 2, youtube: 1, facebook: 0 },
+      blocked: { instagram: 2, youtube: 1, facebook: 0, x: 2 },
     },
-    'd:2026-10-14': { ...day({ 'github.com': { 9: H } }, { 'github.com': 1 }), blocked: { instagram: 1, youtube: 0, facebook: 0 } },
+    'd:2026-10-14': { ...day({ 'github.com': { 9: H } }, { 'github.com': 1 }), blocked: { instagram: 1, youtube: 0, facebook: 0, x: 0 } },
   };
 }
 

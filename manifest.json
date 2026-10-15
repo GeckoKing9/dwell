@@ -13,7 +13,8 @@
     "https://youtube.com/*",
     "https://www.facebook.com/*",
     "https://m.facebook.com/*",
-    "https://facebook.com/*"
+    "https://facebook.com/*",
+    "https://x.com/*"
   ],
   "incognito": "not_allowed",
   "content_security_policy": {
@@ -54,6 +55,13 @@
       "run_at": "document_start",
       "all_frames": false,
       "match_about_blank": false
+    },
+    {
+      "matches": ["https://x.com/*"],
+      "js": ["src/content/guard.ts", "src/content/media.ts"],
+      "run_at": "document_start",
+      "all_frames": false,
+      "match_about_blank": false
     }
   ],
   "declarative_net_request": {
@@ -61,6 +69,7 @@
       { "id": "instagram-reels", "enabled": true, "path": "src/blocker/rulesets/instagram-reels.json" },
       { "id": "youtube-shorts", "enabled": true, "path": "src/blocker/rulesets/youtube-shorts.json" },
       { "id": "facebook-reels", "enabled": true, "path": "src/blocker/rulesets/facebook-reels.json" },
+      { "id": "x-videos", "enabled": true, "path": "src/blocker/rulesets/x-videos.json" },
       { "id": "instagram-explore", "enabled": false, "path": "src/blocker/rulesets/instagram-explore.json" }
     ]
   }

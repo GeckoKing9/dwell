@@ -10,7 +10,7 @@ describe('dashboard labels in English', () => {
     expect([relWeek(0), relWeek(1), relWeek(4)]).toEqual(['This week', 'Last week', '4 weeks ago']);
     expect([0, 6, 12, 18].map(hourLabel)).toEqual(['12 AM', '6 AM', '12 PM', '6 PM']);
     expect([minutesLabel(30), hoursLabel(2), percentText(19.6)]).toEqual(['30m', '2h', '20%']);
-    expect([categoryName('Shopping'), blockedSiteName('youtube')]).toEqual(['Shopping', 'YouTube']);
+    expect([categoryName('Shopping'), blockedSiteName('youtube'), blockedSiteName('x')]).toEqual(['Shopping', 'YouTube', 'X']);
     expect([sitesText(1), sitesText(13), visitsText(1), visitsText(60)]).toEqual(['1 site', '13 sites', '1 visit', '60 visits']);
   });
 });

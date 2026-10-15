@@ -1,5 +1,5 @@
 /**
- * The four static DNR rulesets mirror the classifier for hard loads. Chrome evaluates `regexFilter`
+ * The five static DNR rulesets mirror the classifier for hard loads. Chrome evaluates `regexFilter`
  * with RE2; this suite uses JS RegExp as an approximation (same syntax for the subset used here) and
  * separately rejects the constructs RE2 refuses (lookaround, backreferences). JS cannot see RE2's
  * per-rule memory cap: a host alternation plus `{11}` exceeds it and Chrome silently drops the rule,
@@ -14,6 +14,7 @@ import {
   facebookReelTarget,
   instagramPostTarget,
   isAllowedTarget,
+  xTweetTarget,
   youtubeWatchTarget,
 } from '../src/blocker/targets.ts';
 import type { Settings } from '../src/store/schema.ts';
@@ -32,8 +33,9 @@ const RULESETS: Record<string, keyof Blockers> = {
   'instagram-explore': 'instagramExplore',
   'youtube-shorts': 'youtubeShorts',
   'facebook-reels': 'facebookReels',
+  'x-videos': 'xVideos',
 };
-const NONE: Blockers = { instagramReels: false, youtubeShorts: false, facebookReels: false, instagramExplore: false };
+const NONE: Blockers = { instagramReels: false, youtubeShorts: false, facebookReels: false, xVideos: false, instagramExplore: false };
 const ID = 'dQw4w9WgXcQ';
 const CODE = 'DeewiSPpCrm';
 const TARGETS = [
@@ -42,6 +44,9 @@ const TARGETS = [
   youtubeWatchTarget(ID) ?? '',
   instagramPostTarget(CODE) ?? '',
   facebookReelTarget('1234567890') ?? '',
+  xTweetTarget('someuser', '1234567890') ?? '',
+  xTweetTarget('i', '1234567890') ?? '',
+  xTweetTarget('Some_User', '1') ?? '',
 ];
 
 const SAMPLES = [
@@ -110,6 +115,29 @@ const SAMPLES = [
   'https://www.facebook.com/?sk=reels',
   'https://web.facebook.com/reel/1',
   'https://web.facebook.com/reels/',
+  'https://x.com/someuser/status/1234567890/video/1',
+  'https://x.com/someuser/status/1234567890/video/1/',
+  'https://x.com/someuser/status/1234567890/video/2?s=20&t=abc',
+  'https://x.com/someuser/status/1234567890/video/1#top',
+  'https://x.com/i/status/1234567890/video/1',
+  'https://x.com/Some_User/STATUS/1234567890/Video/1',
+  `https://x.com/${'a'.repeat(16)}/status/1/video/1`,
+  `https://x.com/someuser/status/${'9'.repeat(25)}/video/1`,
+  `https://x.com/someuser/status/${'9'.repeat(26)}/video/1`,
+  'https://x.com/someuser/status/1234567890',
+  'https://x.com/someuser/status/1234567890/photo/1',
+  'https://x.com/someuser/status/1234567890/video/',
+  'https://x.com/someuser/status/1234567890/video/one',
+  'https://x.com/someuser/status/1234567890/video/1/likes',
+  'https://x.com/someuser/status/12a/video/1',
+  'https://x.com/some.user/status/1/video/1',
+  'https://x.com/i/web/status/1/video/1',
+  'https://x.com/a/b/status/1/video/1',
+  'https://x.com/search?q=/someuser/status/1/video/1',
+  'https://x.com/home',
+  'https://www.x.com/someuser/status/1/video/1',
+  'https://twitter.com/someuser/status/1/video/1',
+  'http://x.com/someuser/status/1/video/1',
   ...TARGETS,
 ];
 
@@ -180,7 +208,7 @@ describe.each(Object.entries(RULESETS))('ruleset %s', (name, toggle) => {
   it('redirects only to allowlisted targets', () => {
     for (const rule of set) {
       const { url, regexSubstitution } = rule.action.redirect;
-      const target = url ?? (regexSubstitution ?? '').replace('\\1', ID);
+      const target = url ?? (regexSubstitution ?? '').replace('\\1', ID).replace('\\2', '1234567890');
       expect(isAllowedTarget(target)).toBe(true);
       expect(new URL(target).searchParams.has('dwell')).toBe(false);
     }

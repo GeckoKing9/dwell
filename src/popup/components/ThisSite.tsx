@@ -15,6 +15,7 @@ interface ThisSiteProps {
 const BLOCKER_TEXT: Record<BlockerModel['kind'], { on: [MessageKey, MessageKey]; off: [MessageKey, MessageKey] }> = {
   reels: { on: ['reelsOff', 'reelsOffSub'], off: ['reelsOn', 'reelsOnSub'] },
   shorts: { on: ['shortsOff', 'shortsOffSub'], off: ['shortsOn', 'shortsOnSub'] },
+  videos: { on: ['videosOff', 'videosOffSub'], off: ['videosOn', 'videosOnSub'] },
 };
 
 /** The site's toggle says what it does: with the blocker on, "Shorts off". */
@@ -77,7 +78,7 @@ function Top({ tracking, paused, firstRun }: { tracking: Tracking; paused: boole
   );
 }
 
-/** The current tab's site with its time and visits, and its blocker when it is one of the three sites. */
+/** The current tab's site with its time and visits, and its blocker when it is one of the four sites. */
 export function ThisSite({ site, paused, firstRun, onBlocker }: ThisSiteProps) {
   return (
     <section class="pp-site" aria-label={t('thisSite')}>

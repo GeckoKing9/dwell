@@ -99,6 +99,19 @@ describe('thisSite', () => {
     expect(thisSite('https://m.facebook.com/', settings(), today).blocker).toEqual({ key: 'facebookReels', kind: 'reels', on: true });
   });
 
+  it('shows the X videos toggle on x.com, on by default', () => {
+    for (const url of ['https://x.com/home', 'https://x.com/someuser/status/123']) {
+      expect(thisSite(url, settings(), today).blocker).toEqual({ key: 'xVideos', kind: 'videos', on: true });
+    }
+    const off = settings({ blockers: { ...DEFAULT_SETTINGS.blockers, xVideos: false } });
+    expect(thisSite('https://x.com/home', off, today).blocker).toEqual({ key: 'xVideos', kind: 'videos', on: false });
+  });
+
+  it('has no X toggle on hosts that X redirects to x.com before the page loads', () => {
+    expect(thisSite('https://twitter.com/home', settings(), today).blocker).toBeNull();
+    expect(thisSite('https://www.x.com/home', settings(), today).blocker).toBeNull();
+  });
+
   it('reflects the stored blocker value', () => {
     const off = settings({ blockers: { ...DEFAULT_SETTINGS.blockers, youtubeShorts: false } });
     expect(thisSite('https://www.youtube.com/', off, today).blocker?.on).toBe(false);

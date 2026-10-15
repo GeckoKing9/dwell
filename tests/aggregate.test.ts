@@ -18,7 +18,7 @@ function assertFinite(agg: WeekAggregate): void {
 
 describe('dayAggregate', () => {
   it('returns 24 hourly totals with zeros for empty hours', () => {
-    const rec: DayRecord = { sites: { 'a.com': { h: { '9': 600, '21': 300 }, v: 2 } }, blocked: { instagram: 1, youtube: 0, facebook: 0 } };
+    const rec: DayRecord = { sites: { 'a.com': { h: { '9': 600, '21': 300 }, v: 2 } }, blocked: { instagram: 1, youtube: 0, facebook: 0, x: 0 } };
     const agg = dayAggregate(rec);
     expect(agg.hours).toHaveLength(24);
     expect(agg.hours[9]).toBe(600);
@@ -187,11 +187,21 @@ describe('weekAggregate', () => {
 
   it('sums blocked redirects per site over the counted days', () => {
     const a = day({ 'a.com': 60 });
-    a.blocked = { instagram: 2, youtube: 1, facebook: 0 };
+    a.blocked = { instagram: 2, youtube: 1, facebook: 0, x: 3 };
     const b = day({ 'a.com': 60 });
-    b.blocked = { instagram: 1, youtube: 0, facebook: 4 };
+    b.blocked = { instagram: 1, youtube: 0, facebook: 4, x: 2 };
     const agg = weekAggregate(daysMap([[THIS_MON, a], [addDays(THIS_MON, 1), b]]), weekOf(TODAY), TODAY);
-    expect(agg.blocked).toEqual({ instagram: 3, youtube: 1, facebook: 4 });
+    expect(agg.blocked).toEqual({ instagram: 3, youtube: 1, facebook: 4, x: 5 });
+  });
+
+  it('reads a day recorded before X existed as 0 X redirects', () => {
+    const a = day({ 'a.com': 60 });
+    a.blocked = { instagram: 2, youtube: 1, facebook: 0 } as DayRecord['blocked'];
+    const b = day({ 'a.com': 60 });
+    b.blocked = { instagram: 0, youtube: 0, facebook: 0, x: 4 };
+    const agg = weekAggregate(daysMap([[THIS_MON, a], [addDays(THIS_MON, 1), b]]), weekOf(TODAY), TODAY);
+    expect(agg.blocked).toEqual({ instagram: 2, youtube: 1, facebook: 0, x: 4 });
+    expect(dayAggregate(a).blocked).toEqual({ instagram: 2, youtube: 1, facebook: 0, x: 0 });
   });
 
   it('finds the quietest and busiest full day, never today', () => {
@@ -224,7 +234,7 @@ const siteArb = fc.constantFrom('figma.com', 'instagram.com', 'youtube.com', 'am
 const hoursArb = fc.dictionary(fc.integer({ min: 0, max: 23 }).map(String), fc.integer({ min: 0, max: 3600 }));
 const siteRecordArb = fc.record({ h: hoursArb, v: fc.integer({ min: 0, max: 30 }) });
 const recordArb = fc.dictionary(siteArb, siteRecordArb, { maxKeys: 5 }).map(
-  (sites): DayRecord => ({ sites, blocked: { instagram: 0, youtube: 0, facebook: 0 } }),
+  (sites): DayRecord => ({ sites, blocked: { instagram: 0, youtube: 0, facebook: 0, x: 0 } }),
 );
 const weekDataArb = fc.array(fc.option(recordArb, { nil: null }), { minLength: 14, maxLength: 14 });
 

@@ -95,7 +95,7 @@ export function installFakeChrome(): FakeChrome {
     detectionInterval: null,
     alarms: new Map(),
     alarmCreates: [],
-    enabledRulesets: new Set(['instagram-reels', 'youtube-shorts', 'facebook-reels']),
+    enabledRulesets: new Set(['instagram-reels', 'youtube-shorts', 'facebook-reels', 'x-videos']),
     rulesetUpdates: [],
     failNextRulesetUpdate: false,
   };

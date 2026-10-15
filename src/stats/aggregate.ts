@@ -123,7 +123,7 @@ function reduceDay(record: DayRecord): DayAggregate {
       .sort(bySecondsThenName)
       .slice(0, TOP_SITES_PER_HOUR),
   );
-  const blocked = { instagram: 0, youtube: 0, facebook: 0 };
+  const blocked = { instagram: 0, youtube: 0, facebook: 0, x: 0 };
   for (const b of BLOCKED_SITES) blocked[b] = Math.trunc(safeSeconds(record.blocked[b]));
   return { total, sites, hours, hourSites, blocked };
 }
@@ -157,7 +157,7 @@ interface Collected {
 function collect(days: Record<string, DayRecord>, week: WeekRange, retentionStart: Date, lastIdx: number): Collected {
   const byDay = new Map<number, DayAggregate>();
   const sites = new Map<Site, SiteDay>();
-  const blocked = { instagram: 0, youtube: 0, facebook: 0 };
+  const blocked = { instagram: 0, youtube: 0, facebook: 0, x: 0 };
   let total = 0;
   for (let k = 0; k <= lastIdx; k++) {
     const date = addDays(week.start, k);

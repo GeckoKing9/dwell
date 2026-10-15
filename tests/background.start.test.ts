@@ -27,7 +27,24 @@ describe('worker start (F13)', () => {
     await createBackground().start();
     await createBackground().start();
     expect(fake.rulesetUpdates).toEqual([]);
-    expect([...fake.enabledRulesets].sort()).toEqual(['facebook-reels', 'instagram-reels', 'youtube-shorts']);
+    expect([...fake.enabledRulesets].sort()).toEqual(['facebook-reels', 'instagram-reels', 'x-videos', 'youtube-shorts']);
+  });
+
+  it('keeps the X ruleset on, with no ruleset call, over settings stored before X existed', async () => {
+    const old = { instagramReels: true, youtubeShorts: true, facebookReels: true, instagramExplore: false };
+    fake.local.data.set('settings', { ...DEFAULT_SETTINGS, blockers: old });
+    await createBackground().start();
+    expect(fake.rulesetUpdates).toEqual([]);
+    expect(fake.enabledRulesets.has('x-videos')).toBe(true);
+  });
+
+  it('enables the X ruleset when Chrome has it off and the settings predate X', async () => {
+    const old = { instagramReels: true, youtubeShorts: true, facebookReels: true, instagramExplore: false };
+    fake.local.data.set('settings', { ...DEFAULT_SETTINGS, blockers: old });
+    fake.enabledRulesets.delete('x-videos');
+    await createBackground().start();
+    expect(fake.rulesetUpdates).toHaveLength(1);
+    expect(fake.enabledRulesets.has('x-videos')).toBe(true);
   });
 
   it('makes one ruleset call when Chrome differs from the settings, then none on the next start', async () => {

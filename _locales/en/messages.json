@@ -157,6 +157,22 @@
     "message": "Switch on to watch one Short at a time",
     "description": "Blocker row detail while the Shorts blocker is off."
   },
+  "videosOff": {
+    "message": "Video feed off",
+    "description": "Blocker row title on x.com while the X videos blocker is on: X's feed of videos is off."
+  },
+  "videosOn": {
+    "message": "Video feed on",
+    "description": "Blocker row title on x.com while the X videos blocker is off."
+  },
+  "videosOffSub": {
+    "message": "One video at a time, no scrolling to the next",
+    "description": "Blocker row detail on x.com while the X videos blocker is on."
+  },
+  "videosOnSub": {
+    "message": "Switch on to watch one video at a time",
+    "description": "Blocker row detail on x.com while the X videos blocker is off."
+  },
   "openDash": {
     "message": "Open dashboard",
     "description": "Popup footer button that opens the dashboard page."
@@ -516,7 +532,7 @@
     "description": "Blocked panel title."
   },
   "blockedLine": {
-    "message": "Reels and Shorts redirects this week",
+    "message": "Reels, Shorts and X video redirects this week",
     "description": "Beside the week total of redirects."
   },
   "blockedNote": {
@@ -534,6 +550,10 @@
   "siteFacebook": {
     "message": "Facebook",
     "description": "Site name."
+  },
+  "siteX": {
+    "message": "X",
+    "description": "Site name (x.com, formerly Twitter)."
   },
   "backWeek": {
     "message": "Back to $R$",
@@ -653,6 +673,14 @@
   },
   "bFbReelsD": {
     "message": "Open one Reel at a time; the Reels feed and scrolling to the next Reel are blocked.",
+    "description": "Settings row description."
+  },
+  "bXVideos": {
+    "message": "X videos",
+    "description": "Settings row title for the x.com video blocker."
+  },
+  "bXVideosD": {
+    "message": "One video at a time; X’s video feed is blocked.",
     "description": "Settings row description."
   },
   "bIgExplore": {
@@ -944,7 +972,7 @@
     "description": "Privacy: stored item."
   },
   "k4": {
-    "message": "Reels and Shorts redirects per day",
+    "message": "Reels, Shorts and X video redirects per day",
     "description": "Privacy: stored item."
   },
   "k5": {
@@ -988,7 +1016,7 @@
     "description": "Privacy section heading. Must not claim more than the tests check."
   },
   "pNet": {
-    "message": "Dwell’s own pages and background worker are configured to refuse network requests: the manifest sets the content security policy $CSP$, and the test suite checks it. Its scripts run only on Instagram, YouTube and Facebook and send nothing off the device. Reels and Shorts redirects stay within those sites. There is no account, no analytics and no sync.",
+    "message": "Dwell’s own pages and background worker are configured to refuse network requests: the manifest sets the content security policy $CSP$, and the test suite checks it. Its scripts run only on Instagram, YouTube, Facebook and X and send nothing off the device. Its redirects stay within those sites. There is no account, no analytics and no sync.",
     "description": "Privacy paragraph; CSP is the policy shown as code.",
     "placeholders": {
       "csp": {
@@ -1026,11 +1054,11 @@
     "description": "Why the alarms permission exists."
   },
   "perm_dnr": {
-    "message": "Sends Reels and Shorts addresses to a single-video page, and their feeds home, before the page loads.",
+    "message": "Sends Reels, Shorts and X video viewer addresses to a single-video page, and the Reels feeds home, before the page loads.",
     "description": "Why the declarativeNetRequest permission exists."
   },
   "perm_hosts": {
-    "message": "Hides Reels and Shorts links on these three sites, keeps their viewers to one video, and notices when a video is playing.",
+    "message": "Hides Reels and Shorts links, keeps each site’s video viewer to one video, and notices when a video is playing.",
     "description": "Why the site access exists."
   },
   "catsEmpty": {

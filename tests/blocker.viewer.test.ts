@@ -5,8 +5,8 @@ import type { Settings } from '../src/store/schema.ts';
 
 type Blockers = Settings['blockers'];
 
-const ALL_ON: Blockers = { instagramReels: true, youtubeShorts: true, facebookReels: true, instagramExplore: true };
-const ALL_OFF: Blockers = { instagramReels: false, youtubeShorts: false, facebookReels: false, instagramExplore: false };
+const ALL_ON: Blockers = { instagramReels: true, youtubeShorts: true, facebookReels: true, xVideos: true, instagramExplore: true };
+const ALL_OFF: Blockers = { instagramReels: false, youtubeShorts: false, facebookReels: false, xVideos: false, instagramExplore: false };
 const ID = 'dQw4w9WgXcQ';
 const ID2 = 'AAAAAAAAAAA';
 const CODE = 'DeewiSPpCrm';
@@ -30,6 +30,15 @@ describe('viewerKey: which single-video viewer a URL shows', () => {
   });
 
   it.each([
+    ['https://x.com/someuser/status/123/video/1', '123', 'someuser'],
+    ['https://x.com/someuser/status/123/video/2/?s=20', '123', 'someuser'],
+    ['https://x.com/i/status/456/video/1', '456', 'i'],
+    ['https://x.com/Some_User/STATUS/789/VIDEO/1#top', '789', 'Some_User'],
+  ])('reads the X viewer %s as status %s, keeping the user %s for its tweet page', (url, key, owner) => {
+    expect(viewerKey(url)).toEqual({ site: 'x', key, owner });
+  });
+
+  it.each([
     'https://www.youtube.com/shorts/',
     `https://www.youtube.com/watch?v=${ID}`,
     'https://www.youtube.com/shorts/dQw4w9WgXc',
@@ -44,6 +53,12 @@ describe('viewerKey: which single-video viewer a URL shows', () => {
     'https://web.facebook.com/reel/111',
     `http://www.instagram.com/reel/${CODE}/`,
     `https://evil.example/reel/${CODE}/`,
+    'https://x.com/someuser/status/123',
+    'https://x.com/someuser/status/123/photo/1',
+    'https://x.com/someuser/status/12a/video/1',
+    'https://x.com/some.user/status/123/video/1',
+    'https://www.x.com/someuser/status/123/video/1',
+    'https://twitter.com/someuser/status/123/video/1',
     'not a url',
   ])('finds no viewer in %s', (url) => {
     expect(viewerKey(url)).toBeNull();
@@ -56,6 +71,9 @@ describe('lockTarget: where a locked viewer goes back to', () => {
       [lockTarget('youtube', ID), `https://www.youtube.com/watch?v=${ID}#dwell=youtube`],
       [lockTarget('instagram', CODE), `https://www.instagram.com/p/${CODE}/#dwell=instagram`],
       [lockTarget('facebook', '111'), 'https://www.facebook.com/reel/111#dwell=facebook'],
+      [lockTarget('x', '123', 'someuser'), 'https://x.com/someuser/status/123#dwell=x'],
+      [lockTarget('x', '123', 'Some_User'), 'https://x.com/Some_User/status/123#dwell=x'],
+      [lockTarget('x', '123'), 'https://x.com/i/status/123#dwell=x'],
     ] as const;
     for (const [actual, expected] of targets) {
       expect(actual).toBe(expected);
@@ -67,6 +85,8 @@ describe('lockTarget: where a locked viewer goes back to', () => {
     expect(lockTarget('youtube', 'short')).toBeNull();
     expect(lockTarget('instagram', 'abcd')).toBeNull();
     expect(lockTarget('facebook', 'abc')).toBeNull();
+    expect(lockTarget('x', '12a', 'someuser')).toBeNull();
+    expect(lockTarget('x', '123', 'some.user')).toBeNull();
   });
 });
 
@@ -78,12 +98,16 @@ describe('viewerLocked: whether the input lock applies to a URL', () => {
     expect(viewerLocked(`https://www.instagram.com/reel/${CODE}/`, { ...ALL_ON, instagramReels: false })).toBe(false);
     expect(viewerLocked(`https://www.youtube.com/shorts/${ID}`, { ...ALL_OFF, youtubeShorts: true })).toBe(true);
     expect(viewerLocked(`https://www.youtube.com/shorts/${ID}`, ALL_OFF)).toBe(false);
+    expect(viewerLocked('https://x.com/someuser/status/123/video/1', { ...ALL_OFF, xVideos: true })).toBe(true);
+    expect(viewerLocked('https://x.com/someuser/status/123/video/1', { ...ALL_ON, xVideos: false })).toBe(false);
   });
 
   it('never locks a page that is not a viewer', () => {
     expect(viewerLocked('https://www.facebook.com/', ALL_ON)).toBe(false);
     expect(viewerLocked(`https://www.instagram.com/p/${CODE}/`, ALL_ON)).toBe(false);
     expect(viewerLocked(`https://www.youtube.com/watch?v=${ID}`, ALL_ON)).toBe(false);
+    expect(viewerLocked('https://x.com/someuser/status/123', ALL_ON)).toBe(false);
+    expect(viewerLocked('https://x.com/someuser/status/123/photo/1', ALL_ON)).toBe(false);
   });
 });
 
@@ -108,6 +132,9 @@ describe('decideViewerMove: one video, no next', () => {
       'facebook',
       'https://www.facebook.com/reel/111#dwell=facebook',
     ],
+    ['https://x.com/someuser/status/123/video/1', 'https://x.com/other/status/456/video/1', 'x', 'https://x.com/someuser/status/123#dwell=x'],
+    ['https://x.com/Some_User/status/123/video/1', 'https://x.com/i/status/456/video/1', 'x', 'https://x.com/Some_User/status/123#dwell=x'],
+    ['https://x.com/i/status/123/video/2?s=20', 'https://x.com/someuser/status/456/video/1', 'x', 'https://x.com/i/status/123#dwell=x'],
   ])('locks a move from %s to %s back to the first video', (from, to, site, target) => {
     expect(decideViewerMove(from, to, ALL_ON)).toEqual({ action: 'lock', site, target });
   });
@@ -121,6 +148,12 @@ describe('decideViewerMove: one video, no next', () => {
     [`https://www.instagram.com/reel/${CODE}/`, `https://www.instagram.com/p/${CODE}/`],
     [`https://www.instagram.com/reel/${CODE}/`, `https://www.youtube.com/shorts/${ID}`],
     ['https://www.facebook.com/reel/111', 'not a url'],
+    ['https://x.com/someuser/status/123/video/1', 'https://x.com/someuser/status/123/video/2'],
+    ['https://x.com/someuser/status/123/video/1', 'https://x.com/SomeUser/status/123/video/1'],
+    ['https://x.com/someuser/status/123/video/1', 'https://x.com/someuser/status/123'],
+    ['https://x.com/someuser/status/123/video/1', 'https://x.com/home'],
+    ['https://x.com/someuser/status/123/video/1', 'https://x.com/other/status/456/photo/1'],
+    ['https://x.com/home', 'https://x.com/someuser/status/123/video/1'],
   ])('lets a move from %s to %s through', (from, to) => {
     expect(decideViewerMove(from, to, ALL_ON)).toEqual({ action: 'allow' });
   });
@@ -132,6 +165,8 @@ describe('decideViewerMove: one video, no next', () => {
     expect(decideViewerMove(...ig, { ...ALL_ON, instagramReels: false })).toEqual({ action: 'allow' });
     const yt = [`https://www.youtube.com/shorts/${ID}`, `https://www.youtube.com/shorts/${ID2}`] as const;
     expect(decideViewerMove(...yt, { ...ALL_ON, youtubeShorts: false })).toEqual({ action: 'allow' });
+    const x = ['https://x.com/someuser/status/123/video/1', 'https://x.com/other/status/456/video/1'] as const;
+    expect(decideViewerMove(...x, { ...ALL_ON, xVideos: false })).toEqual({ action: 'allow' });
   });
 
   it('compares keys exactly, since Instagram codes are case-sensitive', () => {

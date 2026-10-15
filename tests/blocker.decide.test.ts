@@ -5,8 +5,8 @@ import type { Settings } from '../src/store/schema.ts';
 
 type Blockers = Settings['blockers'];
 
-const ALL_ON: Blockers = { instagramReels: true, youtubeShorts: true, facebookReels: true, instagramExplore: true };
-const ALL_OFF: Blockers = { instagramReels: false, youtubeShorts: false, facebookReels: false, instagramExplore: false };
+const ALL_ON: Blockers = { instagramReels: true, youtubeShorts: true, facebookReels: true, xVideos: true, instagramExplore: true };
+const ALL_OFF: Blockers = { instagramReels: false, youtubeShorts: false, facebookReels: false, xVideos: false, instagramExplore: false };
 const NOW = 1_700_000_000_000;
 const SHORT = classify('https://www.youtube.com/shorts/dQw4w9WgXcQ', ALL_ON);
 const REEL_FEED = classify('https://www.instagram.com/reels/', ALL_ON);
@@ -14,6 +14,8 @@ const REEL = classify('https://www.instagram.com/reel/DeewiSPpCrm/', ALL_ON);
 const POST = 'https://www.instagram.com/p/DeewiSPpCrm/#dwell=instagram';
 const EXPLORE = classify('https://www.instagram.com/explore/', ALL_ON);
 const WATCH = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ#dwell=youtube';
+const X_VIDEO = classify('https://x.com/someuser/status/123/video/1', ALL_ON);
+const TWEET = 'https://x.com/someuser/status/123#dwell=x';
 
 describe('decide: a cancelable in-page navigation', () => {
   it('lets the navigation through when the classifier blocks nothing', () => {
@@ -35,6 +37,14 @@ describe('decide: a cancelable in-page navigation', () => {
 
   it('redirects a single Instagram Reel tap to its post page and records the redirect', () => {
     expect(decide(REEL, { now: NOW, redirects: [] })).toEqual({ action: 'redirect', target: POST, redirects: [NOW] });
+  });
+
+  it('redirects an X video viewer to its tweet page and records the redirect', () => {
+    expect(decide(X_VIDEO, { now: NOW, redirects: [] })).toEqual({ action: 'redirect', target: TWEET, redirects: [NOW] });
+  });
+
+  it('lets an X video viewer through when the loop guard refuses the rewrite', () => {
+    expect(decide(X_VIDEO, { now: NOW, redirects: [NOW - 1000, NOW - 500] })).toEqual({ action: 'allow' });
   });
 
   it('lets a single Instagram Reel tap through when the loop guard refuses the rewrite', () => {
@@ -100,5 +110,7 @@ describe('markerCounts: a #dwell=<site> landing', () => {
     expect(markerCounts('youtube', { ...ALL_OFF, youtubeShorts: true })).toBe(true);
     expect(markerCounts('facebook', { ...ALL_ON, facebookReels: false })).toBe(false);
     expect(markerCounts('facebook', { ...ALL_OFF, facebookReels: true })).toBe(true);
+    expect(markerCounts('x', { ...ALL_ON, xVideos: false })).toBe(false);
+    expect(markerCounts('x', { ...ALL_OFF, xVideos: true })).toBe(true);
   });
 });

@@ -1,0 +1,15 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "regexSubstitution": "https://x.com/\\1/status/\\2#dwell=x" }
+    },
+    "condition": {
+      "regexFilter": "^https://x\\.com/([A-Za-z0-9_]+)/status/([0-9]{1,25})/video/[0-9]+/?(?:\\?.*)?$",
+      "isUrlFilterCaseSensitive": false,
+      "resourceTypes": ["main_frame"]
+    }
+  }
+]

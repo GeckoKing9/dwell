@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>X fixture</title>
+    <script>
+      // Runs after the guard (document_start) and before first paint: records the hash it found.
+      document.documentElement.dataset.hashAtHead = location.hash;
+    </script>
+  </head>
+  <body>
+    <main>
+      <a id="open-video" href="/someuser/status/123/video/1">Open a video</a>
+      <a id="open-photo" href="/someuser/status/123/photo/1">Open a photo</a>
+    </main>
+    <script>
+      // The site's own router: an in-page route change, like a video tapped in the timeline.
+      for (const id of ['open-video', 'open-photo']) {
+        const link = document.getElementById(id);
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          history.pushState({}, '', link.getAttribute('href'));
+        });
+      }
+    </script>
+  </body>
+</html>

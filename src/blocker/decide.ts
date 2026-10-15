@@ -29,13 +29,14 @@ export type Decision =
   | { action: 'redirect'; target: string; redirects: number[] };
 
 /** Kinds rewritten to a single-video page rather than cancelled in place. */
-const REWRITTEN: ReadonlySet<BlockKind> = new Set(['shorts', 'reel']);
+const REWRITTEN: ReadonlySet<BlockKind> = new Set(['shorts', 'reel', 'video']);
 
 /** The site's toggles that put a `#dwell=<site>` marker on a landing. */
 const SITE_TOGGLES: Readonly<Record<BlockedSite, readonly (keyof Blockers)[]>> = {
   instagram: ['instagramReels', 'instagramExplore'],
   youtube: ['youtubeShorts'],
   facebook: ['facebookReels'],
+  x: ['xVideos'],
 };
 
 /**
@@ -49,8 +50,8 @@ export function admitRedirect(loop: LoopState): number[] | null {
 
 /**
  * What the guard does with a cancelable in-page navigation the classifier judged as `hit`.
- * A Reels feed and Explore are cancelled in place and counted. A single Reel or Short is cancelled only
- * when its redirect to the single-video page will happen: when the loop guard or the allowlist refuses
+ * A Reels feed and Explore are cancelled in place and counted. A single Reel, Short or X video viewer is
+ * cancelled only when its redirect to the single-video page will happen: when the loop guard or the allowlist refuses
  * it, the tap goes through (and the viewer lock keeps that viewer to the one video).
  */
 export function decide(hit: Classification | null, loop: LoopState): Decision {

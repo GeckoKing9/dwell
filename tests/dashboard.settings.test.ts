@@ -79,6 +79,17 @@ describe('settings', () => {
     expect(el(tree, 'blocker-instagramReels').props['aria-labelledby']).toBe('row-instagramReels-title');
   });
 
+  it('lists X videos as its own blocker, on by default, after the other one-video blockers', () => {
+    const rows = all([el(tree, 'set-blockers')], (e) => typeof e.props.id === 'string' && /^row-[a-zA-Z]+$/.test(e.props.id));
+    expect(rows.map((r) => r.props.id)).toEqual(['row-instagramReels', 'row-youtubeShorts', 'row-facebookReels', 'row-xVideos', 'row-instagramExplore']);
+    expect(text([el(tree, 'row-xVideos')])).toContain('X videos');
+    expect(text([el(tree, 'row-xVideos')])).toContain('One video at a time; X’s video feed is blocked.');
+    expect(el(tree, 'blocker-xVideos').props['aria-checked']).toBe('true');
+    expect(el(tree, 'blocker-xVideos').props['aria-labelledby']).toBe('row-xVideos-title');
+    call(el(tree, 'blocker-xVideos'), 'onClick');
+    expect(on.settings.change).toHaveBeenLastCalledWith({ blockers: { xVideos: false } });
+  });
+
   it('lists split subdomains with their state and a switch to count them with their site again', () => {
     expect(byClass(tree, 'ovr-row').map((r) => text([r]))).toEqual(['mail.google.com · Counted separately', 'docs.google.com · Counted with google.com']);
     call(el(tree, 'split-mail_google_com'), 'onClick');
@@ -192,8 +203,8 @@ describe('privacy panel', () => {
   it('states what the tests check, in auditable terms', () => {
     expect(prose).toContain('configured to refuse network requests');
     expect(prose).toContain("default-src 'none'");
-    expect(prose).toContain('Its scripts run only on Instagram, YouTube and Facebook and send nothing off the device.');
-    expect(prose).toContain('Reels and Shorts redirects stay within those sites.');
+    expect(prose).toContain('Its scripts run only on Instagram, YouTube, Facebook and X and send nothing off the device.');
+    expect(prose).toContain('Its redirects stay within those sites.');
     expect(prose).toContain('auditable');
     expect(prose.toLowerCase()).not.toContain('provable');
     expect(el(tree, 'nav-privacy').props['aria-current']).toBe('page');

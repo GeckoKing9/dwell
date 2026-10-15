@@ -1,5 +1,5 @@
 /**
- * Keeps the four static DNR rulesets in step with the blocker toggles (R14, R18). It reads what
+ * Keeps the five static DNR rulesets in step with the blocker toggles (R14, R18). It reads what
  * Chrome has enabled first and writes only when that differs, so a worker that wakes every few
  * minutes makes no DNR write at all while nothing changed; when it does write, it states the whole
  * wanted set, so the result never depends on what was enabled before.
@@ -13,6 +13,7 @@ export const RULESET_IDS: Readonly<Record<keyof Blockers, string>> = Object.free
   instagramReels: 'instagram-reels',
   youtubeShorts: 'youtube-shorts',
   facebookReels: 'facebook-reels',
+  xVideos: 'x-videos',
   instagramExplore: 'instagram-explore',
 });
 

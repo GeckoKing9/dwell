@@ -72,6 +72,8 @@ function hourWeights(shape: Shape, weekend: boolean): number[] {
  */
 export function simulateDays(seed: number, today: Date, days = 90): Record<string, DayRecord> {
   const rnd = mulberry32(seed);
+  /** X redirects draw from their own stream, so adding them left every other simulated value as it was. */
+  const xRnd = mulberry32(seed ^ 0x78);
   const gauss = (): number => {
     let u = 0;
     let v = 0;
@@ -79,13 +81,13 @@ export function simulateDays(seed: number, today: Date, days = 90): Record<strin
     while (v === 0) v = rnd();
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   };
-  const poisson = (lambda: number): number => {
+  const poisson = (lambda: number, next: () => number = rnd): number => {
     const limit = Math.exp(-lambda);
     let k = 0;
     let p = 1;
     do {
       k++;
-      p *= rnd();
+      p *= next();
     } while (p > limit);
     return k - 1;
   };
@@ -156,6 +158,7 @@ export function simulateDays(seed: number, today: Date, days = 90): Record<strin
       record.blocked.instagram = poisson(weekend ? 1.7 : 1.1);
       record.blocked.youtube = poisson(weekend ? 1.0 : 0.6);
       record.blocked.facebook = poisson(0.18);
+      record.blocked.x = poisson(0.35, xRnd);
     }
   }
   return out;

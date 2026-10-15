@@ -36,13 +36,13 @@ function parsedOk(result: ParsedImport): Extract<ParsedImport, { ok: true }> {
   return result;
 }
 
-const BASE_DAY = { sites: { 'github.com': site({ '9': 600, '10': 300 }, 2) }, blocked: { instagram: 1, youtube: 0, facebook: 0 } };
+const BASE_DAY = { sites: { 'github.com': site({ '9': 600, '10': 300 }, 2) }, blocked: { instagram: 1, youtube: 0, facebook: 0, x: 0 } };
 
 describe('export then import', () => {
   it('reproduces identical day keys in an empty store', async () => {
     const source = memoryStore({
       [`d:${daysAgo(0)}`]: BASE_DAY,
-      [`d:${daysAgo(3)}`]: { sites: { 'youtube.com': site({ '21': 1340, '22': 610 }, 3) }, blocked: { instagram: 0, youtube: 4, facebook: 0 } },
+      [`d:${daysAgo(3)}`]: { sites: { 'youtube.com': site({ '21': 1340, '22': 610 }, 3) }, blocked: { instagram: 0, youtube: 4, facebook: 0, x: 2 } },
       [SETTINGS_KEY]: { ...DEFAULT_SETTINGS, idleThresholdSec: 120 },
     });
     const exported = await exportAll(source, TODAY);
@@ -94,7 +94,8 @@ describe('merging into existing data', () => {
     const merged = store.dump()[day];
     expect(merged).toEqual({
       sites: { 'github.com': site({ '9': 900, '10': 300, '11': 50 }, 5), 'x.com': site({ '9': 40 }, 1) },
-      blocked: { instagram: 7, youtube: 2, facebook: 0 },
+      // Neither side counted X: the merged day carries X's 0 like any other site.
+      blocked: { instagram: 7, youtube: 2, facebook: 0, x: 0 },
     });
     const calls = store.setCalls;
     expect(await importText(store, text(incoming), TODAY)).toMatchObject({ ok: true, daysWritten: 0 });
@@ -263,11 +264,55 @@ describe('hardened import rejections', () => {
   });
 });
 
+describe('files with and without X counts', () => {
+  /** A v0.1.0 export: three blocked sites per day and settings with no `xVideos`. */
+  const v010 = file(
+    { [daysAgo(1)]: { sites: { 'a.com': site({ '9': 60 }) }, blocked: { instagram: 2, youtube: 1, facebook: 0 } } },
+    {
+      settings: {
+        ...DEFAULT_SETTINGS,
+        blockers: { instagramReels: false, youtubeShorts: true, facebookReels: true, instagramExplore: false },
+      },
+    },
+  );
+
+  it('accepts an export made before X existed, reading its X count as 0 and its X toggle as on', async () => {
+    const parsed = parsedOk(parseImport(text(v010), TODAY));
+    expect(parsed.days[daysAgo(1)]?.blocked).toEqual({ instagram: 2, youtube: 1, facebook: 0, x: 0 });
+    expect(parsed.settings?.blockers).toEqual({ instagramReels: false, youtubeShorts: true, facebookReels: true, xVideos: true, instagramExplore: false });
+    const store = memoryStore();
+    expect(await importText(store, text(v010), TODAY)).toMatchObject({ ok: true, daysWritten: 1, settingsWritten: true });
+    expect((store.dump()[SETTINGS_KEY] as typeof DEFAULT_SETTINGS).blockers.xVideos).toBe(true);
+  });
+
+  it('accepts X counts, merges them by maximum and exports them back', async () => {
+    const day = `d:${daysAgo(1)}`;
+    const store = memoryStore({ [day]: { sites: {}, blocked: { instagram: 0, youtube: 0, facebook: 0, x: 5 } } });
+    const incoming = file({ [daysAgo(1)]: { sites: {}, blocked: { x: 3, instagram: 1 } } });
+    expect(await importText(store, text(incoming), TODAY)).toMatchObject({ ok: true, daysWritten: 1 });
+    expect(store.dump()[day]).toEqual({ sites: {}, blocked: { instagram: 1, youtube: 0, facebook: 0, x: 5 } });
+    const exported = await exportAll(store, TODAY);
+    expect(exported.days[daysAgo(1)]?.blocked).toEqual({ instagram: 1, youtube: 0, facebook: 0, x: 5 });
+  });
+
+  it('holds X counts to the same caps as the other sites', () => {
+    const day = (blocked: unknown): Record<string, unknown> => file({ [daysAgo(1)]: { sites: {}, blocked } });
+    expect(parsedOk(parseImport(text(day({ x: 100_000 })), TODAY)).days[daysAgo(1)]?.blocked.x).toBe(100_000);
+    expectRejected(parseImport(text(day({ x: 100_001 })), TODAY), 'bad-blocked', 'x redirects');
+    expectRejected(parseImport(text(day({ x: -1 })), TODAY), 'bad-blocked', 'x redirects');
+    expectRejected(parseImport(text(day({ x: 1.5 })), TODAY), 'bad-blocked', 'x redirects');
+    expectRejected(parseImport(text(day({ twitter: 1 })), TODAY), 'bad-blocked', 'twitter');
+  });
+});
+
 describe('import is idempotent (property)', () => {
   const host = fc.stringMatching(/^[a-z0-9]{1,6}\.(com|ca|org)$/);
   const hours = fc.dictionary(fc.integer({ min: 0, max: 23 }).map(String), fc.integer({ min: 0, max: 3600 }), { maxKeys: 6 });
   const siteRecord = fc.record({ h: hours, v: fc.integer({ min: 0, max: 100_000 }) });
-  const blocked = fc.record({ instagram: fc.nat(500), youtube: fc.nat(500), facebook: fc.nat(500) });
+  const blocked = fc.record(
+    { instagram: fc.nat(500), youtube: fc.nat(500), facebook: fc.nat(500), x: fc.nat(500) },
+    { requiredKeys: ['instagram', 'youtube', 'facebook'] },
+  );
   const dayRecord = fc.record({ sites: fc.dictionary(host, siteRecord, { maxKeys: 5 }), blocked });
   const days = fc.dictionary(fc.integer({ min: -3, max: 95 }).map(daysAgo), dayRecord, { maxKeys: 12 });
   const settings = fc.option(fc.record({ idleThresholdSec: fc.constantFrom(30, 60, 120, 300), eventLog: fc.boolean() }), { nil: undefined });

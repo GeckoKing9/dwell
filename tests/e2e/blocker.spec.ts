@@ -3,21 +3,24 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { classify } from '../../src/blocker/patterns.ts';
 import { DEFAULT_SETTINGS, type Settings } from '../../src/store/schema.ts';
-import { swipeTo, tapFeed, tapReel, tapShort } from './fixtures/taps.ts';
+import { swipeTo, tapFeed, tapPhoto, tapReel, tapShort, tapVideo } from './fixtures/taps.ts';
 
 const dist = fileURLToPath(new URL('../../dist', import.meta.url));
 const fixture = readFileSync(new URL('./fixtures/instagram.html', import.meta.url), 'utf8');
 const fbFixture = readFileSync(new URL('./fixtures/facebook.html', import.meta.url), 'utf8');
+const xFixture = readFileSync(new URL('./fixtures/x.html', import.meta.url), 'utf8');
 const SHORT_ID = 'dQw4w9WgXcQ';
 const CODE = 'DeewiSPpCrm';
 const IG = 'https://www.instagram.com';
 const YT = 'https://www.youtube.com';
 const FB = 'https://www.facebook.com';
-const RULESETS = ['instagram-reels', 'youtube-shorts', 'facebook-reels', 'instagram-explore'] as const;
+const X = 'https://x.com';
+const RULESETS = ['instagram-reels', 'youtube-shorts', 'facebook-reels', 'x-videos', 'instagram-explore'] as const;
 const TOGGLE: Record<(typeof RULESETS)[number], keyof Settings['blockers']> = {
   'instagram-reels': 'instagramReels',
   'youtube-shorts': 'youtubeShorts',
   'facebook-reels': 'facebookReels',
+  'x-videos': 'xVideos',
   'instagram-explore': 'instagramExplore',
 };
 
@@ -50,6 +53,10 @@ test.beforeAll(async () => {
   await context.route(`${FB}/**`, async (route) => {
     served.push(route.request().url());
     await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fbFixture });
+  });
+  await context.route(`${X}/**`, async (route) => {
+    served.push(route.request().url());
+    await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: xFixture });
   });
 });
 
@@ -95,8 +102,7 @@ function path(page: Page): string {
  * The worker reconciles the DNR rulesets when an extension page saves settings; `setBlockers` writes
  * storage directly, so a test that needs hard loads to follow the toggles sets the rulesets here too.
  */
-async function setReelRulesets(enabled: boolean): Promise<void> {
-  const ids = ['instagram-reels', 'youtube-shorts', 'facebook-reels'];
+async function setReelRulesets(enabled: boolean, ids = ['instagram-reels', 'youtube-shorts', 'facebook-reels', 'x-videos']): Promise<void> {
   await worker.evaluate(
     async ({ ids, enabled }) =>
       chrome.declarativeNetRequest.updateEnabledRulesets(enabled ? { enableRulesetIds: ids } : { disableRulesetIds: ids }),
@@ -145,6 +151,15 @@ test('every DNR rule compiles under Chrome RE2 limits and matches what the class
     'https://m.facebook.com/reel?s=1',
     'https://m.facebook.com/someone/reels/',
     'https://www.facebook.com/watch/',
+    `${X}/someuser/status/123/video/1`,
+    `${X}/i/status/1234567890123456789/video/2?s=20`,
+    `${X}/Some_User/STATUS/123/Video/1/`,
+    `${X}/${'a'.repeat(20)}/status/${'9'.repeat(25)}/video/1`,
+    `${X}/someuser/status/${'9'.repeat(26)}/video/1`,
+    `${X}/someuser/status/123`,
+    `${X}/someuser/status/123/photo/1`,
+    `${X}/someuser/status/123/video/1/likes`,
+    `${X}/home`,
   ];
   const expected = samples.map((url) =>
     RULESETS.filter((id) => classify(url, { ...noBlockers(), [TOGGLE[id]]: true }) !== null).sort(),
@@ -186,7 +201,7 @@ test('every DNR rule compiles under Chrome RE2 limits and matches what the class
 });
 
 function noBlockers(): Settings['blockers'] {
-  return { instagramReels: false, youtubeShorts: false, facebookReels: false, instagramExplore: false };
+  return { instagramReels: false, youtubeShorts: false, facebookReels: false, xVideos: false, instagramExplore: false };
 }
 
 test('a hard load of a Shorts URL is redirected by DNR to the watch page for the same id', async () => {
@@ -439,6 +454,94 @@ test('the loop guard lets the third Shorts tap within 5 s through instead of can
   expect(page.url()).toBe(`${YT}/shorts/CCCCCCCCCCC`);
   const landing = { type: 'blocked', site: 'youtube' };
   await expect.poll(blocked).toEqual([landing, landing]);
+  await page.close();
+});
+
+test('a hard load of an X video viewer lands on its tweet page, counted once, marker stripped', async () => {
+  const page = await context.newPage();
+  await page.goto(`${X}/someuser/status/123/video/1`);
+  await expect.poll(() => page.url()).toBe(`${X}/someuser/status/123`);
+  // DNR redirected before any request: the viewer URL never reached the server.
+  expect(served).toEqual([`${X}/someuser/status/123`]);
+  expect(await page.evaluate(() => document.documentElement.dataset.hashAtHead)).toBe('');
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-x', 'on');
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'x' }]);
+  await page.close();
+});
+
+test('an in-page tap on an X video lands on its tweet page, counted once on landing', async () => {
+  const page = await context.newPage();
+  await page.goto(`${X}/home`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-x', 'on');
+
+  expect(await tapVideo(page)).toEqual({ path: '/home', added: 0 });
+  await expect.poll(() => page.url()).toBe(`${X}/someuser/status/123`);
+  expect(served.some((url) => url.includes('/video/'))).toBe(false);
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'x' }]);
+  await page.waitForTimeout(600);
+  expect(await blocked()).toHaveLength(1);
+  await page.close();
+});
+
+test('an X photo viewer and the rest of X load untouched', async () => {
+  const page = await context.newPage();
+  await page.goto(`${X}/someuser/status/123/photo/1`);
+  expect(path(page)).toBe('/someuser/status/123/photo/1');
+  await page.goto(`${X}/home`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-x', 'on');
+  expect(await tapPhoto(page)).toEqual({ path: '/someuser/status/123/photo/1', added: 1 });
+  await page.waitForTimeout(600);
+  expect(path(page)).toBe('/someuser/status/123/photo/1');
+  expect(await blocked()).toEqual([]);
+  await page.close();
+});
+
+test('an X viewer reached while the loop guard refused stays on its tweet: a move to the next video is cancelled', async () => {
+  const page = await context.newPage();
+  await page.goto(`${X}/home`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-x', 'on');
+  await page.evaluate(() => sessionStorage.setItem('dwell:redirects', JSON.stringify([Date.now(), Date.now()])));
+
+  expect(await tapVideo(page)).toEqual({ path: '/someuser/status/123/video/1', added: 1 });
+  expect(await swipeTo(page, '/other/status/456/video/1')).toEqual({ path: '/someuser/status/123/video/1', added: 0 });
+  await page.waitForTimeout(600);
+  expect(path(page)).toBe('/someuser/status/123/video/1');
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'x' }]);
+  await page.close();
+});
+
+test('with xVideos off, the X viewer loads and moves untouched, and the other blockers stay on', async () => {
+  await setBlockers({ xVideos: false });
+  await setReelRulesets(false, ['x-videos']);
+  const page = await context.newPage();
+  await page.goto(`${X}/someuser/status/123/video/1`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-x', 'off');
+  expect(path(page)).toBe('/someuser/status/123/video/1');
+  expect(await swipeTo(page, '/other/status/456/video/1')).toEqual({ path: '/other/status/456/video/1', added: 1 });
+  await page.waitForTimeout(600);
+  expect(path(page)).toBe('/other/status/456/video/1');
+  expect(await blocked()).toEqual([]);
+  await page.close();
+
+  const yt = await context.newPage();
+  await yt.goto(`https://www.youtube.com/shorts/${SHORT_ID}`);
+  await expect.poll(() => yt.url()).toBe(`https://www.youtube.com/watch?v=${SHORT_ID}`);
+  await yt.close();
+  await setReelRulesets(true, ['x-videos']);
+});
+
+test('settings stored before X existed read the missing X toggle as on, live in an open X tab', async () => {
+  await setBlockers({ xVideos: false });
+  const page = await context.newPage();
+  await page.goto(`${X}/home`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-x', 'off');
+
+  const old = { ...DEFAULT_SETTINGS, blockers: { instagramReels: true, youtubeShorts: true, facebookReels: true, instagramExplore: false } };
+  await worker.evaluate(async (value) => chrome.storage.local.set({ settings: value }), old);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-x', 'on');
+  expect(await tapVideo(page)).toEqual({ path: '/home', added: 0 });
+  await expect.poll(() => page.url()).toBe(`${X}/someuser/status/123`);
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'x' }]);
   await page.close();
 });
 

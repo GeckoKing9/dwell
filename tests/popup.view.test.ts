@@ -181,6 +181,24 @@ describe('popup, other states', () => {
     expect(text(byClass(tree, 'facts-r'))).toBe('44m0 visits');
   });
 
+  it('X: the video feed toggle says what it does, and one tap sends the X key', () => {
+    const onBlocker = vi.fn();
+    const tree = render(model({ url: 'https://x.com/someuser/status/123' }), null, { onBlocker });
+    expect(text(byClass(tree, 'dom'))).toBe('x.com');
+    expect(text(byClass(tree, 'state'))).toBe('Video feed off');
+    expect(text(byClass(tree, 'sub'))).toBe('One video at a time, no scrolling to the next');
+    expect(byId(tree, 'blocker-switch')?.props['aria-checked']).toBe('true');
+    (byId(tree, 'blocker-switch')?.props.onClick as () => void)();
+    expect(onBlocker).toHaveBeenCalledWith('xVideos', false);
+  });
+
+  it('X with the blocker off: the toggle says what switching it on does', () => {
+    const tree = render(model({ url: 'https://x.com/home' }, { blockers: { ...DEFAULT_SETTINGS.blockers, xVideos: false } }));
+    expect(text(byClass(tree, 'state'))).toBe('Video feed on');
+    expect(text(byClass(tree, 'sub'))).toBe('Switch on to watch one video at a time');
+    expect(byId(tree, 'blocker-switch')?.props['aria-checked']).toBe('false');
+  });
+
   it('blocker off: the toggle says what switching it on does', () => {
     const off = { ...DEFAULT_SETTINGS.blockers, youtubeShorts: false };
     const tree = render(model({ url: 'https://www.youtube.com/' }, { blockers: off }));

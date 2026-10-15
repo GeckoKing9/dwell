@@ -10,6 +10,7 @@ const dist = fileURLToPath(new URL('../../dist', import.meta.url));
 const SEED = 20261014;
 const YOUTUBE = 'https://www.youtube.com/';
 const NEWS = 'https://news.example/';
+const X_TWEET = 'https://x.com/someuser/status/123';
 const STUB_PAGE = '<!doctype html><title>fixture</title><p>fixture page</p>';
 
 let context: BrowserContext;
@@ -28,7 +29,7 @@ test.beforeAll(async () => {
   });
   worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
   extensionId = new URL(worker.url()).host;
-  for (const origin of [YOUTUBE, NEWS]) {
+  for (const origin of [YOUTUBE, NEWS, 'https://x.com/']) {
     await context.route(`${origin}**`, (route) => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: STUB_PAGE }));
   }
 });
@@ -129,6 +130,22 @@ test.describe('popup', () => {
     await expect.poll(async () => (await storedSettings()).blockers.youtubeShorts).toBe(true);
   });
 
+  test('an X tab shows the X video toggle, and one tap flips it in storage', async () => {
+    await seedSimulated();
+    const popup = await openPopup(X_TWEET);
+    await expect(popup.locator('.pp-site .dom')).toHaveText('x.com');
+    const toggle = popup.locator('#blocker-switch');
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await expect(popup.locator('#blocker-label')).toHaveText('Video feed off');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await expect(popup.locator('#blocker-label')).toHaveText('Video feed on');
+    await expect.poll(async () => (await storedSettings()).blockers.xVideos).toBe(false);
+    expect(await overflow(popup, '.pp-body')).toEqual(NO_OVERFLOW);
+    await toggle.click();
+    await expect.poll(async () => (await storedSettings()).blockers.xVideos).toBe(true);
+  });
+
   test('a news site shows its time and no toggle', async () => {
     await seedSimulated();
     const popup = await openPopup(NEWS);
@@ -189,7 +206,7 @@ test.describe('popup', () => {
     await expect(popup.locator('.popup')).toHaveAttribute('data-state', 'first');
     const today: DayRecord = {
       sites: { 'news.example': { h: { [String(new Date().getHours())]: 47 * 60 }, v: 3 } },
-      blocked: { instagram: 0, youtube: 0, facebook: 0 },
+      blocked: { instagram: 0, youtube: 0, facebook: 0, x: 0 },
     };
     await seed({ [dayKey(new Date())]: today });
     await expect(popup.locator('.hero-num .sr')).toHaveText('47m');

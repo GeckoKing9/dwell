@@ -80,10 +80,10 @@ test('fetch from the dashboard page is refused and a remote image never loads', 
   await page.close();
 });
 
-const ALLOWED_HOSTS = new Set(['a.example', 'b.example', 'www.instagram.com', 'www.youtube.com', 'www.facebook.com', 'm.youtube.com']);
+const ALLOWED_HOSTS = new Set(['a.example', 'b.example', 'www.instagram.com', 'www.youtube.com', 'www.facebook.com', 'm.youtube.com', 'x.com']);
 const INERT = ['data:', 'blob:'];
 
-test('a full tracking and blocking session makes no request outside the fixture hosts and the three sites', async () => {
+test('a full tracking and blocking session makes no request outside the fixture hosts and the four sites', async () => {
   test.setTimeout(60_000);
   const fixture = readFileSync(new URL('./fixtures/instagram.html', import.meta.url), 'utf8');
   const stub = (title: string): string => `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${title}</title></head><body><p>${title}</p></body></html>`;
@@ -92,6 +92,7 @@ test('a full tracking and blocking session makes no request outside the fixture 
   await context.route('https://b.example/**', (route) => route.fulfill(html(stub('B'))));
   await context.route('https://www.instagram.com/**', (route) => route.fulfill(html(fixture)));
   await context.route('https://www.youtube.com/**', (route) => route.fulfill(html(stub('stub'))));
+  await context.route('https://x.com/**', (route) => route.fulfill(html(stub('X'))));
 
   interface Seen {
     url: string;
@@ -121,6 +122,9 @@ test('a full tracking and blocking session makes no request outside the fixture 
     await ig.evaluate(() => document.getElementById('open-reel')?.click());
     const shorts = await context.newPage();
     await shorts.goto('https://www.youtube.com/shorts/dQw4w9WgXcQ');
+    const x = await context.newPage();
+    await x.goto('https://x.com/someuser/status/123/video/1');
+    await expect.poll(() => x.url()).toBe('https://x.com/someuser/status/123');
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/src/popup/index.html`);
     await expect(popup.locator('#app')).not.toBeEmpty();

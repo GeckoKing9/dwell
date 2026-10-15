@@ -9,6 +9,7 @@ const BLOCKERS: readonly [keyof Settings['blockers'], MessageKey, MessageKey][] 
   ['instagramReels', 'bIgReels', 'bIgReelsD'],
   ['youtubeShorts', 'bYtShorts', 'bYtShortsD'],
   ['facebookReels', 'bFbReels', 'bFbReelsD'],
+  ['xVideos', 'bXVideos', 'bXVideosD'],
   ['instagramExplore', 'bIgExplore', 'bIgExploreD'],
 ];
 

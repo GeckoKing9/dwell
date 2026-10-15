@@ -2,8 +2,8 @@
  * Sender authorisation for every runtime message (KTD4c). Pure: the worker passes `chrome.runtime.id`.
  * - The sender must be this extension.
  * - An extension page (popup, dashboard; top frame only) may send only the page message types.
- * - A content script (a top-frame tab on an https www, m or bare host of the three sites) may send only
- *   `blocked` and `media`, and `blocked` only for the site it runs on.
+ * - A content script (a top-frame tab on an https www, m or bare host of Instagram, YouTube or Facebook,
+ *   or on x.com) may send only `blocked` and `media`, and `blocked` only for the site it runs on.
  * Reasons name the rule that failed and never echo the sender URL.
  */
 import { siteForHost } from '../blocker/patterns.ts';
@@ -31,7 +31,7 @@ function hostOf(url: string): URL | null {
   try {
     return new URL(url);
   } catch {
-    // Not an absolute URL: no host, so not one of the three sites.
+    // Not an absolute URL: no host, so not one of the four sites.
     return null;
   }
 }

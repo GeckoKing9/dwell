@@ -11,7 +11,7 @@ export const PERMISSIONS: readonly [string, MessageKey][] = [
   ['declarativeNetRequest', 'perm_dnr'],
 ];
 
-/** Site access exactly as the manifest lists it: www, m and bare hosts of the three sites, https only. */
+/** Site access exactly as the manifest lists it: www, m and bare hosts of three sites plus x.com, https only. */
 export const SITE_ACCESS: readonly string[] = [
   'https://www.instagram.com/*',
   'https://instagram.com/*',
@@ -21,6 +21,7 @@ export const SITE_ACCESS: readonly string[] = [
   'https://www.facebook.com/*',
   'https://m.facebook.com/*',
   'https://facebook.com/*',
+  'https://x.com/*',
 ];
 
 const KEPT: readonly MessageKey[] = ['k1', 'k2', 'k3', 'k4', 'k5', 'k6'];

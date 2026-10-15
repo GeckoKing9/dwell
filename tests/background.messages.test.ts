@@ -63,6 +63,14 @@ describe('content-script messages', () => {
     expect(fake.local.data.has('d:2026-10-14')).toBe(true);
   });
 
+  it('counts a blocked message from x.com for X, and refuses one from x.com naming another site', async () => {
+    const X = { ...INSTAGRAM, url: 'https://x.com/someuser/status/123' };
+    expect(await bg.handleMessage({ type: 'blocked', site: 'x' }, X)).toEqual({ ok: true });
+    expect(await bg.handleMessage({ type: 'blocked', site: 'instagram' }, X)).toMatchObject({ ok: false });
+    expect(blockedCount(fake, 'x')).toBe(1);
+    expect(blockedCount(fake, 'instagram')).toBe(0);
+  });
+
   it('gives a media message to the engine for the sender tab', async () => {
     await bg.handleMessage({ type: 'media', playing: true }, { ...INSTAGRAM, url: 'https://www.youtube.com/' });
     expect(engineState(fake).tabs['8']?.media).toMatchObject({ src: 'msg', on: true });
@@ -89,14 +97,31 @@ describe('settings', () => {
     const patch = { blockers: { instagramReels: false, instagramExplore: true } };
     const reply = await bg.handleMessage({ type: 'settings', patch }, DASHBOARD);
     expect(reply).toMatchObject({ ok: true, settings: { blockers: { instagramReels: false, instagramExplore: true } } });
-    expect(settings().blockers).toEqual({ instagramReels: false, youtubeShorts: true, facebookReels: true, instagramExplore: true });
-    expect([...fake.enabledRulesets].sort()).toEqual(['facebook-reels', 'instagram-explore', 'youtube-shorts']);
+    expect(settings().blockers).toEqual({ instagramReels: false, youtubeShorts: true, facebookReels: true, xVideos: true, instagramExplore: true });
+    expect([...fake.enabledRulesets].sort()).toEqual(['facebook-reels', 'instagram-explore', 'x-videos', 'youtube-shorts']);
     expect(RULESET_IDS).toEqual({
       instagramReels: 'instagram-reels',
       youtubeShorts: 'youtube-shorts',
       facebookReels: 'facebook-reels',
+      xVideos: 'x-videos',
       instagramExplore: 'instagram-explore',
     });
+  });
+
+  it('turns the X ruleset off and on with the X toggle', async () => {
+    await bg.handleMessage({ type: 'settings', patch: { blockers: { xVideos: false } } }, POPUP);
+    expect(settings().blockers.xVideos).toBe(false);
+    expect(fake.enabledRulesets.has('x-videos')).toBe(false);
+    await bg.handleMessage({ type: 'settings', patch: { blockers: { xVideos: true } } }, POPUP);
+    expect(fake.enabledRulesets.has('x-videos')).toBe(true);
+  });
+
+  it('keeps the X ruleset on when a toggle is flipped over settings stored before X existed', async () => {
+    const old = { instagramReels: true, youtubeShorts: true, facebookReels: true, instagramExplore: false };
+    fake.local.data.set('settings', { ...DEFAULT_SETTINGS, blockers: old });
+    await bg.handleMessage({ type: 'settings', patch: { blockers: { youtubeShorts: false } } }, POPUP);
+    expect(settings().blockers).toEqual({ ...old, youtubeShorts: false, xVideos: true });
+    expect([...fake.enabledRulesets].sort()).toEqual(['facebook-reels', 'instagram-reels', 'x-videos']);
   });
 
   it('sets the idle detection interval only when the threshold changes', async () => {

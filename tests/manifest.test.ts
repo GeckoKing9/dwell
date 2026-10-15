@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   EXPECTED_CSP,
   EXPECTED_PERMISSIONS,
+  EXPECTED_RULESETS,
   SITE_PATTERNS,
   manifestProblems,
 } from '../scripts/manifest-rules.ts';
@@ -28,9 +29,32 @@ describe('source manifest', () => {
     expect(source.host_permissions).toEqual([...SITE_PATTERNS]);
   });
 
+  it('reaches X on https://x.com only: twitter.com and www.x.com redirect there before any script runs', () => {
+    const x = SITE_PATTERNS.filter((pattern) => /x\.com|twitter/.test(pattern));
+    expect(x).toEqual(['https://x.com/*']);
+  });
+
+  it('runs the guard and the media reporter on X, with no hider stylesheet', () => {
+    const scripts = source.content_scripts as { matches: string[]; js: string[]; css?: string[] }[];
+    const x = scripts.find((s) => s.matches.includes('https://x.com/*'));
+    expect(x).toEqual({
+      matches: ['https://x.com/*'],
+      js: ['src/content/guard.ts', 'src/content/media.ts'],
+      run_at: 'document_start',
+      all_frames: false,
+      match_about_blank: false,
+    });
+  });
+
+  it('declares the X ruleset, enabled like the other one-video rulesets', () => {
+    expect(EXPECTED_RULESETS).toContainEqual({ id: 'x-videos', enabled: true });
+    const dnr = source.declarative_net_request as { rule_resources: { id: string; enabled: boolean; path: string }[] };
+    expect(dnr.rule_resources).toContainEqual({ id: 'x-videos', enabled: true, path: 'src/blocker/rulesets/x-videos.json' });
+  });
+
   it('runs every content script in the top frame only', () => {
     const scripts = source.content_scripts as { all_frames: boolean; matches: string[] }[];
-    expect(scripts.length).toBe(3);
+    expect(scripts.length).toBe(4);
     for (const script of scripts) expect(script.all_frames).toBe(false);
     expect(scripts.flatMap((s) => s.matches).sort()).toEqual([...SITE_PATTERNS].sort());
   });

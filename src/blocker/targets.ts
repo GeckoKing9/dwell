@@ -21,14 +21,25 @@ const REEL_CODE_RE = new RegExp(`^${REEL_CODE_SOURCE}$`);
 /** A Facebook reel id: 1 to 32 digits. */
 export const FACEBOOK_REEL_ID_SOURCE = '[0-9]{1,32}';
 const FACEBOOK_REEL_ID_RE = new RegExp(`^${FACEBOOK_REEL_ID_SOURCE}$`);
+/**
+ * An X username, or the literal `i` of X's `/i/status/<id>` form, which the same alphabet covers. X caps
+ * usernames at 15 characters, but Chrome's RE2 refuses `{1,15}` here in the DNR rule (memoryLimitExceeded),
+ * so like the Instagram code it has no upper bound; the alphabet alone keeps targets inert.
+ */
+export const X_USER_SOURCE = '[A-Za-z0-9_]+';
+const X_USER_RE = new RegExp(`^${X_USER_SOURCE}$`);
+/** An X status (tweet) id: 1 to 25 digits. */
+export const X_STATUS_ID_SOURCE = '[0-9]{1,25}';
+const X_STATUS_ID_RE = new RegExp(`^${X_STATUS_ID_SOURCE}$`);
 
 export const TARGET_FRAGMENT: Readonly<Record<BlockedSite, string>> = Object.freeze({
   instagram: '#dwell=instagram',
   youtube: '#dwell=youtube',
   facebook: '#dwell=facebook',
+  x: '#dwell=x',
 });
 
-/** Fixed home-page targets. YouTube's target is the template below, never a fixed URL. */
+/** Fixed home-page targets. YouTube's and X's targets are the templates below, never a fixed URL. */
 export const REDIRECT_TARGETS = Object.freeze({
   instagram: `https://www.instagram.com/${TARGET_FRAGMENT.instagram}`,
   facebook: `https://www.facebook.com/${TARGET_FRAGMENT.facebook}`,
@@ -37,12 +48,14 @@ export const REDIRECT_TARGETS = Object.freeze({
 export const YOUTUBE_WATCH_PREFIX = 'https://www.youtube.com/watch?v=';
 export const INSTAGRAM_POST_PREFIX = 'https://www.instagram.com/p/';
 export const FACEBOOK_REEL_PREFIX = 'https://www.facebook.com/reel/';
+export const X_ORIGIN = 'https://x.com/';
 
 /** The templates below, as anchored patterns: a target is allowed only when built from a valid key. */
 const TEMPLATE_RES: readonly RegExp[] = [
   new RegExp(`^https://www\\.youtube\\.com/watch\\?v=${SHORTS_ID_SOURCE}${TARGET_FRAGMENT.youtube}$`),
   new RegExp(`^https://www\\.instagram\\.com/p/${REEL_CODE_SOURCE}/${TARGET_FRAGMENT.instagram}$`),
   new RegExp(`^https://www\\.facebook\\.com/reel/${FACEBOOK_REEL_ID_SOURCE}${TARGET_FRAGMENT.facebook}$`),
+  new RegExp(`^https://x\\.com/${X_USER_SOURCE}/status/${X_STATUS_ID_SOURCE}${TARGET_FRAGMENT.x}$`),
 ];
 
 const FIXED: ReadonlySet<string> = new Set(Object.values(REDIRECT_TARGETS));
@@ -60,6 +73,15 @@ export function instagramPostTarget(code: string): string | null {
 /** Facebook's own viewer for one reel id, where the viewer lock sends a tab back; null for a bad id. */
 export function facebookReelTarget(id: string): string | null {
   return FACEBOOK_REEL_ID_RE.test(id) ? `${FACEBOOK_REEL_PREFIX}${id}${TARGET_FRAGMENT.facebook}` : null;
+}
+
+/**
+ * The tweet page for one status: it plays that tweet's video inline with the replies below, and no video
+ * feed. The username keeps the case it was written in (X matches usernames case-insensitively); `i` gives
+ * X's `/i/status/<id>` form. Null when either part is not valid.
+ */
+export function xTweetTarget(user: string, id: string): string | null {
+  return X_USER_RE.test(user) && X_STATUS_ID_RE.test(id) ? `${X_ORIGIN}${user}/status/${id}${TARGET_FRAGMENT.x}` : null;
 }
 
 /** True only for a fixed home target or a template target built from a valid id or code. */

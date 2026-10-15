@@ -1,14 +1,26 @@
 /**
- * Pure URL classifier for the blocker (U5), in one-video mode: a single Reel or Short is rewritten to a
- * page that plays only that video, and the feeds go home. No Chrome APIs, no DOM: the guard content
- * script, the DNR ruleset tests and the worker all agree with this function. Matching is
+ * Pure URL classifier for the blocker (U5), in one-video mode: a single Reel, Short or X video viewer is
+ * rewritten to a page that plays only that video, and the feeds go home. No Chrome APIs, no DOM: the guard
+ * content script, the DNR ruleset tests and the worker all agree with this function. Matching is
  * case-insensitive on whole path segments and reads only the pathname (never the query or the fragment).
  */
 import type { BlockedSite, Settings } from '../store/schema.ts';
-import { REDIRECT_TARGETS, REEL_CODE_SOURCE, SHORTS_ID_SOURCE, instagramPostTarget, youtubeWatchTarget } from './targets.ts';
+import {
+  REDIRECT_TARGETS,
+  REEL_CODE_SOURCE,
+  SHORTS_ID_SOURCE,
+  X_STATUS_ID_SOURCE,
+  X_USER_SOURCE,
+  instagramPostTarget,
+  xTweetTarget,
+  youtubeWatchTarget,
+} from './targets.ts';
 
-/** `reels`: a Reels feed, sent home. `reel` and `shorts`: one video, rewritten to its single-video page. */
-export type BlockKind = 'reels' | 'reel' | 'shorts' | 'explore';
+/**
+ * `reels`: a Reels feed, sent home. `reel`, `shorts` and `video` (X's video viewer): one video, rewritten
+ * to its single-video page.
+ */
+export type BlockKind = 'reels' | 'reel' | 'shorts' | 'video' | 'explore';
 
 export interface Classification {
   site: BlockedSite;
@@ -22,6 +34,9 @@ const HOSTS: Readonly<Record<BlockedSite, readonly string[]>> = {
   instagram: ['instagram.com', 'www.instagram.com'],
   youtube: ['youtube.com', 'www.youtube.com', 'm.youtube.com'],
   facebook: ['facebook.com', 'www.facebook.com', 'm.facebook.com'],
+  // x.com only: twitter.com, www.x.com and mobile.x.com redirect to x.com on the server, so a page only
+  // ever runs on x.com and the redirect's next request meets the x.com rules there.
+  x: ['x.com'],
 };
 
 /** `/reel` or `/reels` as the first path segment: the Reels feed, whatever follows unless it is a code. */
@@ -36,8 +51,13 @@ export const INSTAGRAM_REEL = new RegExp(`^/(?:[^/]+/)?reels?/(${REEL_CODE_SOURC
 const EXPLORE_SEGMENT = /\/explore(?:\/|$)/i;
 /** `/shorts/<id>` where the id is exactly one 11-character segment. */
 export const SHORTS_SEGMENT = new RegExp(`/shorts/(${SHORTS_ID_SOURCE})(?:/|$)`, 'i');
+/**
+ * X's immersive video viewer: `/<user>/status/<id>/video/<n>` as the whole path (`<user>` may be `i`).
+ * Captures the user as written and the status id. `/photo/<n>` and every other status path stay out.
+ */
+export const X_VIDEO = new RegExp(`^/(${X_USER_SOURCE})/status/(${X_STATUS_ID_SOURCE})/video/[0-9]+/?$`, 'i');
 
-/** Which of the three sites a hostname belongs to (www, m and bare hosts only), or null. */
+/** Which of the four sites a hostname belongs to (the hosts listed above only), or null. */
 export function siteForHost(hostname: string): BlockedSite | null {
   for (const site of Object.keys(HOSTS) as BlockedSite[]) {
     if (HOSTS[site].includes(hostname)) return site;
@@ -91,8 +111,20 @@ function facebook(path: string, blockers: Blockers): Classification | null {
 }
 
 /**
+ * X's video viewer goes to the tweet it belongs to, which plays that one video inline with the replies
+ * below and no feed of other videos. Everything else on X loads.
+ */
+function x(path: string, blockers: Blockers): Classification | null {
+  if (!blockers.xVideos) return null;
+  const match = X_VIDEO.exec(path);
+  const target = match?.[1] === undefined || match[2] === undefined ? null : xTweetTarget(match[1], match[2]);
+  return target === null ? null : { site: 'x', kind: 'video', target };
+}
+
+/**
  * The block decision for `url` under the current toggles, or null when the URL may load.
- * Only `https:` URLs on the www, m (YouTube, Facebook) and bare hosts of the three sites can match.
+ * Only `https:` URLs on the www, m (YouTube, Facebook) and bare hosts of the three video sites, and on
+ * x.com, can match.
  */
 export function classify(url: string, blockers: Blockers): Classification | null {
   const parsed = parse(url);
@@ -101,5 +133,6 @@ export function classify(url: string, blockers: Blockers): Classification | null
   if (site === 'instagram') return instagram(parsed.pathname, blockers);
   if (site === 'youtube') return youtube(parsed.pathname, blockers);
   if (site === 'facebook') return facebook(parsed.pathname, blockers);
+  if (site === 'x') return x(parsed.pathname, blockers);
   return null;
 }

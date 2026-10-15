@@ -64,6 +64,7 @@ const SITE_KEYS: Readonly<Record<BlockedSite, MessageKey>> = {
   instagram: 'siteInstagram',
   youtube: 'siteYouTube',
   facebook: 'siteFacebook',
+  x: 'siteX',
 };
 
 export function blockedSiteName(site: BlockedSite): string {

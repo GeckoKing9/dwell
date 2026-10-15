@@ -18,13 +18,14 @@ import type { PauseMessage, SettingsMessage } from '../shared/messages.ts';
 export const HISTORY_DAYS = 7;
 const TOP_SITES = 3;
 
-export type BlockerKey = 'instagramReels' | 'youtubeShorts' | 'facebookReels';
-export type BlockerKind = 'reels' | 'shorts';
+export type BlockerKey = 'instagramReels' | 'youtubeShorts' | 'facebookReels' | 'xVideos';
+export type BlockerKind = 'reels' | 'shorts' | 'videos';
 
 const BLOCKERS: Readonly<Record<BlockedSite, { key: BlockerKey; kind: BlockerKind }>> = {
   instagram: { key: 'instagramReels', kind: 'reels' },
   youtube: { key: 'youtubeShorts', kind: 'shorts' },
   facebook: { key: 'facebookReels', kind: 'reels' },
+  x: { key: 'xVideos', kind: 'videos' },
 };
 
 /** Chrome's new tab page in its several spellings; anything else non-web is a "browser page". */
