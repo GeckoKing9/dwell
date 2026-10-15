@@ -63,7 +63,8 @@ function holdsViewerVideo(box: Element, clientHeight: number): boolean {
   return false;
 }
 
-function editable(target: EventTarget | undefined): EditableLike | null {
+/** What the input rules in `blocker/scroll.ts` need to know about an event's target. */
+export function editable(target: EventTarget | null | undefined): EditableLike | null {
   if (!(target instanceof Element)) return null;
   return {
     tagName: target.tagName,

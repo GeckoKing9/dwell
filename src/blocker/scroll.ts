@@ -102,7 +102,8 @@ export interface TouchMove {
   readonly touches: number;
 }
 
-function usesInput(target: EditableLike | null): boolean {
+/** True when the target takes keys or drags itself: a text field, an editable area, a slider, a menu, a list. */
+export function usesInput(target: EditableLike | null): boolean {
   if (target === null) return false;
   return (
     target.isContentEditable ||

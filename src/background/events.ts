@@ -56,13 +56,23 @@ export function urlEvent(tab: TabLike & { readonly id: number }, grouping: Group
   return withAudible({ type: 'url', at, tabId: tab.id, site: siteOfTab(tab, grouping) }, tab.audible);
 }
 
+/** A new URL or a page load: a navigation, after which the page that reported media may be gone. */
+function isNavigation(change: TabChange): boolean {
+  return change.url !== undefined || change.status === 'loading';
+}
+
 /**
- * `tabs.onUpdated`: a url event when the URL, the audible flag or the load status changed, otherwise
- * null. A new URL or a page load is a navigation (`nav`): the page that reported media may be gone.
+ * True when a `tabs.onUpdated` change matters to tracking (the URL, a page load, the audible flag). Anything
+ * else (a title, a favicon, a load completing) is dropped before it is queued, so it costs no storage work.
  */
+export function isTrackedChange(change: TabChange): boolean {
+  return isNavigation(change) || change.audible !== undefined;
+}
+
+/** `tabs.onUpdated`: a url event for a tracked change (`isTrackedChange`), otherwise null. */
 export function updatedEvent(tabId: number, change: TabChange, tab: TabLike, grouping: Grouping, at: number): UrlEvent | null {
-  const nav = change.url !== undefined || change.status === 'loading';
-  if (!nav && change.audible === undefined) return null;
+  if (!isTrackedChange(change)) return null;
+  const nav = isNavigation(change);
   const audible = change.audible ?? tab.audible;
   const event = withAudible({ type: 'url', at, tabId, site: siteOfTab(tab, grouping, change.url ?? tab.url) }, audible);
   return nav ? { ...event, nav: true } : event;

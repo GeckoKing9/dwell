@@ -14,6 +14,7 @@ import {
   closeEvent,
   focusEvent,
   idleEvent,
+  isTrackedChange,
   updatedEvent,
   urlEvent,
   type TabChange,
@@ -79,13 +80,16 @@ export function createBackground(): Background {
           return [...url, activateEvent(info, at)];
         }),
       ),
-    onTabUpdated: (tabId, change, tab) =>
-      done(
+    onTabUpdated: (tabId, change, tab) => {
+      // A title, favicon or load-complete update is dropped here, before it costs a queued storage round trip.
+      if (!isTrackedChange(change)) return Promise.resolve();
+      return done(
         queue.track(({ at, settings }) => {
           const event = updatedEvent(tabId, change, tab, settings, at);
           return event === null ? [] : [event];
         }),
-      ),
+      );
+    },
     onTabRemoved: (tabId) => done(queue.track(({ at }) => [closeEvent(tabId, at)])),
     onFocusChanged: (windowId) =>
       done(

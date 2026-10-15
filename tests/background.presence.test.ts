@@ -125,6 +125,18 @@ describe('focus, tabs and windows', () => {
     expect(totals(fake, 'b.example').seconds).toBe(6);
   });
 
+  it('drops a title, favicon or load-complete update before it is queued: no storage read or write for it', async () => {
+    openWindow(fake, 1, [{ id: 10, url: A }]);
+    const bg = createBackground();
+    await bg.onInstalled();
+    const reads = [vi.spyOn(chrome.storage.local, 'get'), vi.spyOn(chrome.storage.session, 'get')];
+    const writes = [vi.spyOn(chrome.storage.local, 'set'), vi.spyOn(chrome.storage.session, 'set')];
+    for (const change of [{ title: 'Inbox (3)' }, { favIconUrl: 'https://a.example/f.ico' }, { status: 'complete' }, {}]) {
+      await bg.onTabUpdated(10, change, { url: A, incognito: false });
+    }
+    for (const spy of [...reads, ...writes]) expect(spy).not.toHaveBeenCalled();
+  });
+
   it('records nothing for an incognito tab', async () => {
     openWindow(fake, 1, [{ id: 10, url: A }]);
     const bg = createBackground();
