@@ -148,7 +148,7 @@ dwell/
 - Aggregation: week boundaries, deltas, formatting, simulator determinism.
 - Store: prune, export/import round trip, hardened import rejections, undo window.
 - Privacy: bundle grep, lint, manifest literal comparison, fetch-refused e2e, recorded network traffic.
-- E2E (headed Chromium with the extension loaded): tab switching totals, worker restart, pause, media message, Shorts rewrite, in-page Reel cancel, toggle off lets a hard load through.
+- E2E (headed Chromium with the extension loaded): tab switching totals, worker restart, pause, media message, Shorts rewrite, a single Reel left to Instagram's pop-up, "More posts" hidden, a viewer move undone by Back, toggle off lets a hard load through.
 
 **Manual checklist (record in `docs/project_status.md`):**
 - [ ] Blur the window 10 s: no site gains more than 1 s
