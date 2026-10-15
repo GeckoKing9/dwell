@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOOP_MAX_REDIRECTS, LOOP_WINDOW_MS, admitRedirect, decide, markerCounts } from '../src/blocker/decide.ts';
+import { LOOP_MAX_REDIRECTS, LOOP_WINDOW_MS, admitRedirect, decide, decideLock, markerCounts } from '../src/blocker/decide.ts';
 import { classify } from '../src/blocker/patterns.ts';
 import type { Settings } from '../src/store/schema.ts';
 
@@ -9,7 +9,9 @@ const ALL_ON: Blockers = { instagramReels: true, youtubeShorts: true, facebookRe
 const ALL_OFF: Blockers = { instagramReels: false, youtubeShorts: false, facebookReels: false, instagramExplore: false };
 const NOW = 1_700_000_000_000;
 const SHORT = classify('https://www.youtube.com/shorts/dQw4w9WgXcQ', ALL_ON);
-const REEL = classify('https://www.instagram.com/reels/abc/', ALL_ON);
+const REEL_FEED = classify('https://www.instagram.com/reels/', ALL_ON);
+const REEL = classify('https://www.instagram.com/reel/DeewiSPpCrm/', ALL_ON);
+const POST = 'https://www.instagram.com/p/DeewiSPpCrm/#dwell=instagram';
 const EXPLORE = classify('https://www.instagram.com/explore/', ALL_ON);
 const WATCH = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ#dwell=youtube';
 
@@ -18,8 +20,8 @@ describe('decide: a cancelable in-page navigation', () => {
     expect(decide(null, { now: NOW, redirects: [] })).toEqual({ action: 'allow' });
   });
 
-  it('cancels an in-page Reel or Explore and counts it there, whatever the loop guard holds', () => {
-    expect(decide(REEL, { now: NOW, redirects: [NOW - 2, NOW - 1] })).toEqual({ action: 'cancel', site: 'instagram' });
+  it('cancels an in-page move to the Reels feed or Explore and counts it there, whatever the loop guard holds', () => {
+    expect(decide(REEL_FEED, { now: NOW, redirects: [NOW - 2, NOW - 1] })).toEqual({ action: 'cancel', site: 'instagram' });
     expect(decide(EXPLORE, { now: NOW, redirects: [] })).toEqual({ action: 'cancel', site: 'instagram' });
   });
 
@@ -31,6 +33,14 @@ describe('decide: a cancelable in-page navigation', () => {
     });
   });
 
+  it('redirects a single Instagram Reel tap to its post page and records the redirect', () => {
+    expect(decide(REEL, { now: NOW, redirects: [] })).toEqual({ action: 'redirect', target: POST, redirects: [NOW] });
+  });
+
+  it('lets a single Instagram Reel tap through when the loop guard refuses the rewrite', () => {
+    expect(decide(REEL, { now: NOW, redirects: [NOW - 1000, NOW - 500] })).toEqual({ action: 'allow' });
+  });
+
   it('lets the third Shorts tap within 5 s through instead of cancelling it', () => {
     expect(decide(SHORT, { now: NOW, redirects: [NOW - 1000, NOW - 500] })).toEqual({ action: 'allow' });
   });
@@ -38,6 +48,32 @@ describe('decide: a cancelable in-page navigation', () => {
   it('never cancels a Shorts tap toward a target outside the allowlist', () => {
     const forged = { site: 'youtube', kind: 'shorts', target: 'https://evil.example/#dwell=youtube' } as const;
     expect(decide(forged, { now: NOW, redirects: [] })).toEqual({ action: 'allow' });
+  });
+});
+
+describe('decideLock: a move from one viewer video to the next', () => {
+  const FB_LOCK = 'https://www.facebook.com/reel/111#dwell=facebook';
+  const lock = { action: 'lock', site: 'facebook', target: FB_LOCK } as const;
+
+  it('cancels the move and goes back to the first video when the loop guard admits it', () => {
+    expect(decideLock(lock, { now: NOW, redirects: [NOW - 1000] })).toEqual({
+      action: 'redirect',
+      target: FB_LOCK,
+      redirects: [NOW - 1000, NOW],
+    });
+  });
+
+  it('still cancels the move, counted in place, when the loop guard refuses the redirect', () => {
+    expect(decideLock(lock, { now: NOW, redirects: [NOW - 2, NOW - 1] })).toEqual({ action: 'cancel', site: 'facebook' });
+  });
+
+  it('cancels without redirecting toward a target outside the allowlist', () => {
+    const forged = { action: 'lock', site: 'facebook', target: 'https://evil.example/#dwell=facebook' } as const;
+    expect(decideLock(forged, { now: NOW, redirects: [] })).toEqual({ action: 'cancel', site: 'facebook' });
+  });
+
+  it('lets a move through that is not a viewer-to-viewer jump', () => {
+    expect(decideLock({ action: 'allow' }, { now: NOW, redirects: [] })).toEqual({ action: 'allow' });
   });
 });
 

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Facebook reel viewer fixture</title>
+    <script>
+      // Runs after the guard (document_start) and before first paint: records the hash it found.
+      document.documentElement.dataset.hashAtHead = location.hash;
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+      #viewer {
+        height: 100vh;
+        overflow-y: scroll;
+        scroll-snap-type: y mandatory;
+      }
+      .clip {
+        height: 100vh;
+        scroll-snap-align: start;
+      }
+      #comments {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 240px;
+        height: 200px;
+        overflow-y: auto;
+        background: #fff;
+      }
+      #comments-body {
+        height: 1000px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewer">
+      <div class="clip">reel one</div>
+      <div class="clip">reel two</div>
+    </div>
+    <aside id="comments"><div id="comments-body">comments</div></aside>
+    <script>
+      // What the page itself hears: an event the guard swallows never reaches these listeners.
+      window.heard = [];
+      document.addEventListener(
+        'wheel',
+        (event) => window.heard.push(`wheel:${event.target.closest('#comments') ? 'comments' : 'viewer'}`),
+        { passive: true },
+      );
+      document.addEventListener('keydown', (event) => window.heard.push(`key:${event.key}`));
+    </script>
+  </body>
+</html>

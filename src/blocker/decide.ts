@@ -4,8 +4,9 @@
  * the guard passes in the time and the redirect log it keeps in sessionStorage.
  */
 import type { BlockedSite, Settings } from '../store/schema.ts';
-import type { Classification } from './patterns.ts';
+import type { BlockKind, Classification } from './patterns.ts';
 import { isAllowedTarget } from './targets.ts';
+import type { ViewerMove } from './viewer.ts';
 
 type Blockers = Settings['blockers'];
 
@@ -27,6 +28,9 @@ export type Decision =
   | { action: 'cancel'; site: BlockedSite }
   | { action: 'redirect'; target: string; redirects: number[] };
 
+/** Kinds rewritten to a single-video page rather than cancelled in place. */
+const REWRITTEN: ReadonlySet<BlockKind> = new Set(['shorts', 'reel']);
+
 /** The site's toggles that put a `#dwell=<site>` marker on a landing. */
 const SITE_TOGGLES: Readonly<Record<BlockedSite, readonly (keyof Blockers)[]>> = {
   instagram: ['instagramReels', 'instagramExplore'],
@@ -45,15 +49,28 @@ export function admitRedirect(loop: LoopState): number[] | null {
 
 /**
  * What the guard does with a cancelable in-page navigation the classifier judged as `hit`.
- * Reels and Explore are cancelled in place and counted. A Short is cancelled only when its redirect to
- * the watch page will happen: when the loop guard or the allowlist refuses it, the tap goes through.
+ * A Reels feed and Explore are cancelled in place and counted. A single Reel or Short is cancelled only
+ * when its redirect to the single-video page will happen: when the loop guard or the allowlist refuses
+ * it, the tap goes through (and the viewer lock keeps that viewer to the one video).
  */
 export function decide(hit: Classification | null, loop: LoopState): Decision {
   if (hit === null) return { action: 'allow' };
-  if (hit.kind !== 'shorts') return { action: 'cancel', site: hit.site };
+  if (!REWRITTEN.has(hit.kind)) return { action: 'cancel', site: hit.site };
   if (!isAllowedTarget(hit.target)) return { action: 'allow' };
   const redirects = admitRedirect(loop);
   return redirects === null ? { action: 'allow' } : { action: 'redirect', target: hit.target, redirects };
+}
+
+/**
+ * What the guard does with a move from one viewer video to another (`decideViewerMove`). The move is
+ * always cancelled. The tab then goes back to the first video's page, because some viewers draw the next
+ * video before they change the URL; when the loop guard or the allowlist refuses that redirect, the
+ * cancel stands alone and is counted in place.
+ */
+export function decideLock(move: ViewerMove, loop: LoopState): Decision {
+  if (move.action === 'allow') return { action: 'allow' };
+  const redirects = isAllowedTarget(move.target) ? admitRedirect(loop) : null;
+  return redirects === null ? { action: 'cancel', site: move.site } : { action: 'redirect', target: move.target, redirects };
 }
 
 /** A `#dwell=<site>` landing counts only while one of that site's blockers is on. */

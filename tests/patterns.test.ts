@@ -3,7 +3,13 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { classify, type Classification } from '../src/blocker/patterns.ts';
-import { REDIRECT_TARGETS, isAllowedTarget, youtubeWatchTarget } from '../src/blocker/targets.ts';
+import {
+  REDIRECT_TARGETS,
+  facebookReelTarget,
+  instagramPostTarget,
+  isAllowedTarget,
+  youtubeWatchTarget,
+} from '../src/blocker/targets.ts';
 import { DEFAULT_SETTINGS, type Settings } from '../src/store/schema.ts';
 
 type Blockers = Settings['blockers'];
@@ -14,6 +20,9 @@ const IG_HOME = 'https://www.instagram.com/#dwell=instagram';
 const FB_HOME = 'https://www.facebook.com/#dwell=facebook';
 const ID = 'dQw4w9WgXcQ';
 const WATCH = `https://www.youtube.com/watch?v=${ID}#dwell=youtube`;
+const CODE = 'DeewiSPpCrm';
+const POST = `https://www.instagram.com/p/${CODE}/#dwell=instagram`;
+const FB_REEL = 'https://www.facebook.com/reel/1234567890#dwell=facebook';
 
 function expectHit(url: string, site: Classification['site'], kind: Classification['kind'], target: string): void {
   expect(classify(url, ALL_ON)).toEqual({ site, kind, target });
@@ -22,19 +31,35 @@ function expectHit(url: string, site: Classification['site'], kind: Classificati
 describe('classify: Instagram', () => {
   it.each([
     'https://www.instagram.com/reels/',
-    'https://www.instagram.com/reels/abc123/',
-    'https://instagram.com/reels/abc123/',
-    'https://www.instagram.com/reel/C0abc/',
-    'https://www.instagram.com/reel/C0abc',
     'https://www.instagram.com/reels',
-    'https://www.instagram.com/someuser/reels/',
-    'https://www.instagram.com/someuser/reels',
-    'https://www.instagram.com/REELS/abc/',
-    'https://WWW.INSTAGRAM.COM/Reel/abc/',
-    'https://www.instagram.com/reels/abc123/?igsh=xyz',
-    'https://www.instagram.com/reel/abc/#comments',
-  ])('blocks %s as reels, home target', (url) => {
+    'https://instagram.com/reels/',
+    'https://www.instagram.com/reel/',
+    'https://www.instagram.com/reel',
+    'https://www.instagram.com/REELS/',
+    'https://www.instagram.com/reels/?igsh=xyz',
+    'https://www.instagram.com/reels/#top',
+    'https://www.instagram.com/reels/abcd/',
+    'https://www.instagram.com/reel/ab.cde/',
+    'https://www.instagram.com/reel/ab%2Fcde/',
+    'https://www.instagram.com/reels/audio/1234567890/',
+    `https://www.instagram.com/reel/${CODE}/liked_by/`,
+  ])('sends the Reels feed %s home', (url) => {
     expectHit(url, 'instagram', 'reels', IG_HOME);
+  });
+
+  it.each([
+    [`https://www.instagram.com/reel/${CODE}/`, CODE],
+    [`https://www.instagram.com/reel/${CODE}`, CODE],
+    [`https://www.instagram.com/reels/${CODE}/`, CODE],
+    [`https://instagram.com/reels/${CODE}/?igsh=xyz`, CODE],
+    [`https://www.instagram.com/reel/${CODE}/#comments`, CODE],
+    [`https://www.instagram.com/someuser/reel/${CODE}/`, CODE],
+    [`https://www.instagram.com/some.user_1/reels/${CODE}/`, CODE],
+    ['https://WWW.INSTAGRAM.COM/Reel/C0abc/', 'C0abc'],
+    ['https://www.instagram.com/reel/a-b_c/', 'a-b_c'],
+    [`https://www.instagram.com/reel/${'x'.repeat(80)}/`, 'x'.repeat(80)],
+  ])('rewrites the single Reel %s to the post page for %s', (url, code) => {
+    expectHit(url, 'instagram', 'reel', `https://www.instagram.com/p/${code}/#dwell=instagram`);
   });
 
   it.each([
@@ -46,15 +71,21 @@ describe('classify: Instagram', () => {
     expectHit(url, 'instagram', 'explore', IG_HOME);
   });
 
-  it('prefers reels over explore when both match', () => {
-    expectHit('https://www.instagram.com/explore/tags/reels/', 'instagram', 'reels', IG_HOME);
-    const exploreOnly = { ...ALL_OFF, instagramExplore: true };
-    expect(classify('https://www.instagram.com/explore/tags/reels/', exploreOnly)?.kind).toBe('explore');
+  it('treats a hashtag named reels as Explore, not as the Reels feed', () => {
+    expectHit('https://www.instagram.com/explore/tags/reels/', 'instagram', 'explore', IG_HOME);
+    const reelsOnly = { ...ALL_OFF, instagramReels: true };
+    expect(classify('https://www.instagram.com/explore/tags/reels/', reelsOnly)).toBeNull();
   });
 
   it.each([
     'https://www.instagram.com/',
-    'https://www.instagram.com/p/C0abc/',
+    `https://www.instagram.com/p/${CODE}/`,
+    'https://www.instagram.com/someuser/reels/',
+    'https://www.instagram.com/someuser/reels',
+    'https://www.instagram.com/someuser/reel/',
+    'https://www.instagram.com/someuser/reels/abcd/',
+    `https://www.instagram.com/a/b/reels/${CODE}/`,
+    `https://www.instagram.com/someuser/reel/${CODE}/liked_by/`,
     'https://www.instagram.com/reelsfan/',
     'https://www.instagram.com/myreel/',
     'https://www.instagram.com/explorer/',
@@ -106,23 +137,30 @@ describe('classify: YouTube', () => {
 
 describe('classify: Facebook', () => {
   it.each([
-    'https://www.facebook.com/reel/1234567890',
-    'https://www.facebook.com/reel/1234567890/',
-    'https://facebook.com/reels/',
-    'https://m.facebook.com/reel/1234567890',
-    'https://www.facebook.com/someone/reels/',
-    'https://www.facebook.com/Reel/1?s=x',
-  ])('blocks %s as reels, home target', (url) => {
+    'https://www.facebook.com/reel/',
+    'https://www.facebook.com/reel',
+    'https://www.facebook.com/reels/',
+    'https://facebook.com/reels',
+    'https://m.facebook.com/reel/',
+    'https://www.facebook.com/Reels/?s=x',
+    'https://www.facebook.com/reel/#top',
+  ])('sends the Reels feed %s home', (url) => {
     expectHit(url, 'facebook', 'reels', FB_HOME);
   });
 
   it.each([
     'https://www.facebook.com/',
+    'https://www.facebook.com/reel/1234567890',
+    'https://www.facebook.com/reel/1234567890/',
+    'https://m.facebook.com/reel/1234567890',
+    'https://www.facebook.com/Reel/1?s=x',
+    'https://www.facebook.com/reel/abc',
+    'https://www.facebook.com/someone/reels/',
     'https://www.facebook.com/watch/',
     'https://www.facebook.com/reelection2026/',
     'https://www.facebook.com/?sk=reels',
-    'https://web.facebook.com/reel/1',
-    'https://facebook.com.evil.example/reel/1',
+    'https://web.facebook.com/reels/',
+    'https://facebook.com.evil.example/reels/',
   ])('leaves %s alone', (url) => {
     expect(classify(url, ALL_ON)).toBeNull();
   });
@@ -136,10 +174,10 @@ describe('classify: inputs that are not URLs', () => {
 
 describe('classify: per-site toggles', () => {
   const samples = {
-    instagramReels: 'https://www.instagram.com/reels/abc/',
+    instagramReels: `https://www.instagram.com/reels/${CODE}/`,
     instagramExplore: 'https://www.instagram.com/explore/',
     youtubeShorts: `https://www.youtube.com/shorts/${ID}`,
-    facebookReels: 'https://www.facebook.com/reel/1',
+    facebookReels: 'https://www.facebook.com/reels/',
   } as const;
   const keys = Object.keys(samples) as (keyof typeof samples)[];
 
@@ -167,7 +205,7 @@ describe('classify: per-site toggles', () => {
 
 describe('targets', () => {
   it('never classify as blocked, for every pattern (loop guard)', () => {
-    const targets = [IG_HOME, FB_HOME, WATCH, youtubeWatchTarget('ABCDEFGHIJK') ?? ''];
+    const targets = [IG_HOME, FB_HOME, WATCH, POST, FB_REEL, youtubeWatchTarget('ABCDEFGHIJK') ?? ''];
     for (const target of targets) {
       expect(classify(target, ALL_ON)).toBeNull();
       expect(classify(target.split('#')[0] ?? '', ALL_ON)).toBeNull();
@@ -177,9 +215,10 @@ describe('targets', () => {
   it('come from the allowlist for every classification', () => {
     const urls = [
       'https://www.instagram.com/reels/x/',
+      `https://www.instagram.com/someuser/reel/${CODE}/`,
       'https://www.instagram.com/explore/',
       `https://m.youtube.com/shorts/${ID}`,
-      'https://www.facebook.com/reel/1',
+      'https://www.facebook.com/reels/',
     ];
     for (const url of urls) {
       const hit = classify(url, ALL_ON);
@@ -189,7 +228,7 @@ describe('targets', () => {
   });
 
   it('never carry a query parameter named dwell', () => {
-    for (const target of [IG_HOME, FB_HOME, WATCH]) {
+    for (const target of [IG_HOME, FB_HOME, WATCH, POST, FB_REEL]) {
       expect(new URL(target).searchParams.has('dwell')).toBe(false);
       expect(new URL(target).hash).toMatch(/^#dwell=(instagram|youtube|facebook)$/);
     }
@@ -208,11 +247,34 @@ describe('targets', () => {
     expect(youtubeWatchTarget('dQw4w9WgX#Q')).toBeNull();
   });
 
+  it('builds the Instagram post target only from a code of 5 or more safe characters', () => {
+    expect(instagramPostTarget(CODE)).toBe(POST);
+    expect(instagramPostTarget('a-b_c')).toBe('https://www.instagram.com/p/a-b_c/#dwell=instagram');
+    expect(instagramPostTarget('x'.repeat(80))).not.toBeNull();
+    expect(instagramPostTarget('abcd')).toBeNull();
+    expect(instagramPostTarget('')).toBeNull();
+    expect(instagramPostTarget('ab/cde')).toBeNull();
+    expect(instagramPostTarget('ab.cde')).toBeNull();
+    expect(instagramPostTarget('abcde#x')).toBeNull();
+  });
+
+  it('builds the Facebook reel target only from a numeric id', () => {
+    expect(facebookReelTarget('1234567890')).toBe(FB_REEL);
+    expect(facebookReelTarget('1')).toBe('https://www.facebook.com/reel/1#dwell=facebook');
+    expect(facebookReelTarget('')).toBeNull();
+    expect(facebookReelTarget('12a')).toBeNull();
+    expect(facebookReelTarget('1'.repeat(33))).toBeNull();
+    expect(facebookReelTarget('12/3')).toBeNull();
+  });
+
   it.each([
     IG_HOME,
     FB_HOME,
     WATCH,
+    POST,
+    FB_REEL,
     'https://www.youtube.com/watch?v=a-b_c-d_e-f#dwell=youtube',
+    'https://www.instagram.com/p/a-b_c/#dwell=instagram',
   ])('allows %s', (url) => {
     expect(isAllowedTarget(url)).toBe(true);
   });
@@ -228,6 +290,19 @@ describe('targets', () => {
     'https://m.youtube.com/watch?v=dQw4w9WgXcQ#dwell=youtube',
     'http://www.youtube.com/watch?v=dQw4w9WgXcQ#dwell=youtube',
     'javascript:alert(1)//#dwell=youtube',
+    'https://www.instagram.com/p/abcd/#dwell=instagram',
+    `https://www.instagram.com/p/${CODE}#dwell=instagram`,
+    `https://instagram.com/p/${CODE}/#dwell=instagram`,
+    `https://www.instagram.com/p/${CODE}/?x=1#dwell=instagram`,
+    `https://www.instagram.com/reel/${CODE}/#dwell=instagram`,
+    `https://www.instagram.com/p/${CODE}/#dwell=facebook`,
+    'https://www.instagram.com/p/ab.cde/#dwell=instagram',
+    'https://www.facebook.com/reel/#dwell=facebook',
+    'https://www.facebook.com/reel/12a#dwell=facebook',
+    'https://www.facebook.com/reel/123/#dwell=facebook',
+    'https://m.facebook.com/reel/123#dwell=facebook',
+    'https://www.facebook.com/reel/123#dwell=instagram',
+    'https://www.facebook.com/reel/123?x=1#dwell=facebook',
     '',
   ])('refuses %j', (url) => {
     expect(isAllowedTarget(url)).toBe(false);

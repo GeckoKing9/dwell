@@ -14,16 +14,20 @@
       <a id="nav-reels" href="/reels/">Reels</a>
     </nav>
     <main>
-      <a id="open-reel" href="/reels/abc">Open a reel</a>
+      <a id="open-reel" href="/reel/DeewiSPpCrm/">Open a reel</a>
+      <a id="open-feed" href="/reels/">Open the Reels feed</a>
       <a id="profile-reels" href="/someone/reels/">Profile reels</a>
       <video id="clip" muted playsinline width="32" height="32"></video>
     </main>
     <script>
-      // The site's own router: an in-page route change, like a Reel tapped in the feed.
-      document.getElementById('open-reel').addEventListener('click', (event) => {
-        event.preventDefault();
-        history.pushState({}, '', '/reels/abc');
-      });
+      // The site's own router: an in-page route change, like a Reel or the Reels tab tapped in the feed.
+      for (const id of ['open-reel', 'open-feed']) {
+        const link = document.getElementById(id);
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          history.pushState({}, '', link.getAttribute('href'));
+        });
+      }
     </script>
   </body>
 </html>

@@ -1,12 +1,14 @@
 /**
- * Pure URL classifier for the blocker (U5). No Chrome APIs, no DOM: the guard content script, the DNR
- * ruleset tests and the worker all agree with this function. Matching is case-insensitive and unanchored
- * on the path, on whole path segments, and reads only the pathname (never the query or the fragment).
+ * Pure URL classifier for the blocker (U5), in one-video mode: a single Reel or Short is rewritten to a
+ * page that plays only that video, and the feeds go home. No Chrome APIs, no DOM: the guard content
+ * script, the DNR ruleset tests and the worker all agree with this function. Matching is
+ * case-insensitive on whole path segments and reads only the pathname (never the query or the fragment).
  */
 import type { BlockedSite, Settings } from '../store/schema.ts';
-import { REDIRECT_TARGETS, SHORTS_ID_SOURCE, youtubeWatchTarget } from './targets.ts';
+import { REDIRECT_TARGETS, REEL_CODE_SOURCE, SHORTS_ID_SOURCE, instagramPostTarget, youtubeWatchTarget } from './targets.ts';
 
-export type BlockKind = 'reels' | 'shorts' | 'explore';
+/** `reels`: a Reels feed, sent home. `reel` and `shorts`: one video, rewritten to its single-video page. */
+export type BlockKind = 'reels' | 'reel' | 'shorts' | 'explore';
 
 export interface Classification {
   site: BlockedSite;
@@ -22,11 +24,18 @@ const HOSTS: Readonly<Record<BlockedSite, readonly string[]>> = {
   facebook: ['facebook.com', 'www.facebook.com', 'm.facebook.com'],
 };
 
-/** `/reel` or `/reels` as a whole path segment, anywhere in the path (`/someuser/reels/` counts). */
-const REEL_SEGMENT = /\/reels?(?:\/|$)/i;
+/** `/reel` or `/reels` as the first path segment: the Reels feed, whatever follows unless it is a code. */
+const REEL_FEED = /^\/reels?(?:\/|$)/i;
+/** A bare `/reel` or `/reels` as the first path segment, with nothing after it. */
+const REEL_FEED_BARE = /^\/reels?\/?$/i;
+/**
+ * One Instagram Reel: `/reel(s)/<code>` as the end of the path, optionally under one profile segment
+ * (`/<user>/reel/<code>`). A deeper path (`/reels/audio/<id>/`, `/reel/<code>/liked_by/`) is not one Reel.
+ */
+export const INSTAGRAM_REEL = new RegExp(`^/(?:[^/]+/)?reels?/(${REEL_CODE_SOURCE})/?$`, 'i');
 const EXPLORE_SEGMENT = /\/explore(?:\/|$)/i;
 /** `/shorts/<id>` where the id is exactly one 11-character segment. */
-const SHORTS_SEGMENT = new RegExp(`/shorts/(${SHORTS_ID_SOURCE})(?:/|$)`, 'i');
+export const SHORTS_SEGMENT = new RegExp(`/shorts/(${SHORTS_ID_SOURCE})(?:/|$)`, 'i');
 
 /** Which of the three sites a hostname belongs to (www, m and bare hosts only), or null. */
 export function siteForHost(hostname: string): BlockedSite | null {
@@ -45,10 +54,20 @@ function parse(url: string): URL | null {
   }
 }
 
+/**
+ * A single Reel goes to its post page, which plays it with no feed below. The Reels feed goes home.
+ * A profile's Reels grid (`/<user>/reels/`) is a grid like search, so it loads.
+ */
+function instagramReels(path: string): Classification | null {
+  const code = INSTAGRAM_REEL.exec(path)?.[1];
+  const target = code === undefined ? null : instagramPostTarget(code);
+  if (target !== null) return { site: 'instagram', kind: 'reel', target };
+  return REEL_FEED.test(path) ? { site: 'instagram', kind: 'reels', target: REDIRECT_TARGETS.instagram } : null;
+}
+
 function instagram(path: string, blockers: Blockers): Classification | null {
-  if (blockers.instagramReels && REEL_SEGMENT.test(path)) {
-    return { site: 'instagram', kind: 'reels', target: REDIRECT_TARGETS.instagram };
-  }
+  const reels = blockers.instagramReels ? instagramReels(path) : null;
+  if (reels !== null) return reels;
   if (blockers.instagramExplore && EXPLORE_SEGMENT.test(path)) {
     return { site: 'instagram', kind: 'explore', target: REDIRECT_TARGETS.instagram };
   }
@@ -62,8 +81,12 @@ function youtube(path: string, blockers: Blockers): Classification | null {
   return target === null ? null : { site: 'youtube', kind: 'shorts', target };
 }
 
+/**
+ * Only the bare Reels feed goes home. `/reel/<id>` loads: Facebook has no verified single-video page,
+ * so its own viewer is kept to that one reel by the viewer lock (`viewer.ts`) instead.
+ */
 function facebook(path: string, blockers: Blockers): Classification | null {
-  if (!blockers.facebookReels || !REEL_SEGMENT.test(path)) return null;
+  if (!blockers.facebookReels || !REEL_FEED_BARE.test(path)) return null;
   return { site: 'facebook', kind: 'reels', target: REDIRECT_TARGETS.facebook };
 }
 

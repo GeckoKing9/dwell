@@ -7,7 +7,7 @@
       "redirect": { "url": "https://www.facebook.com/#dwell=facebook" }
     },
     "condition": {
-      "regexFilter": "^https://(?:www\\.|m\\.)?facebook\\.com/(?:[^?]*/)?reels?(?:[/?]|$)",
+      "regexFilter": "^https://(?:www\\.|m\\.)?facebook\\.com/reels?/?(?:\\?.*)?$",
       "isUrlFilterCaseSensitive": false,
       "resourceTypes": ["main_frame"]
     }

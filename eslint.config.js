@@ -39,7 +39,7 @@ const privacyRules = {
 };
 
 export default defineConfig([
-  globalIgnores(['dist/', 'coverage/', 'node_modules/', 'design/', 'docs/', 'test-results/', 'playwright-report/']),
+  globalIgnores(['dist/', 'coverage/', 'node_modules/', 'design/', 'docs/', 'test-results/', 'playwright-report/', 'handoff/']),
   ...tseslint.configs.recommended,
   {
     files: ['src/**/*.{ts,tsx,js,mjs}'],

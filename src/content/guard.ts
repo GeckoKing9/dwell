@@ -3,19 +3,26 @@
  * top frame, on the three sites only. It reads `location`, its own settings and its own loop-guard
  * key, and sends only `{ type: 'blocked', site }`. Nothing else from the page is read or sent.
  *
- * 1. Navigation API: a cancelable `navigate` to a blocked URL is cancelled. Reels and Explore stay on
- *    the current page and are counted here, with no marker. Shorts go on to the watch page (AE6), and are
- *    cancelled only when the loop guard allows that redirect; otherwise the tap goes through untouched.
- * 2. Fallbacks (`popstate`, `yt-navigate-finish`, a 250 ms poll, a settings change): a blocked URL that
- *    is current is replaced by its allowlisted target, at most 2 redirects per tab in 5 s.
- * 3. A landing that carries `#dwell=<site>` (DNR or a fallback redirect) is stripped at once, and counted
+ * 1. Navigation API: a cancelable `navigate` to a blocked URL is cancelled. A Reels feed and Explore
+ *    stay on the current page and are counted here, with no marker. A single Short or Instagram Reel goes
+ *    on to its single-video page (AE6), and is cancelled only when the loop guard allows that redirect;
+ *    otherwise the tap goes through untouched.
+ * 2. One-video mode: on a viewer route (`blocker/viewer.ts`), a move to another video of the same viewer
+ *    is cancelled and the tab goes back to the first video's page; the input lock (`viewer-lock.ts`)
+ *    swallows the wheel, keys and touch moves that would advance the viewer.
+ * 3. Fallbacks (`popstate`, `yt-navigate-finish`, a 250 ms poll, a settings change): a viewer that moved
+ *    to another video anyway, or a blocked URL that is current, is replaced by its allowlisted target, at
+ *    most 2 redirects per tab in 5 s.
+ * 4. A landing that carries `#dwell=<site>` (DNR or a redirect from here) is stripped at once, and counted
  *    once after the settings load, only while that site's blocker is on.
  */
-import { admitRedirect, decide, markerCounts } from '../blocker/decide.ts';
+import { admitRedirect, decide, decideLock, markerCounts, type Decision } from '../blocker/decide.ts';
 import { classify, siteForHost } from '../blocker/patterns.ts';
 import { TARGET_FRAGMENT, isAllowedTarget } from '../blocker/targets.ts';
+import { decideViewerMove, viewerLocked } from '../blocker/viewer.ts';
 import { DEFAULT_SETTINGS, SETTINGS_KEY, type BlockedSite, type Settings } from '../store/schema.ts';
 import { extensionAlive, sendToWorker } from './runtime.ts';
+import { setInputLock } from './viewer-lock.ts';
 
 type Blockers = Settings['blockers'];
 
@@ -63,6 +70,7 @@ function setHiderAttribute(site: BlockedSite): void {
 function stop(site: BlockedSite): void {
   if (!alive) return;
   alive = false;
+  setInputLock(false);
   for (const cleanup of cleanups.splice(0)) {
     try {
       cleanup();
@@ -107,22 +115,32 @@ function mayRedirect(): boolean {
   return true;
 }
 
+function withoutFragment(url: string): string {
+  const hash = url.indexOf('#');
+  return hash === -1 ? url : url.slice(0, hash);
+}
+
 /**
  * Every redirect the guard makes goes through here, and only to an allowlisted target.
- * Callers have already passed the loop guard, before anything was cancelled.
+ * Callers have already passed the loop guard, before anything was cancelled. A target that differs from
+ * the current URL only by its fragment (Facebook's viewer locked on its own reel) would be a same-document
+ * jump that leaves the next video on screen, so the page is then reloaded on that target.
  */
 function go(target: string, mode: 'assign' | 'replace'): void {
   if (!alive || !isAllowedTarget(target)) return;
+  const sameDocument = withoutFragment(target) === withoutFragment(location.href);
   if (mode === 'replace') location.replace(target);
   else location.assign(target);
+  if (sameDocument) location.reload();
 }
 
-function onNavigate(event: NavigateEvent): void {
-  if (!alive || !event.cancelable) return;
-  const hit = classify(event.destination.url, blockers);
-  if (hit === null) return;
-  // The loop guard is asked before cancelling, so a refused Short is never cancelled with nothing after it.
-  const decision = decide(hit, { now: Date.now(), redirects: loadRedirects() });
+/** The input lock is on exactly while the current URL is a viewer route and its site's toggle is on. */
+function syncInputLock(): void {
+  setInputLock(alive && viewerLocked(location.href, blockers));
+}
+
+/** Cancels a cancelable navigation per `decision`: counts a cancel, or goes on to the redirect target. */
+function apply(event: NavigateEvent, decision: Decision, mode: 'assign' | 'replace'): void {
   if (decision.action === 'allow') return;
   event.preventDefault();
   if (decision.action === 'cancel') {
@@ -130,8 +148,23 @@ function onNavigate(event: NavigateEvent): void {
     return;
   }
   saveRedirects(decision.redirects);
-  // The watch page is the destination (R15); its marker is what gets counted on landing.
-  setTimeout(() => go(decision.target, 'assign'), 0);
+  // The target page is the destination (R15); its marker is what gets counted on landing.
+  setTimeout(() => go(decision.target, mode), 0);
+}
+
+function onNavigate(event: NavigateEvent): void {
+  if (!alive || !event.cancelable) return;
+  const loop = { now: Date.now(), redirects: loadRedirects() };
+  const move = decideViewerMove(location.href, event.destination.url, blockers);
+  if (move.action === 'lock') {
+    // Next video in the viewer: cancelled, then back to the first video's page (loop guard permitting).
+    apply(event, decideLock(move, loop), 'replace');
+    return;
+  }
+  const hit = classify(event.destination.url, blockers);
+  if (hit === null) return;
+  // The loop guard is asked before cancelling, so a refused rewrite is never cancelled with nothing after it.
+  apply(event, decide(hit, loop), 'assign');
 }
 
 /** Fallback: if the current URL is blocked anyway, replace it with its target. */
@@ -141,14 +174,29 @@ function enforceCurrent(): void {
   if (hit !== null && mayRedirect()) go(hit.target, 'replace');
 }
 
+/**
+ * Fallback for every URL change the Navigation API did not stop: a viewer that moved to another video
+ * goes back to the first one; anything else blocked goes to its target. Then the input lock follows the URL.
+ */
+function settleUrl(): void {
+  if (!alive || !loaded) return;
+  const from = lastHref;
+  lastHref = location.href;
+  const move = decideViewerMove(from, lastHref, blockers);
+  if (move.action === 'lock') {
+    if (mayRedirect()) go(move.target, 'replace');
+  } else {
+    enforceCurrent();
+  }
+  syncInputLock();
+}
+
 function tick(site: BlockedSite): void {
   if (!extensionAlive()) {
     stop(site);
     return;
   }
-  if (location.href === lastHref) return;
-  lastHref = location.href;
-  enforceCurrent();
+  if (location.href !== lastHref) settleUrl();
 }
 
 /** A redirect landing: strip the marker before the page's own scripts run; `settleMarker` counts it. */
@@ -170,7 +218,7 @@ function applySettings(site: BlockedSite, stored: unknown): void {
   loaded = true;
   settleMarker(site);
   setHiderAttribute(site);
-  enforceCurrent();
+  settleUrl();
 }
 
 function listen(target: EventTarget, type: string, handler: () => void): void {
@@ -209,8 +257,9 @@ function main(site: BlockedSite): void {
     nav.addEventListener('navigate', onNavigate);
     cleanups.push(() => nav.removeEventListener('navigate', onNavigate));
   }
-  listen(window, 'popstate', enforceCurrent);
-  listen(window, 'yt-navigate-finish', enforceCurrent);
+  syncInputLock();
+  listen(window, 'popstate', settleUrl);
+  listen(window, 'yt-navigate-finish', settleUrl);
   const timer = setInterval(() => tick(site), POLL_MS);
   cleanups.push(() => clearInterval(timer));
   watchSettings(site);

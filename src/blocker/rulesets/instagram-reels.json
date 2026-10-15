@@ -7,7 +7,20 @@
       "redirect": { "url": "https://www.instagram.com/#dwell=instagram" }
     },
     "condition": {
-      "regexFilter": "^https://(?:www\\.)?instagram\\.com/(?:[^?]*/)?reels?(?:[/?]|$)",
+      "regexFilter": "^https://(?:www\\.)?instagram\\.com/reels?(?:[/?]|$)",
+      "isUrlFilterCaseSensitive": false,
+      "resourceTypes": ["main_frame"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 2,
+    "action": {
+      "type": "redirect",
+      "redirect": { "regexSubstitution": "https://www.instagram.com/p/\\1/#dwell=instagram" }
+    },
+    "condition": {
+      "regexFilter": "^https://(?:www\\.)?instagram\\.com/(?:[^/?]+/)?reels?/([A-Za-z0-9_-]{5,})/?(?:\\?.*)?$",
       "isUrlFilterCaseSensitive": false,
       "resourceTypes": ["main_frame"]
     }

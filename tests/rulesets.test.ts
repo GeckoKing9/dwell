@@ -9,7 +9,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { classify } from '../src/blocker/patterns.ts';
-import { REDIRECT_TARGETS, isAllowedTarget, youtubeWatchTarget } from '../src/blocker/targets.ts';
+import {
+  REDIRECT_TARGETS,
+  facebookReelTarget,
+  instagramPostTarget,
+  isAllowedTarget,
+  youtubeWatchTarget,
+} from '../src/blocker/targets.ts';
 import type { Settings } from '../src/store/schema.ts';
 
 type Blockers = Settings['blockers'];
@@ -29,6 +35,14 @@ const RULESETS: Record<string, keyof Blockers> = {
 };
 const NONE: Blockers = { instagramReels: false, youtubeShorts: false, facebookReels: false, instagramExplore: false };
 const ID = 'dQw4w9WgXcQ';
+const CODE = 'DeewiSPpCrm';
+const TARGETS = [
+  REDIRECT_TARGETS.instagram,
+  REDIRECT_TARGETS.facebook,
+  youtubeWatchTarget(ID) ?? '',
+  instagramPostTarget(CODE) ?? '',
+  facebookReelTarget('1234567890') ?? '',
+];
 
 const SAMPLES = [
   'https://www.instagram.com/',
@@ -36,11 +50,28 @@ const SAMPLES = [
   'https://www.instagram.com/reels/abc123/?igsh=xyz',
   'https://instagram.com/reel/C0abc',
   'https://www.instagram.com/reels',
+  'https://www.instagram.com/reel/',
   'https://www.instagram.com/someuser/reels/',
+  'https://www.instagram.com/someuser/reel/',
+  'https://www.instagram.com/someuser/reels/abcd/',
+  `https://www.instagram.com/someuser/reel/${CODE}/`,
+  `https://instagram.com/some.user_1/reels/${CODE}?igsh=x`,
+  `https://www.instagram.com/a/b/reels/${CODE}/`,
+  `https://www.instagram.com/reels/${CODE}/`,
+  `https://www.instagram.com/reel/${CODE}/#comments`,
+  'https://www.instagram.com/reels/audio/1234567890/',
+  `https://www.instagram.com/reel/${CODE}/liked_by/?x=1`,
+  `https://www.instagram.com/someuser/reel/${CODE}/liked_by/`,
   'https://WWW.INSTAGRAM.COM/Reel/abc/',
-  'https://www.instagram.com/reel/abc/#comments',
+  'https://WWW.INSTAGRAM.COM/Reel/C0abcDEF/',
+  'https://www.instagram.com/reel/abcd/',
+  'https://www.instagram.com/reel/ab.cde/',
+  `https://www.instagram.com/reel/${'x'.repeat(80)}/`,
+  'https://www.instagram.com/reel/ab%2Fcde/',
+  'https://www.instagram.com/explore/tags/reels/',
   'https://www.instagram.com/reelsfan/',
   'https://www.instagram.com/p/C0abc/',
+  `https://www.instagram.com/p/${CODE}/`,
   'https://www.instagram.com/?next=/reels/abc/',
   'https://www.instagram.com/#/reels/',
   'https://www.instagram.com/explore/',
@@ -67,15 +98,19 @@ const SAMPLES = [
   `https://www.youtube.com.evil.example/shorts/${ID}`,
   'https://www.facebook.com/reel/1234567890',
   'https://facebook.com/reels/',
+  'https://www.facebook.com/reels',
+  'https://www.facebook.com/reel/',
+  'https://m.facebook.com/reel',
+  'https://www.facebook.com/Reels/?s=x',
   'https://m.facebook.com/reel/1234567890/',
+  'https://www.facebook.com/reel/abc',
   'https://www.facebook.com/someone/reels/',
   'https://www.facebook.com/Reel/1?s=x',
   'https://www.facebook.com/reelection2026/',
   'https://www.facebook.com/?sk=reels',
   'https://web.facebook.com/reel/1',
-  REDIRECT_TARGETS.instagram,
-  REDIRECT_TARGETS.facebook,
-  youtubeWatchTarget(ID) ?? '',
+  'https://web.facebook.com/reels/',
+  ...TARGETS,
 ];
 
 function load(name: string): unknown {
@@ -97,9 +132,9 @@ function compile(rule: Rule): RegExp {
   return new RegExp(rule.condition.regexFilter, rule.condition.isUrlFilterCaseSensitive === true ? '' : 'i');
 }
 
-/** The redirect DNR would perform, or null when no rule in the set matches. */
+/** The redirect DNR would perform, or null when no rule in the set matches. The highest priority wins. */
 function redirectFor(set: Rule[], url: string): string | null {
-  for (const rule of set) {
+  for (const rule of [...set].sort((a, b) => b.priority - a.priority)) {
     const re = compile(rule);
     if (!re.test(url)) continue;
     const { url: fixed, regexSubstitution } = rule.action.redirect;
@@ -160,8 +195,7 @@ describe.each(Object.entries(RULESETS))('ruleset %s', (name, toggle) => {
   });
 
   it('never matches a redirect target (loop guard)', () => {
-    const targets = [REDIRECT_TARGETS.instagram, REDIRECT_TARGETS.facebook, youtubeWatchTarget(ID) ?? ''];
-    for (const target of targets) {
+    for (const target of TARGETS) {
       expect(redirectFor(set, target)).toBeNull();
       expect(redirectFor(set, requestUrl(target))).toBeNull();
     }
