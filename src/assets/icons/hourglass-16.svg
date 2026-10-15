@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- The hourglass drawn for 16 px: a solid glass under 2 px caps and one wedge of sand, since dots blur at this size. -->
+  <rect width="16" height="16" rx="3.5" fill="#0E877D"/>
+  <path d="M4.4 3 H11.6 L8.7 8 L11.6 13 H4.4 L7.3 8 Z" fill="#F4FBFA"/>
+  <rect x="3" y="2" width="10" height="2" rx="1" fill="#F4FBFA"/>
+  <rect x="3" y="12" width="10" height="2" rx="1" fill="#F4FBFA"/>
+  <path d="M6.2 11.6 H9.8 L8 9.6 Z" fill="#E39B1B"/>
+</svg>

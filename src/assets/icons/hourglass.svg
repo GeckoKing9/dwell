@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Dwell's mark: an hourglass whose sand is the time-dots of the design system. Source for icon-32/48/128.png. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#119488"/>
+      <stop offset="1" stop-color="#0D7A71"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="url(#tile)"/>
+  <rect x="33" y="21" width="62" height="10" rx="5" fill="#F4FBFA"/>
+  <rect x="33" y="97" width="62" height="10" rx="5" fill="#F4FBFA"/>
+  <path d="M41 31 C41 51 58 56 58 64 C58 72 41 77 41 97 M87 31 C87 51 70 56 70 64 C70 72 87 77 87 97" fill="none" stroke="#F4FBFA" stroke-width="7" stroke-linecap="round"/>
+  <g fill="#F7CF73">
+    <circle cx="55" cy="44" r="3.2"/>
+    <circle cx="64" cy="44" r="3.2"/>
+    <circle cx="73" cy="44" r="3.2"/>
+    <circle cx="59.5" cy="52" r="3.2"/>
+    <circle cx="68.5" cy="52" r="3.2"/>
+    <circle cx="64" cy="68" r="2.6"/>
+    <circle cx="58" cy="80" r="4.2"/>
+    <circle cx="70" cy="80" r="4.2"/>
+    <rect x="49" y="86.5" width="30" height="7" rx="3.5"/>
+  </g>
+</svg>

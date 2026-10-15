@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- The hourglass drawn for 32 px on whole pixels: an open glass with its sand as solid shapes, since dots blur at this size. -->
+  <defs><linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#119488"/><stop offset="1" stop-color="#0D7A71"/></linearGradient></defs>
+  <rect width="32" height="32" rx="7.5" fill="url(#tile)"/>
+  <rect x="8" y="4" width="16" height="3" rx="1.5" fill="#F4FBFA"/>
+  <rect x="8" y="25" width="16" height="3" rx="1.5" fill="#F4FBFA"/>
+  <path d="M10 7 C10 12.5 14.4 13.8 14.4 16 C14.4 18.2 10 19.5 10 25 M22 7 C22 12.5 17.6 13.8 17.6 16 C17.6 18.2 22 19.5 22 25" fill="none" stroke="#F4FBFA" stroke-width="2" stroke-linecap="round"/>
+  <g fill="#F5C258">
+    <path d="M12.4 10.6 H19.6 C18.8 12.3 17.1 13.2 16 14.1 C14.9 13.2 13.2 12.3 12.4 10.6 Z"/>
+    <rect x="15" y="14.6" width="2" height="5" rx="1"/>
+    <path d="M11.3 23.6 C12 20.9 14 19.9 16 19.9 C18 19.9 20 20.9 20.7 23.6 Z"/>
+  </g>
+</svg>
