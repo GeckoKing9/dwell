@@ -33,8 +33,8 @@ let frame: number | null = null;
 let wait: ReturnType<typeof setTimeout> | null = null;
 let lastRun = Number.NEGATIVE_INFINITY;
 
-/** Records that the guard opened `code` as a page in this document, so it gets the same treatment as a loaded one. */
-export function markInAppPost(code: string): void {
+/** Records the post the guard is opening as a page in this document (null: none), so it is treated as a loaded one. */
+export function markInAppPost(code: string | null): void {
   inAppCode = code;
 }
 

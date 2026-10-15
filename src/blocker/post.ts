@@ -88,20 +88,31 @@ export function popUpBox(view: { width: number; height: number }, ratio: number)
   return { width: room + POP_UP_SIDE_PX, height: Math.round(room / shape), side: POP_UP_SIDE_PX };
 }
 
+/** What closing the pop-up needs to know about where the tab can go back to. */
+export interface LeaveContext {
+  /** Dwell opened the post in this document (through Instagram's router). */
+  inApp: boolean;
+  /** The entry before this one is in this document, so Back reaches it without a load. */
+  previousInDocument: boolean;
+  canGoBack: boolean;
+  referrer: string;
+}
+
 /**
- * Where closing the pop-up goes: `back` to the Instagram page the post was opened from (a search, a
- * profile) when the tab can go back, or `stay` on the post with the pop-up lifted when there is none (a
- * link from another site, the first page of a new tab).
+ * Where closing the pop-up goes: `back` to the page the post was opened from (within the document when Dwell
+ * opened it there, else an Instagram page the tab can go back to), or `stay` on the post with the pop-up
+ * lifted when there is none (a link from another site, the first entry of a tab).
  */
-export function leaveBy(canGoBack: boolean, referrer: string): 'back' | 'stay' {
+export function leaveBy(context: LeaveContext): 'back' | 'stay' {
+  if (context.inApp && context.previousInDocument) return 'back';
   let from: URL;
   try {
-    from = new URL(referrer);
+    from = new URL(context.referrer);
   } catch {
     // No referrer, or not an address: the post was not opened from Instagram.
     return 'stay';
   }
-  return canGoBack && from.protocol === 'https:' && siteForHost(from.hostname) === 'instagram' ? 'back' : 'stay';
+  return context.canGoBack && from.protocol === 'https:' && siteForHost(from.hostname) === 'instagram' ? 'back' : 'stay';
 }
 
 /** How much the page around the pop-up is dimmed: `instagram.css` reads it as `--dwell-dim`. */
@@ -119,11 +130,7 @@ export function dimColor(computed: string): string | null {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-/**
- * The post address a link opens in Instagram's pop-up, always `/p/<code>/` (Instagram's post route shows a
- * Reel too), or null when the link does not open one post or Reel on Instagram.
- */
-export function popUpPath(url: string): string | null {
-  const code = postLinkCode(url);
-  return code === null ? null : `/p/${code}/`;
+/** Instagram's post route for a code (it shows a Reel too), the one path form the page-world bridge opens. */
+export function postPath(code: string): string {
+  return `/p/${code}/`;
 }

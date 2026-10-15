@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DIM_FACTOR, MIN_OTHER_POSTS, popUpPath, POP_UP_EDGE_PX, POP_UP_MARGIN_PX, POP_UP_SIDE_PX, dimColor, isOtherPostLink, leaveBy, popUpBox, shownPostCode, singlePostCode } from '../src/blocker/post.ts';
+import { DIM_FACTOR, MIN_OTHER_POSTS, postLinkCode, postPath, POP_UP_EDGE_PX, POP_UP_MARGIN_PX, POP_UP_SIDE_PX, dimColor, isOtherPostLink, leaveBy, popUpBox, shownPostCode, singlePostCode } from '../src/blocker/post.ts';
 
 const CODE = 'DeewiSPpCrm';
 const IG = 'https://www.instagram.com';
@@ -116,9 +116,19 @@ describe('popUpBox: the size of a post shown the way Instagram\'s pop-up shows i
 });
 
 describe('leaveBy: where closing the pop-up goes', () => {
+  const page = { inApp: false, previousInDocument: false };
+
   it('goes back to the Instagram page the post was opened from', () => {
-    expect(leaveBy(true, `${IG}/explore/search/keyword/?q=hugo`)).toBe('back');
-    expect(leaveBy(true, 'https://instagram.com/')).toBe('back');
+    expect(leaveBy({ ...page, canGoBack: true, referrer: `${IG}/explore/search/keyword/?q=hugo` })).toBe('back');
+    expect(leaveBy({ ...page, canGoBack: true, referrer: 'https://instagram.com/' })).toBe('back');
+  });
+
+  it('goes back within the document to the page a post Dwell opened in it came from', () => {
+    expect(leaveBy({ inApp: true, previousInDocument: true, canGoBack: true, referrer: '' })).toBe('back');
+  });
+
+  it('lifts the pop-up when a post Dwell opened in place is the first entry of the tab: Back would go nowhere', () => {
+    expect(leaveBy({ inApp: true, previousInDocument: false, canGoBack: false, referrer: '' })).toBe('stay');
   });
 
   it.each([
@@ -128,7 +138,7 @@ describe('leaveBy: where closing the pop-up goes', () => {
     [true, 'https://instagram.com.evil.example/'],
     [true, 'not a url'],
   ])('only lifts the pop-up when there is no Instagram page to go back to (%s, %s)', (canGoBack, referrer) => {
-    expect(leaveBy(canGoBack, referrer)).toBe('stay');
+    expect(leaveBy({ ...page, canGoBack, referrer })).toBe('stay');
   });
 });
 
@@ -146,7 +156,7 @@ describe('dimColor: the page colour behind the pop-up, dimmed like the parts of 
   });
 });
 
-describe('popUpPath: the post address a link opens in Instagram\'s pop-up', () => {
+describe('postLinkCode and postPath: the post a link opens, and the path the bridge opens it at', () => {
   it.each([
     [`${IG}/p/${CODE}/`, `/p/${CODE}/`],
     [`${IG}/p/${CODE}`, `/p/${CODE}/`],
@@ -156,7 +166,8 @@ describe('popUpPath: the post address a link opens in Instagram\'s pop-up', () =
     [`${IG}/someuser/p/${CODE}/?igsh=x#c`, `/p/${CODE}/`],
     [`https://instagram.com/reel/${CODE}/`, `/p/${CODE}/`],
   ])('opens %s as %s', (url, path) => {
-    expect(popUpPath(url)).toBe(path);
+    const code = postLinkCode(url);
+    expect(code === null ? null : postPath(code)).toBe(path);
   });
 
   it.each([
@@ -171,6 +182,6 @@ describe('popUpPath: the post address a link opens in Instagram\'s pop-up', () =
     `https://www.facebook.com/p/${CODE}/`,
     'not a url',
   ])('leaves %s to Instagram', (url) => {
-    expect(popUpPath(url)).toBeNull();
+    expect(postLinkCode(url)).toBeNull();
   });
 });

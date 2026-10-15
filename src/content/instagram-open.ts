@@ -7,7 +7,7 @@
  */
 import { OPENED_ATTR, OPEN_POST_EVENT, openRequest, readOpenAnswer, type OpenAnswer, type OpenMode } from '../blocker/bridge.ts';
 import { INSTAGRAM_REEL } from '../blocker/patterns.ts';
-import { popUpPath } from '../blocker/post.ts';
+import { postLinkCode, postPath } from '../blocker/post.ts';
 
 /** How Instagram's router opened `path`, or `refused`. Dispatch is synchronous: the answer is there when it returns. */
 export function askBridge(mode: OpenMode, path: string): OpenAnswer {
@@ -35,20 +35,20 @@ function plainClick(event: MouseEvent): boolean {
 /**
  * Catches a plain tap on a Reel's own link (`/reel/<code>`, `/reels/<code>`) on `window` in the capture
  * phase, before Instagram's handler, while `enabled()`. When the bridge opens it in Instagram's pop-up,
- * Instagram's handler is stopped and `opened` gets the post path; anything else is left to Instagram, and the
+ * Instagram's handler is stopped and `opened` gets the post's code; anything else is left to Instagram, and the
  * guard handles the Reels feed it may open. Returns the function that stops it.
  */
-export function watchReelTaps(enabled: () => boolean, opened: (path: string) => void): () => void {
+export function watchReelTaps(enabled: () => boolean, opened: (code: string) => void): () => void {
   const onClick = (event: MouseEvent): void => {
     if (!plainClick(event) || !enabled() || !(event.target instanceof Element)) return;
     if (event.target.closest('[role="dialog"]') !== null) return;
     const link = event.target.closest('a[href]');
     if (!(link instanceof HTMLAnchorElement) || (link.target !== '' && link.target !== '_self')) return;
-    const path = popUpPath(link.href);
-    if (path === null || !INSTAGRAM_REEL.test(link.pathname) || askBridge('pop-up', path) !== 'pop-up') return;
+    const code = postLinkCode(link.href);
+    if (code === null || !INSTAGRAM_REEL.test(link.pathname) || askBridge('pop-up', postPath(code)) !== 'pop-up') return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    opened(path);
+    opened(code);
   };
   window.addEventListener('click', onClick, { capture: true });
   return () => window.removeEventListener('click', onClick, { capture: true });

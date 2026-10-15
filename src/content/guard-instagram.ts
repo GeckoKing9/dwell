@@ -4,7 +4,7 @@
  * post page the guard would load opens in this document through Instagram's router when it can; a full
  * single-post page hides its "More posts" and shows a video post as a pop-up (`instagram-post.ts`).
  */
-import { popUpPath, shownPostCode, singlePostCode } from '../blocker/post.ts';
+import { postLinkCode, postPath, shownPostCode } from '../blocker/post.ts';
 import { startGuard, type GuardPort } from './guard-core.ts';
 import { askBridge, watchReelTaps } from './instagram-open.ts';
 import { markInAppPost, syncPostPage } from './instagram-post.ts';
@@ -15,12 +15,13 @@ import { markInAppPost, syncPostPage } from './instagram-post.ts';
  * the router took it; counted here, since no landing marker will be.
  */
 function inPlace(guard: GuardPort, target: string, mode: 'page' | 'swap'): boolean {
-  const path = popUpPath(target);
-  if (path === null) return false;
-  const answer = askBridge(mode, path);
+  const code = postLinkCode(target);
+  if (code === null) return false;
+  // Registered before the ask: a router that commits during it already finds the post its own page.
+  markInAppPost(code);
+  const answer = askBridge(mode, postPath(code));
+  if (answer !== 'page') markInAppPost(null);
   if (answer === 'refused') return false;
-  const code = singlePostCode(path);
-  if (answer === 'page' && code !== null) markInAppPost(code);
   guard.count('instagram');
   // A Reel opened this way is one video: a move from it to another post is undone, as in a Reels viewer.
   guard.opened(code);
@@ -32,7 +33,7 @@ startGuard('instagram', (guard) => ({
   // Taps stay Instagram's until the stored settings are known: a switch turned off is never overridden.
   stop: watchReelTaps(
     () => guard.blockers()?.instagramReels === true,
-    (path) => guard.opened(singlePostCode(path)),
+    (code) => guard.opened(code),
   ),
   openInPlace: (target, mode) => inPlace(guard, target, mode === 'replace' ? 'swap' : 'page'),
   sync: syncPostPage,

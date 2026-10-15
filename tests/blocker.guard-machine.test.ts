@@ -122,6 +122,7 @@ describe('start: the guard at document_start', () => {
       swap: null,
       recheckAt: null,
       postCode: null,
+      synced: FB_111,
     });
     expect(effects).toEqual([{ type: 'hider', on: true }, sync(true)]);
   });
@@ -489,13 +490,29 @@ describe('settle: a committed URL, an undo’s deadline, a re-check', () => {
 
   it('locks a viewer entered in-app on the default toggles before the stored settings arrive, and moves nothing', () => {
     const { state } = start('facebook', `${FB}/`, false);
-    expect(settle(state, FB_111)).toEqual({ state, effects: [sync(true)] });
+    expect(settle(state, FB_111)).toEqual({ state: { ...state, synced: FB_111 }, effects: [sync(true)] });
+  });
+
+  it('turns the input lock off on the way back from a viewer before the settings arrive', () => {
+    const { state } = start('youtube', YT_HOME, false);
+    const onShort = settle(state, `${YT_HOME}shorts/abcdefghijk`);
+    expect(onShort.effects).toEqual([sync(true)]);
+    expect(settle(onShort.state, YT_HOME).effects).toEqual([sync(false)]);
+  });
+
+  it('follows the page on screen when a refused viewer move goes back to the first video', () => {
+    const reelA = `${IG}/reel/AAAAAA/`;
+    const refused = settle(loaded('instagram', reelA), `${IG}/reels/BBBBBB/`, { redirects: FULL, undos: FULL });
+    expect(refused.state.href).toBe(reelA);
+    expect(refused.effects).toContainEqual(sync(true));
+    // Back on the single Reel: its caption and comments scroll again.
+    expect(settle(refused.state, reelA, { redirects: FULL, undos: FULL }).effects).toContainEqual(sync(false));
   });
 
   it('waits for the settings, then settles from the URL it started on', () => {
     const { state } = start('facebook', FB_111, false);
     const early = settle(state, FB_222);
-    expect(early).toEqual({ state, effects: [sync(true)] });
+    expect(early).toEqual({ state: { ...state, synced: FB_222 }, effects: [sync(true)] });
     const out = step(early.state, { type: 'settings', ...at(FB_222), stored: { blockers: ALL_ON }, initial: true });
     expect(out.effects).toEqual([{ type: 'hider', on: true }, sync(true), saveLog('redirects', [NOW]), load(FB_LOCK, 'replace')]);
   });

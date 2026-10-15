@@ -118,8 +118,20 @@ function unmark(): void {
   document.querySelector(`[${CLOSE}]`)?.remove();
 }
 
+/** True when the entry before this one is in this document, so Back reaches it without a load. */
+function previousInDocument(): boolean {
+  const index = navigation.currentEntry?.index ?? -1;
+  return index > 0 && navigation.entries()[index - 1]?.sameDocument === true;
+}
+
 function leave(): void {
-  if (shown?.inApp === true || leaveBy(navigation.canGoBack, document.referrer) === 'back') {
+  const context = {
+    inApp: shown?.inApp === true,
+    previousInDocument: previousInDocument(),
+    canGoBack: navigation.canGoBack,
+    referrer: document.referrer,
+  };
+  if (leaveBy(context) === 'back') {
     history.back();
     return;
   }
@@ -155,7 +167,10 @@ function onClick(event: MouseEvent): void {
   leave();
 }
 
-/** Escape closes it, unless the user is typing (the same rule the input lock uses) or one of Instagram's own dialogs or menus is open. */
+/**
+ * Escape closes it, unless the user is typing in a text field (`takesText`: a focused slider or menu does not
+ * keep Escape, unlike the input lock's arrow keys) or one of Instagram's own dialogs or menus is open.
+ */
 function onKeyDown(event: KeyboardEvent): void {
   if (shown === null || event.key !== 'Escape' || !document.documentElement.hasAttribute(OPEN)) return;
   if (takesText(editable(event.composedPath()[0])) || document.querySelector(OVERLAY) !== null) return;

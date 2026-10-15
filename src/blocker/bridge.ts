@@ -13,7 +13,7 @@ export const OPENED_ATTR = 'data-dwell-opened';
 
 const POP_UP_PATH = new RegExp(`^/p/${POST_CODE_SOURCE}/$`);
 
-/** True only for a path in exactly the form `popUpPath` builds: what the bridge will open. */
+/** True only for a path in exactly the form `postPath` builds: what the bridge will open. */
 export function isPopUpPath(path: string): boolean {
   return POP_UP_PATH.test(path);
 }

@@ -76,6 +76,8 @@ export interface GuardState {
   readonly swap: string | null;
   /** When the re-check a refused viewer move asked for runs: one timer at a time. */
   readonly recheckAt: number | null;
+  /** The URL the input lock and the post page last followed; a settle on another URL syncs them again. */
+  readonly synced: string;
 }
 
 /** What every input carries: the URL on screen, the time, and the logs, read only when a decision needs them. */
@@ -159,16 +161,26 @@ export function start(site: BlockedSite, here: string, marker: boolean, postCode
     popUp: null,
     swap: null,
     recheckAt: null,
+    synced: here,
   };
   return { state, effects: [hider(state), sync(state, here)] };
 }
 
 export function step(state: GuardState, input: Input): Step {
+  const out = transition(state, input);
+  // Every sync follows the URL on screen: remembered, so a settle back on another URL syncs again.
+  return out.effects.some((effect) => effect.type === 'sync') ? { ...out, state: { ...out.state, synced: input.here } } : out;
+}
+
+function transition(state: GuardState, input: Input): Step {
   switch (input.type) {
     case 'navigate':
       return navigate(state, input);
     case 'settle':
-      return state.undo === null && input.here === state.href ? none(state) : settle(state, input);
+      if (state.undo === null && input.here === state.href) {
+        return input.here === state.synced ? none(state) : { state, effects: [sync(state, input.here)] };
+      }
+      return settle(state, input);
     case 'settings':
       return settings(state, input);
     case 'pushed':
