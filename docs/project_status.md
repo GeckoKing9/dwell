@@ -50,6 +50,6 @@ What only the operating system and the live, logged-in sites can show. Tick each
 3. Tag `v0.1.0` on `main` and push the tag; the release workflow builds, tests and attaches the zip and hash list.
 
 <!-- session-end:auto -->
-**Last session (2026-10-15, coding):** Dwell MVP built in units U1-U11, 21 review findings fixed, merged to main with CI green; handoff/ folder created; dist copied to C:\Users\CRdup\dwell-dist.
-**Next:** Run manual checklist on real Chrome, then tag v0.1.0.
+**Last session (2026-10-15, coding):** Reworked reel blocking (Facebook viewer Previous Card, Instagram smoother open/close), hourglass icon, ponytail method added to code-review; merged to main.
+**Next:** Signed-in Facebook/Instagram checks, one real day with event log, tag v0.1.0.
 <!-- /session-end:auto -->
