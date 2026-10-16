@@ -14,7 +14,7 @@
  */
 import { DIM_FACTOR, dimColor, leaveBy, popUpBox } from '../blocker/post.ts';
 import { takesText } from '../blocker/scroll.ts';
-import { lowerCurtain, raiseCurtainAfterDraw } from './curtain.ts';
+import { cancelCurtain, lowerCurtain, raiseCurtainAfterDraw } from './curtain.ts';
 import { editable } from './viewer-lock.ts';
 
 const POST = 'data-dwell-post';
@@ -24,6 +24,8 @@ const DIM = 'data-dwell-dim';
 const OPEN = 'data-dwell-post-open';
 const CLOSE = 'data-dwell-close';
 const CLOSING = 'data-dwell-post-closing';
+/** As long as the curtain waits for a page that never comes. */
+const BACK_LIMIT_MS = 1500;
 /** Matches the card's fade-out in `instagram.css`. */
 const EXIT_MS = 120;
 /** A column narrower than this beside the video is a control strip, not the comments. */
@@ -149,6 +151,10 @@ function leave(): void {
     // The card fades out and the curtain covers the page while Instagram draws the one it goes back to.
     lowerCurtain();
     setTimeout(() => history.back(), exitMs());
+    // A Back that never leaves the post (stopped, or onto the same post) gives the card and its close back.
+    setTimeout(() => {
+      if (shown !== null) root.removeAttribute(CLOSING);
+    }, BACK_LIMIT_MS);
     return;
   }
   dismissed = true;
@@ -194,6 +200,13 @@ function onKeyDown(event: KeyboardEvent): void {
   leave();
 }
 
+/** A page brought back from the back/forward cache returns as it left, mid-close: it shows the post again. */
+function onPageShow(event: PageTransitionEvent): void {
+  if (!event.persisted) return;
+  document.documentElement.removeAttribute(CLOSING);
+  cancelCurtain();
+}
+
 /** Removes the pop-up and everything it added; nothing to do when none is shown. */
 function lift(): void {
   if (shown === null) return;
@@ -203,6 +216,7 @@ function lift(): void {
   document.removeEventListener('click', onClick, true);
   window.removeEventListener('keydown', onKeyDown, true);
   window.removeEventListener('resize', resize);
+  window.removeEventListener('pageshow', onPageShow);
 }
 
 /** Lifts the pop-up and forgets a close: the post's page was left or the Reels switch turned off. */
@@ -220,7 +234,11 @@ export function syncPopUp(video: HTMLVideoElement | null, main: Element | null, 
     lift();
     return;
   }
-  if (dismissed) return;
+  if (dismissed) {
+    // Closed by the user: the post stays as Instagram drew it, and a curtain over its arrival can go.
+    raiseCurtainAfterDraw();
+    return;
+  }
   if (shown !== null && shown.video === video && shown.card.isConnected && shown.card.hasAttribute(POST)) {
     // A dialog Instagram just opened inside something dimmed is brought back at once, not on the next pass.
     for (const dimmed of document.querySelectorAll(`[${DIM}]`)) if (dimmed.querySelector(OVERLAY) !== null) dimmed.removeAttribute(DIM);
@@ -233,7 +251,10 @@ export function syncPopUp(video: HTMLVideoElement | null, main: Element | null, 
   }
   const found = findCard(video, main);
   lift();
-  if (found === null) return;
+  if (found === null) {
+    raiseCurtainAfterDraw();
+    return;
+  }
   shown = { card: found.card, video, inApp, redimmedAt: Date.now() };
   found.card.setAttribute(POST, '');
   found.side.setAttribute(SIDE, '');
@@ -245,6 +266,7 @@ export function syncPopUp(video: HTMLVideoElement | null, main: Element | null, 
   document.addEventListener('click', onClick, true);
   window.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('resize', resize);
+  window.addEventListener('pageshow', onPageShow);
   // The framed post is drawn: a curtain lowered while Instagram swapped the page in can fade now.
   raiseCurtainAfterDraw();
 }
