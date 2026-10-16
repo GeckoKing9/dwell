@@ -69,7 +69,7 @@
     },
     {
       "matches": ["https://www.facebook.com/*", "https://m.facebook.com/*", "https://facebook.com/*"],
-      "js": ["src/content/guard.ts", "src/content/media.ts"],
+      "js": ["src/content/guard-facebook.ts", "src/content/media.ts"],
       "css": ["src/content/facebook.css"],
       "run_at": "document_start",
       "all_frames": false,

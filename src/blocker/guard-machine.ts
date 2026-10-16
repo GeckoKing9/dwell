@@ -18,9 +18,9 @@
  * - settings: the first read or a change; a stripped `#dwell=<site>` landing is counted once, after the first.
  * - opened: a post the site's router opened for the guard (Instagram).
  *
- * A site whose router opens a post in this document (Instagram) gives the machine its post rule at start
- * (`PostCode`); with none, the swap and the pop-up's one-post lock never apply, and the site's bundle carries
- * no post paths.
+ * A site that puts a page in place of a move in this document (Instagram through its router, Facebook with its
+ * viewer's own Previous Card) gives the machine its post rule at start (`PostCode`); with none, the swap and the
+ * pop-up's one-post lock never apply, and the site's bundle carries no post paths.
  */
 import {
   admitRedirect,
@@ -72,7 +72,7 @@ export interface GuardState {
   readonly undo: { from: string; until: number } | null;
   /** The post a Reel opened on through the site's router: a move from it to another post is undone. */
   readonly popUp: string | null;
-  /** A move let through to be replaced by its post in this document: its own commit is not loaded a second time. */
+  /** A move let through to be replaced in this document (by its post, or by the first reel): its own commit is not a new move. */
   readonly swap: string | null;
   /** When the re-check a refused viewer move asked for runs: one timer at a time. */
   readonly recheckAt: number | null;
@@ -177,7 +177,8 @@ function transition(state: GuardState, input: Input): Step {
     case 'navigate':
       return navigate(state, input);
     case 'settle':
-      if (state.undo === null && input.here === state.href) {
+      // Back on the anchor with nothing in flight: nothing moved, and the lock follows the URL.
+      if (state.undo === null && state.swap === null && input.here === state.href) {
         return input.here === state.synced ? none(state) : { state, effects: [sync(state, input.here)] };
       }
       return settle(state, input);
@@ -204,9 +205,17 @@ function navigate(prior: GuardState, input: Navigate): Step {
   if (state.undo !== null) return { state, effects: holds(state, state.undo.from, input) ? [CANCEL] : [] };
   const popUp = popUpMove(state, input);
   state = { ...state, popUp: popUp.anchor };
+  // While a swap's own move is on screen, the page before it is still the anchor: the swap's way back is no new move.
+  const from = state.swap === input.here ? state.href : input.here;
   // The next post in the pop-up a Reel opened in is undone, as the next video in a viewer is.
-  const move = popUp.move ?? decideViewerMove(input.here, input.destination, state.blockers);
-  if (move.action === 'lock') return apply(state, decideLock(move, context(input, nav)), 'replace', input);
+  const move = popUp.move ?? decideViewerMove(from, input.destination, state.blockers);
+  if (move.action === 'lock') {
+    const decision = decideLock(move, context(input, nav, from));
+    // Refused where a viewer move is put back in place: a cancel would leave the site drawing the next video
+    // under the first one's address, so the move commits and the settle puts it back once a load is admitted.
+    if (decision.action === 'cancel' && popUp.move === null && swaps(state, move.target, input)) return none(state);
+    return apply(state, decision, 'replace', input);
+  }
   const hit = classify(input.destination, state.blockers);
   // Most navigations block nothing: the logs are read only for one that does.
   return hit === null ? none(state) : apply(state, decide(hit, context(input, nav)), 'assign', input);
@@ -226,6 +235,8 @@ function holds(state: GuardState, from: string, input: Navigate): boolean {
  */
 function popUpMove(state: GuardState, input: Navigate): { anchor: string | null; move: Lock | null } {
   if (state.popUp === null || state.postCode === null) return { anchor: null, move: null };
+  // Back or Forward leaves the pop-up (closing it goes Back, also onto another post's page): never the next post.
+  if (input.navigationType === 'traverse') return { anchor: null, move: null };
   const from = state.postCode(input.here);
   const to = state.postCode(input.destination);
   if (to === state.popUp) return { anchor: state.popUp, move: null };
@@ -243,14 +254,9 @@ function apply(state: GuardState, decision: Decision, mode: 'assign' | 'replace'
     case 'cancel':
       return { state, effects: [CANCEL, count(decision.site)] };
     case 'redirect':
-      if (swaps(state, decision.target, input)) {
-        // Not cancelled: a cancelled move stays in the site's router as this entry's route, and Back would
-        // bring it back. It commits, then the post replaces it, through the router when it can.
-        return {
-          state: { ...state, swap: input.destination },
-          effects: [saveLog('redirects', decision.redirects), { type: 'load', target: decision.target, mode: 'replace', deferred: true }],
-        };
-      }
+      // Not cancelled: a cancelled move stays in the site's router as this entry's route, and Back would bring
+      // it back. It commits, then the target replaces it in this document when the site can.
+      if (swaps(state, decision.target, input)) return swapIn(state, input.destination, decision);
       // The target page is the destination (R15); its marker is what gets counted on landing.
       return {
         state,
@@ -264,6 +270,14 @@ function apply(state: GuardState, decision: Decision, mode: 'assign' | 'replace'
       };
     }
   }
+}
+
+/** Puts `decision`'s target in place of the move `swap` once it has committed: a task later, outside the site's own call. */
+function swapIn(state: GuardState, swap: string, decision: Extract<Fallback, { action: 'redirect' }>): Step {
+  return {
+    state: { ...state, swap },
+    effects: [saveLog('redirects', decision.redirects), { type: 'load', target: decision.target, mode: 'replace', deferred: true }],
+  };
 }
 
 /** On a site with a post rule, an in-app push or replace bound for one post is swapped for it rather than cancelled. */
@@ -324,6 +338,8 @@ function settings(prior: GuardState, input: SettingsInput): Step {
 function settle(prior: GuardState, input: Moment): Step {
   // A re-check whose time has come is no longer pending, whichever settle this is.
   let state: GuardState = prior.recheckAt !== null && input.now >= prior.recheckAt ? { ...prior, recheckAt: null } : prior;
+  // A swap is over once the URL leaves the move it was putting something in place of.
+  if (state.swap !== null && input.here !== state.swap) state = { ...state, swap: null };
   // Settled before the settings check, so an undo started before they load cannot hold every move after it.
   if (state.undo !== null) {
     const landed = input.here === state.undo.from;
@@ -333,12 +349,10 @@ function settle(prior: GuardState, input: Moment): Step {
   // Before the settings arrive nothing moves, but the input lock follows the URL on the default toggles, as the
   // hiders do: a viewer entered in that window is locked from its first key, not from the settings' arrival.
   if (!state.loaded) return { state, effects: [sync(state, input.here)] };
+  // The move being swapped commits first, and its replacement is already on its way. The anchor stays on the
+  // page before the move, so that replacement (back to the first reel, or on to the post) is not a new move.
+  if (state.swap !== null) return { state, effects: [sync(state, input.here)] };
   const from = state.href;
-  if (state.swap !== null) {
-    // The move being swapped commits first: the router's replace is already on its way.
-    if (input.here === state.swap) return { state: { ...state, href: input.here }, effects: [sync(state, input.here)] };
-    state = { ...state, swap: null };
-  }
   state = { ...state, href: input.here };
   const move = decideViewerMove(from, input.here, state.blockers);
   const out = move.action === 'lock' ? settleMove(state, move, from, input) : enforce(state, input);
@@ -359,7 +373,8 @@ function settleMove(state: GuardState, move: Lock, from: string, input: Moment):
     const back = goBack({ ...state, href: from }, from, decision.site, input.now);
     return { state: back.state, effects: [saveLog('undos', decision.undos), ...back.effects] };
   }
-  if (decision.action === 'redirect') return loadPath(state, decision);
+  // On a site with a post rule the target goes in place of the move on screen, as for a swap: the anchor stays.
+  if (decision.action === 'redirect') return state.postCode === null ? loadPath(state, decision) : swapIn({ ...state, href: from }, input.here, decision);
   const retryAt = admitsAt(ctx);
   const anchored = { ...state, href: from };
   if (retryAt <= input.now || (state.recheckAt !== null && state.recheckAt <= retryAt)) return none(anchored);

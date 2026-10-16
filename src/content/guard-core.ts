@@ -6,8 +6,8 @@
  * It reads `location`, its own settings and its own loop-guard and undo logs (`guard-logs.ts`), and sends
  * only `{ type: 'blocked', site }`. Nothing else from the page is read or sent.
  *
- * Importing it starts nothing: each site's entry does, `guard.ts` on YouTube, Facebook and X, and
- * `guard-instagram.ts` with the pieces only Instagram needs.
+ * Importing it starts nothing: each site's entry does, `guard.ts` on YouTube and X, `guard-instagram.ts`
+ * and `guard-facebook.ts` with the pieces only their site needs.
  */
 import { samePage } from '../blocker/decide.ts';
 import { start, step, type Effect, type GuardState, type Input, type Moment, type PostCode } from '../blocker/guard-machine.ts';
@@ -27,15 +27,15 @@ export interface GuardPort {
   opened(code: string | null): void;
 }
 
-/** What a site adds to the guard (Instagram: `guard-instagram.ts`). */
+/** What a site adds to the guard (`guard-instagram.ts`, `guard-facebook.ts`). */
 export interface SiteHooks {
   /** The machine's post rule: which post an address shows. */
   postCode: PostCode;
   /** Opens an allowlisted target in this document instead of loading it (`replace`: in place of the entry on screen); true when it did. */
   openInPlace(target: string, mode: 'assign' | 'replace'): boolean;
   /** Follows the URL and the settings: on while the site's own pieces apply, off once the guard stops. */
-  sync(on: boolean): void;
-  stop(): void;
+  sync?(on: boolean): void;
+  stop?(): void;
 }
 
 const COUNT_DEDUPE_MS = 1000;
@@ -98,7 +98,7 @@ function perform(effect: Effect, event: NavigateEvent | undefined): void {
       return document.documentElement.setAttribute(`data-dwell-${state.site}`, effect.on ? 'on' : 'off');
     case 'sync':
       setInputLock(effect.lock);
-      return hooks?.sync(effect.posts);
+      return hooks?.sync?.(effect.posts);
   }
 }
 
@@ -118,7 +118,7 @@ function stop(): void {
   if (!alive) return;
   alive = false;
   setInputLock(false);
-  hooks?.sync(false);
+  hooks?.sync?.(false);
   for (const cleanup of cleanups.splice(0)) {
     try {
       cleanup();
@@ -178,7 +178,7 @@ export function startGuard(site: BlockedSite, siteHooks?: (guard: GuardPort) => 
       opened: (code) => dispatch({ type: 'opened', ...moment(), code }),
     });
     hooks = own;
-    cleanups.push(() => own.stop());
+    if (own.stop !== undefined) cleanups.push(own.stop);
   }
   const begun = start(site, location.href, marker, hooks?.postCode);
   state = begun.state;

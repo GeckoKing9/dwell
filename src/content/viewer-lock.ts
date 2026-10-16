@@ -10,6 +10,9 @@
  * on the whole site; after an in-page move into a viewer they come after the page's own `window`
  * listeners, and the guard's URL lock is the backstop.
  *
+ * While the lock is on, `<html>` carries `data-dwell-viewer`, so a site's CSS hides the viewer's own
+ * next-video controls there and nowhere else.
+ *
  * The decisions are the pure rules in `blocker/scroll.ts`; this file only describes the event target's
  * ancestors to them: computed overflow-y and scroll-snap-type, scroll metrics, and whether a video is
  * inside. Nothing is stored or sent.
@@ -112,6 +115,7 @@ export function startKeyLock(): () => void {
 export function setInputLock(on: boolean): void {
   if (on === locked) return;
   locked = on;
+  document.documentElement.toggleAttribute('data-dwell-viewer', on);
   if (on) {
     window.addEventListener('wheel', onWheel, OPTIONS);
     window.addEventListener('touchstart', onTouchStart, PASSIVE);

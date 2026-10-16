@@ -64,6 +64,12 @@ export function viewerKey(url: string): ViewerKey | null {
   return match === null ? null : keyFrom(site, match);
 }
 
+/** The reel a Facebook viewer address shows, or null: the machine's rule for which Facebook moves it puts back. */
+export function facebookReelCode(url: string): string | null {
+  const viewer = viewerKey(url);
+  return viewer?.site === 'facebook' ? viewer.key : null;
+}
+
 /**
  * The allowlisted single-video page for one viewer key, or null when the key is not valid for the site.
  * On X it is the tweet page under `owner`, or under `i` when the owner is not known.

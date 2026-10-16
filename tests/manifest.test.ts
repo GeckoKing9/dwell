@@ -34,6 +34,13 @@ describe('source manifest', () => {
     expect(x).toEqual(['https://x.com/*']);
   });
 
+  it('runs Facebook\'s own guard entry, the media reporter and its hiders on Facebook', () => {
+    const scripts = source.content_scripts as { matches: string[]; js: string[]; css?: string[] }[];
+    const facebook = scripts.find((s) => s.matches.includes('https://www.facebook.com/*'));
+    expect(facebook?.js).toEqual(['src/content/guard-facebook.ts', 'src/content/media.ts']);
+    expect(facebook?.css).toEqual(['src/content/facebook.css']);
+  });
+
   it('runs the guard and the media reporter on X, with no hider stylesheet', () => {
     const scripts = source.content_scripts as { matches: string[]; js: string[]; css?: string[] }[];
     const x = scripts.find((s) => s.matches.includes('https://x.com/*'));

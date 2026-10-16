@@ -13,6 +13,7 @@ import {
   type Step,
 } from '../src/blocker/guard-machine.ts';
 import { shownPostCode } from '../src/blocker/post.ts';
+import { facebookReelCode } from '../src/blocker/viewer.ts';
 import { repairSettings } from '../src/shared/settings.ts';
 import { DEFAULT_SETTINGS, type BlockedSite, type Settings } from '../src/store/schema.ts';
 
@@ -427,6 +428,10 @@ describe('navigate from a post a Reel opened on through Instagram’s router', (
 
   it('forgets the post when the page leaves it, or when a move starts from another page', () => {
     expect(navigate(popUp(), `${IG}/someuser/`, { here: POST_E }).state.popUp).toBeNull();
+    // Closing goes Back, also onto another post's page the Reel was tapped on: a traverse is never the next post.
+    const closed = navigate(popUp(), POST_F, { here: POST_E, type: 'traverse' });
+    expect(closed.effects).toEqual([]);
+    expect(closed.state.popUp).toBeNull();
     expect(navigate(popUp(), 'not an address', { here: POST_E }).state.popUp).toBeNull();
     const elsewhere = navigate(popUp(), POST_F, { here: IG_SEARCH });
     expect(elsewhere.state.popUp).toBeNull();
@@ -607,6 +612,65 @@ describe('opened: a post opened through Instagram’s router', () => {
   it('remembers it without following before the settings load', () => {
     const out = step(start('instagram', IG_SEARCH, false).state, { type: 'opened', ...at(POST_E), code: 'EEEEE5' });
     expect(out.state.popUp).toBe('EEEEE5');
+    expect(out.effects).toEqual([]);
+  });
+});
+
+describe('Facebook with its reel rule: a reel move is put back in this document, never by a reload', () => {
+  const onReel = (): GuardState => loaded('facebook', FB_111, ALL_ON, facebookReelCode);
+
+  it('lets a move to the next reel by replace commit, then swaps the first reel back', () => {
+    const out = navigate(onReel(), FB_222, { type: 'replace', logs: { redirects: [] } });
+    expect(out.effects).toEqual([saveLog('redirects', [NOW]), load(FB_LOCK, 'replace', true)]);
+    expect(out.state.swap).toBe(FB_222);
+  });
+
+  it('lets a move both guards refuse commit, and puts the first reel back once a load is admitted: a cancel would leave the next reel drawn', () => {
+    const logs = { redirects: [NOW - 1000, NOW - 500], undos: FULL };
+    const moved = navigate(onReel(), FB_222, { type: 'replace', logs });
+    expect(moved.effects).toEqual([]);
+    const refused = settle(moved.state, FB_222, logs);
+    expect(refused.state.href).toBe(FB_111);
+    expect(refused.effects).toEqual([sync(true), settleIn(4000)]);
+    const retried = settle(refused.state, FB_222, logs, NOW + 4000);
+    expect(retried.effects).toEqual([sync(true), saveLog('redirects', [NOW - 500, NOW + 4000]), load(FB_LOCK, 'replace', true)]);
+    expect(retried.state.swap).toBe(FB_222);
+  });
+
+  it('still undoes a move by push with Back', () => {
+    const out = navigate(onReel(), FB_222, { logs: { undos: [] } });
+    expect(out.effects.some((effect) => effect.type === 'later')).toBe(true);
+    expect(out.effects).not.toContainEqual(CANCEL);
+  });
+
+  it('does not take its own way back to the first reel for a new move: the anchor stays on the first reel', () => {
+    const swapped = navigate(onReel(), FB_222, { type: 'replace', logs: { redirects: [] } }).state;
+    const moved = settle(swapped, FB_222, { redirects: [NOW] });
+    expect(moved.state.href).toBe(FB_111);
+    const back = settle(moved.state, FB_111, { redirects: [NOW] });
+    expect(back.effects.some((effect) => effect.type === 'load')).toBe(false);
+    expect(back.state.swap).toBeNull();
+  });
+
+  it('keeps the first reel as the anchor when a move that was not stopped is put back on settle, so the way back is no new move', () => {
+    // A non-cancelable replace: nothing stopped it, and the settle after its commit sends the viewer back.
+    const moved = navigate(onReel(), FB_222, { type: 'replace', cancelable: false }).state;
+    const settled = settle(moved, FB_222);
+    // In a task of its own: this commit may still be inside Facebook's own call.
+    expect(settled.effects).toContainEqual(load(FB_LOCK, 'replace', true));
+    expect(settled.state.href).toBe(FB_111);
+    const back = navigate(settled.state, `${FB_111}/`, { here: FB_222, type: 'replace', logs: { redirects: [NOW] } });
+    expect(back.effects).toEqual([]);
+    expect(settle(back.state, `${FB_111}/`, { redirects: [NOW] }).effects.some((effect) => effect.type === 'load')).toBe(false);
+  });
+
+  it.each([
+    ['the viewer\'s own Previous Card putting the first reel back', FB_111, true],
+    ['the load of the first reel, when that button is not there', FB_LOCK, false],
+  ])('lets %s through, judged from the first reel rather than the moved one on screen', (_, destination, sameDocument) => {
+    const swapped = navigate(onReel(), FB_222, { type: 'replace', logs: { redirects: [] } }).state;
+    const committed = settle(swapped, FB_222, { redirects: [NOW] }).state;
+    const out = navigate(committed, destination, { here: FB_222, type: 'replace', sameDocument, logs: { redirects: [NOW] } });
     expect(out.effects).toEqual([]);
   });
 });

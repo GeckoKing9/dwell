@@ -30,3 +30,16 @@ html[data-dwell-facebook="on"] div:has(> div > a[href^="/reel/"][href$="see_more
 html[data-dwell-facebook="on"] [role="feed"] > div:has(a[href^="/reel/"][href$="see_more"]) {
   display: none !important;
 }
+
+/*
+ * The reel viewer's own next and previous buttons (2026-10-15), only while the input lock holds a viewer
+ * (data-dwell-viewer, set by the guard): one-video mode leaves nothing to click to another reel. English and
+ * French labels, as measured; in another language the buttons show, and a reel they move to is loaded back
+ * (guard-facebook.ts).
+ */
+html[data-dwell-viewer] [aria-label="Next Card"],
+html[data-dwell-viewer] [aria-label="Previous Card"],
+html[data-dwell-viewer] [aria-label="Carte suivante"],
+html[data-dwell-viewer] [aria-label="Carte précédente"] {
+  display: none !important;
+}

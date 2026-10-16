@@ -39,6 +39,8 @@
   </head>
   <body>
     <div id="viewer" data-shown="">
+      <div id="next-card" role="button" aria-label="Next Card">next</div>
+      <div id="previous-card" role="button" aria-label="Previous Card">previous</div>
       <div class="clip">reel one</div>
       <div class="clip">reel two</div>
     </div>
@@ -90,6 +92,15 @@
         },
       };
       window.addEventListener('popstate', () => show(location.pathname));
+      // The viewer's own card buttons, as measured on Facebook: each replaces the address with the next or the
+      // previous reel, and Previous does nothing on the first card, the reel the viewer opened on.
+      const firstReel = Number(/^\/reel\/(\d+)/.exec(location.pathname)?.[1] ?? 0);
+      function moveCard(step) {
+        const reel = Number(/^\/reel\/(\d+)/.exec(location.pathname)?.[1] ?? firstReel) + step * firstReel;
+        if (firstReel > 0 && reel >= firstReel) window.router.replace(`/reel/${reel}`);
+      }
+      document.getElementById('next-card').addEventListener('click', () => moveCard(1));
+      document.getElementById('previous-card').addEventListener('click', () => moveCard(-1));
       show(location.pathname);
     </script>
   </body>

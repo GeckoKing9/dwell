@@ -839,12 +839,52 @@ test('a Facebook viewer pushed to the next reel is taken back to the first by Ba
   await page.close();
 });
 
-test('a Facebook viewer moved by replaceState is cancelled and the first reel loaded again, counted once', async () => {
+test('a Facebook viewer moved to the next card is put back by its own Previous Card: no reload, counted once', async () => {
   const page = await context.newPage();
   await page.goto(`${FB}/reel/111`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+  await markPage(page);
 
-  expect(await routeTo(page, '/reel/222', 'replace')).toEqual({ path: '/reel/111', added: 0 });
+  // Facebook's Next Card, clicked although hidden: a move made anyway, by a replace, as the real viewer does.
+  await page.evaluate(() => document.getElementById('next-card')?.click());
+  await expect.poll(() => path(page)).toBe('/reel/111');
+  await expect(page.locator('#viewer')).toHaveAttribute('data-shown', '111');
+  expect(await pageMark(page)).toBe('kept');
+  expect(served).toEqual([`${FB}/reel/111`]);
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'facebook' }]);
+  await page.waitForTimeout(600);
+  expect(path(page)).toBe('/reel/111');
+  expect(await blocked()).toHaveLength(1);
+  await page.close();
+});
+
+test('a viewer whose Previous Card does not move it (the reel on screen is its own first card) gets the first reel loaded', async () => {
+  const page = await context.newPage();
+  await page.goto(`${FB}/reel/111`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+  // A Previous Card with no handler: the click lands nowhere.
+  await page.evaluate(() => {
+    const button = document.getElementById('previous-card');
+    button?.replaceWith(button.cloneNode(true));
+  });
+
+  expect(await routeTo(page, '/reel/222', 'replace')).toEqual({ path: '/reel/222', added: 0 });
+  await expect.poll(() => served).toEqual([`${FB}/reel/111`, `${FB}/reel/111`]);
+  await expect.poll(() => page.url()).toBe(`${FB}/reel/111`);
+  await expect(page.locator('#viewer')).toHaveAttribute('data-shown', '111');
+  await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'facebook' }]);
+  await page.waitForTimeout(600);
+  expect(await blocked()).toHaveLength(1);
+  await page.close();
+});
+
+test('with no Previous Card on the page (another UI language), a Facebook viewer moved by replaceState lands on the first reel by a load', async () => {
+  const page = await context.newPage();
+  await page.goto(`${FB}/reel/111`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+  await page.evaluate(() => document.getElementById('previous-card')?.remove());
+
+  expect(await routeTo(page, '/reel/222', 'replace')).toEqual({ path: '/reel/222', added: 0 });
   // The first reel is loaded again, so whatever the viewer drew for the next one is gone.
   await expect.poll(() => served).toEqual([`${FB}/reel/111`, `${FB}/reel/111`]);
   await expect.poll(() => page.url()).toBe(`${FB}/reel/111`);
@@ -875,10 +915,11 @@ test('a push the site then rewrites in place (router state, a tracking query) is
   await page.close();
 });
 
-test('a third viewer push within 5 s is not undone: it is cancelled and the first reel loaded again', async () => {
+test('a third viewer push within 5 s is not undone: the viewer\'s Previous Card puts the first reel back, with no load', async () => {
   const page = await context.newPage();
   await page.goto(`${FB}/reel/111`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+  await markPage(page);
 
   for (let i = 0; i < 2; i += 1) {
     // The push commits; after the first undo it replaces the forward entry, so history does not grow.
@@ -886,26 +927,51 @@ test('a third viewer push within 5 s is not undone: it is cancelled and the firs
     await expect.poll(() => path(page)).toBe('/reel/111');
     await expect(page.locator('#viewer')).toHaveAttribute('data-shown', '111');
   }
-  expect(served).toEqual([`${FB}/reel/111`]);
 
-  expect(await routeTo(page, '/reel/222')).toEqual({ path: '/reel/111', added: 0 });
-  await expect.poll(() => served).toEqual([`${FB}/reel/111`, `${FB}/reel/111`]);
-  await expect.poll(() => page.url()).toBe(`${FB}/reel/111`);
+  // Undo spent: the third move commits and the viewer's own Previous Card replaces it.
+  expect((await routeTo(page, '/reel/222')).path).toBe('/reel/222');
+  await expect.poll(() => path(page)).toBe('/reel/111');
   await expect(page.locator('#viewer')).toHaveAttribute('data-shown', '111');
+  expect(await pageMark(page)).toBe('kept');
+  expect(served).toEqual([`${FB}/reel/111`]);
   await page.close();
 });
 
-test('a Facebook viewer move is still cancelled, and counted in place, when the undo and loop guards both refuse', async () => {
+test('the viewer\'s Next and Previous Card buttons are hidden while facebookReels is on, and shown when it is off', async () => {
   const page = await context.newPage();
   await page.goto(`${FB}/reel/111`);
   await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+  await expect(page.locator('#next-card')).toBeHidden();
+  await expect(page.locator('#previous-card')).toBeHidden();
+  await setBlockers({ facebookReels: false });
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'off');
+  await expect(page.locator('#next-card')).toBeVisible();
+  await expect(page.locator('#previous-card')).toBeVisible();
+  await page.close();
+});
+
+test('controls labelled Next Card elsewhere on Facebook stay visible: the hider holds a viewer only', async () => {
+  const page = await context.newPage();
+  await page.goto(`${FB}/someone`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+  await expect(page.locator('html')).not.toHaveAttribute('data-dwell-viewer');
+  await expect(page.locator('#next-card')).toBeVisible();
+  await page.close();
+});
+
+test('a Facebook viewer move both guards refuse is not cancelled under the first reel: it is put back once a load is admitted', async () => {
+  const page = await context.newPage();
+  await page.goto(`${FB}/reel/111`);
+  await expect(page.locator('html')).toHaveAttribute('data-dwell-facebook', 'on');
+  await markPage(page);
   await page.evaluate(() => {
     for (const key of ['dwell:redirects', 'dwell:undos']) sessionStorage.setItem(key, JSON.stringify([Date.now(), Date.now()]));
   });
 
-  expect(await swipeTo(page, '/reel/222')).toEqual({ path: '/reel/111', added: 0 });
-  await page.waitForTimeout(600);
-  expect(page.url()).toBe(`${FB}/reel/111`);
+  expect(await swipeTo(page, '/reel/222')).toEqual({ path: '/reel/222', added: 1 });
+  await expect.poll(() => path(page), { timeout: 8000 }).toBe('/reel/111');
+  await expect(page.locator('#viewer')).toHaveAttribute('data-shown', '111');
+  expect(await pageMark(page)).toBe('kept');
   expect(served).toEqual([`${FB}/reel/111`]);
   await expect.poll(blocked).toEqual([{ type: 'blocked', site: 'facebook' }]);
   await page.close();
