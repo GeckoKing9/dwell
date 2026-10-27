@@ -18,3 +18,5 @@ Read both sides of every contract: the engine and `tests/support/oracle.ts`, the
 - A test that passes before the fix: run it against the old code first.
 - A guard removed to make one case work (picture-in-picture in a background tab) that another failure relied on (a crashed page counting forever).
 - A message shape changed and one spec still pinning the old shape: grep every spec, e2e included, for the old payload.
+- A shared allowlist widened to satisfy a lint: give the new caller its own narrow guard and teach the lint about it.
+- Grouping changes reach stored settings too: an override, an ignore entry or a category keyed on the old site.

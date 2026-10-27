@@ -17,6 +17,12 @@ interface SitesProps {
 }
 
 /** Grouping overrides, the never-record list and the category editor. */
+/** A kept-apart host's state: already its own site, counted separately, or counted with its domain. */
+function splitState(own: boolean, separate: boolean, domain: string): string {
+  if (own) return t('splitOwnSite');
+  return separate ? t('countSeparately') : t('countWith', { d: domain });
+}
+
 export function SettingsSites({ settings, sites, ui, on }: SitesProps) {
   const toggleSplit = (host: string, separate: boolean): void =>
     on.change({ overrides: separate ? [...settings.overrides, host] : settings.overrides.filter((h) => h !== host) });
@@ -32,18 +38,17 @@ export function SettingsSites({ settings, sites, ui, on }: SitesProps) {
             <FieldError field="split" ui={ui} />
             {ui.seenSplits.map((host) => {
               const separate = settings.overrides.includes(host);
-              // Grouping already counts a hosting customer or a tailnet machine on its own: nothing to switch.
-              const own = registrableDomain(host) === host;
-              let state = t('countWith', { d: registrableDomain(host) });
-              if (own) state = t('splitOwnSite');
-              else if (separate) state = t('countSeparately');
+              const domain = registrableDomain(host);
+              // Grouping already counts a hosting customer or a tailnet machine on its own: the switch stays
+              // only while the entry is on, so it can still be removed.
+              const own = domain === host;
               return (
                 <div class="ovr-row" key={host}>
                   <span id={`split-label-${idSlug(host)}`}>
                     <span class="mono">{host}</span>
-                    <span class="muted">{` \u00b7 ${state}`}</span>
+                    <span class="muted">{` \u00b7 ${splitState(own, separate, domain)}`}</span>
                   </span>
-                  {own ? null : (
+                  {own && !separate ? null : (
                     <Switch id={`split-${idSlug(host)}`} checked={separate} labelledBy={`split-label-${idSlug(host)}`} onChange={(v) => toggleSplit(host, v)} />
                   )}
                 </div>

@@ -29,18 +29,25 @@ function isIp(host: string): boolean {
   return host.startsWith('[') || IPV4.test(host);
 }
 
-/** How many trailing labels make the site under a two-label ending (KTD8): the machine on a tailnet, one more under a public or hosting suffix, else two. */
-function siteLabels(ending: string): number {
-  if (MACHINE_SUFFIXES.has(ending)) return 4;
-  return TWO_LEVEL_SUFFIXES.has(ending) || HOSTED_SUFFIXES.has(ending) ? 3 : 2;
+/**
+ * How many trailing labels make the site under a two-label ending (KTD8): the machine on a tailnet, one
+ * more under a country or hosting suffix, else two. Without `hosted`, only the country suffixes count.
+ */
+function siteLabels(ending: string, hosted: boolean): number {
+  if (hosted && MACHINE_SUFFIXES.has(ending)) return 4;
+  return TWO_LEVEL_SUFFIXES.has(ending) || (hosted && HOSTED_SUFFIXES.has(ending)) ? 3 : 2;
+}
+
+function domainOf(host: string, hosted: boolean): string {
+  if (isIp(host)) return host;
+  const labels = host.split('.');
+  if (labels.length <= 2) return host;
+  return labels.slice(-siteLabels(labels.slice(-2).join('.'), hosted)).join('.');
 }
 
 /** eTLD+1 using the bundled suffix subsets (KTD8); a tailnet machine keeps its machine label. */
 export function registrableDomain(host: string): string {
-  if (isIp(host)) return host;
-  const labels = host.split('.');
-  if (labels.length <= 2) return host;
-  return labels.slice(-siteLabels(labels.slice(-2).join('.'))).join('.');
+  return domainOf(host, true);
 }
 
 /**
@@ -49,9 +56,7 @@ export function registrableDomain(host: string): string {
  * ignored whole; `co.uk` cannot.
  */
 function ignoreFloor(host: string): string {
-  const labels = host.split('.');
-  if (isIp(host) || labels.length <= 2) return host;
-  return labels.slice(TWO_LEVEL_SUFFIXES.has(labels.slice(-2).join('.')) ? -3 : -2).join('.');
+  return domainOf(host, false);
 }
 
 /** The host and each parent domain down to `domain`. */

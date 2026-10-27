@@ -285,11 +285,9 @@ describe('dashboard day target', () => {
     expect(dashboardDayUrl(`${BASE}?x=1`, '2026-10-22')).toBeNull();
   });
 
-  it('is accepted by the one allowlist, and a near miss is not', () => {
-    expect(isAllowedTarget(dashboardDayUrl(BASE, '2026-10-22') ?? '')).toBe(true);
-    expect(isAllowedTarget(`${BASE}#day/2026-10-22x`)).toBe(false);
-    expect(isAllowedTarget(`${BASE}#settings`)).toBe(false);
-    expect(isAllowedTarget('https://evil.example/src/dashboard/index.html#day/2026-10-22')).toBe(false);
+  it('is never a blocker target: the redirect allowlist stays web-only, for this extension and any other', () => {
+    expect(isAllowedTarget(dashboardDayUrl(BASE, '2026-10-22') ?? '')).toBe(false);
+    expect(isAllowedTarget('chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/any/page.html#day/2026-01-01')).toBe(false);
   });
 });
 
@@ -448,7 +446,9 @@ describe('redirect sinks in src/ (KTD5)', () => {
     for (const file of sources(root)) {
       const text = readFileSync(file, 'utf8');
       if ([...text.matchAll(SINK)].length === 0) continue;
-      expect({ file: relative(root, file), usesAllowlist: text.includes('isAllowedTarget(') }).toEqual({
+      // The blockers check `isAllowedTarget`; the popup's one extension target is built only by `dashboardDayUrl`.
+      const usesAllowlist = text.includes('isAllowedTarget(') || text.includes('dashboardDayUrl(');
+      expect({ file: relative(root, file), usesAllowlist }).toEqual({
         file: relative(root, file),
         usesAllowlist: true,
       });
