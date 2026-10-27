@@ -57,7 +57,7 @@ declarativeNetRequest: five static rulesets for direct loads, enabled to match t
 - **Location:** `src/content/`
 
 ### UI
-- **What it does:** the popup (360 x 560) and the hash-routed dashboard (week, day, settings, privacy) in Preact, tokens from `design/DESIGN.md`, inline SVG charts; pure aggregation, week ranges, categories and formatting in `src/stats/`.
+- **What it does:** the popup (360 x 560) and the hash-routed dashboard (week, day, settings, privacy; week and day take a validated `?site=` focus, the selected hour is page state, keys map to routes through the pure `src/dashboard/keys.ts`) in Preact, tokens from `design/DESIGN.md`, inline SVG charts; pure aggregation, week ranges, categories and formatting in `src/stats/`.
 - **Location:** `src/popup/`, `src/dashboard/`, `src/shared/` (messages, settings validation, i18n, theme, fonts, shared components), `src/stats/`
 
 ### Checks and release

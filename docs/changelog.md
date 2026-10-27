@@ -3,6 +3,18 @@
 ## [Unreleased]
 _Nothing yet._
 
+## [2026-10-27] — Dashboard: focus, keys and motion
+### Added
+- Site focus: select a site in Most used or in a day's sites and the dashboard follows it. The week chart keeps every day's bar and draws that site's part of it in teal, with the site's time under each day; the headline shows its week total, its daily average and the change from the same days of the week before, with its share of the week. The day view shows its total, busiest hour, share of the day and visits, and its part of every hour. A chip with an x, the same row again, or Esc goes back to all sites. The focus is in the address (`#week/1?site=instagram.com`), so it survives moving between weeks and days and a reload; an address with a name that is not a site just shows every site.
+- Hour focus: select an hour in the day view to list every site of that hour, busiest first, under a title naming the hour. Selecting it again, Whole day, or Esc lists the whole day again. Hours are buttons for the keyboard too.
+- This week and Today buttons when you are on an older week or an earlier day.
+- Keys: Left and Right for the previous and next week or day, T for this week or today, Esc to clear the hour and then the site. Keys held with Ctrl, Alt, Shift or Cmd, typed into a field, or pressed on Settings and Privacy are left alone. The buttons' tooltips name the keys.
+
+### Changed
+- Bar heights move between weeks, days and focus in 200 ms instead of jumping, and do not move at all when the system asks for reduced motion.
+- Opening a day starts at the top of the page; the previous and next day keep where you were. The hourly chart is the week chart's height, so the panels below no longer shift when you switch between them.
+- The dashboard's clock moves every minute while nothing is being written, so today's now line, the today highlight and midnight stay right on a page left open.
+
 ## [0.1.0] — 2026-10-15
 ### Added
 - Time per website, counted only while a Chrome window has focus, the site is in that window's active tab and you are present. A video or song playing in that tab keeps the count going when you are not touching anything; a locked screen always stops it. After sleep or a closed lid, at most one minute is added.
