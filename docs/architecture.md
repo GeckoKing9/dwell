@@ -48,7 +48,7 @@ declarativeNetRequest: five static rulesets for direct loads, enabled to match t
 - **Key files:** `adapter.ts` (the one storage seam, with a memory fake for tests), `days.ts`, `prune.ts`, `export.ts` (larger-value merge, one write), `import.ts` (caps and validation), `validate.ts`, `delete.ts`, `log.ts`, `schema.ts`.
 
 ### Blocker
-- **What it does:** a pure URL classifier, the one allowlist of redirect targets, five static DNR rulesets, the guard's state machine and its pure rules (viewer lock, undo, input lock, post page, pop-up sizing, the router bridge's protocol), and the hider stylesheets.
+- **What it does:** a pure URL classifier, the one allowlist of navigation targets (the blockers' redirects, and the popup's one extension target: the dashboard at a day route), five static DNR rulesets, the guard's state machine and its pure rules (viewer lock, undo, input lock, post page, pop-up sizing, the router bridge's protocol), and the hider stylesheets.
 - **Location:** `src/blocker/` (`patterns.ts`, `targets.ts`, `decide.ts`, `viewer.ts`, `scroll.ts`, `post.ts`, `bridge.ts`, `guard-machine.ts`, `rulesets/*.json`), `src/content/*.css`
 - **Depends on:** nothing at runtime except `chrome.runtime` and `chrome.storage` in the guard.
 
