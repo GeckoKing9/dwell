@@ -3,7 +3,7 @@
  * here, one at a time, in the order Chrome delivered the events. `Date.now()` is read only here, once
  * per job, when the job is queued; everything downstream uses that `at`.
  *
- * A tracking job: load settings and hot state -> seed from the live browser if the hot state is missing
+ * A tracking job: load settings and hot state -> seed from the live browser (every window's active tab) if the hot state is missing
  * -> align the engine with the stored pause -> map the Chrome payload to engine events -> reduce them
  * -> reseed if the engine asks -> write the attributions -> save the hot state -> append the event log.
  */
@@ -16,7 +16,7 @@ import { DEFAULT_TRACKER_SETTINGS, createInitialState, reduce } from '../tracker
 import type { Attribution, EngineEvent, EngineState, TrackerSettings } from '../tracker/types.ts';
 import { pauseEvent } from './events.ts';
 import { appendEvents } from './log.ts';
-import { readSeed } from './reseed.ts';
+import { seedEvents } from './reseed.ts';
 import { HOT_VERSION, readEngineState, toHotState } from './state.ts';
 
 export interface Stores {
@@ -61,10 +61,10 @@ async function trackJob(stores: Stores, at: number, produce: Producer): Promise<
     reduced.push(event);
   };
 
-  if (stored === null) step(await readSeed(at, settings));
+  if (stored === null) for (const event of await seedEvents(at, settings)) step(event);
   if (state.paused !== settings.paused) step(pauseEvent(settings.paused, at));
   for (const event of await produce({ at, state, settings })) step(event);
-  if (state.needsReseed) step(await readSeed(at, settings));
+  if (state.needsReseed) for (const event of await seedEvents(at, settings)) step(event);
 
   await applyAttributions(stores.local, attributions);
   await saveHotState(stores.session, toHotState(state));

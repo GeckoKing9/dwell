@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 ### Changed
-- Time follows your attention, not only the window that has focus. On Instagram, YouTube, Facebook and X, scrolling a page whose window you never clicked counts, the same as a focused one: ten minutes of scrolling is ten minutes, video or not. It stops at your idle threshold without input there, or at once when the pointer leaves the page. A video playing with sound on screen in a window without focus counts too; muted autoplay does not. Focused browsing sends nothing new, and a page sends at most one message every 10 seconds while you scroll it (ADR-6).
+- Time follows your attention, not only the window that has focus. On Instagram, YouTube, Facebook and X, scrolling a page whose window you never clicked counts, the same as a focused one: ten minutes of scrolling is ten minutes, video or not. It stops at your idle threshold without input there, or at once when the pointer leaves the page; a stray wheel tick over another window takes at most 20 seconds from the window you are typing in. A video playing with sound on screen in a window without focus counts too, and so does one in picture-in-picture; muted autoplay does not. Focused browsing sends nothing new, and a page sends at most one message every 10 seconds while you scroll it (ADR-6).
 
 ## [0.1.0] — 2026-10-15
 ### Added

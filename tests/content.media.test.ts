@@ -155,13 +155,13 @@ describe('attention', () => {
     expect(page.sent).toEqual([]);
   });
 
-  it('pings once when input comes back to a focused page the pointer had left', async () => {
+  it('sends nothing when the pointer leaves a focused page and input comes back: the toolbar round trip costs no message', async () => {
     const page = await start();
     page.focused = true;
     page.fire('root', 'mouseleave');
-    page.fire('window', 'keydown');
-    page.fire('window', 'keydown');
-    expect(page.sent).toEqual([{ type: 'attention', present: true }]);
+    page.fire('window', 'wheel');
+    page.fire('root', 'mouseleave');
+    expect(page.sent).toEqual([]);
   });
 
   it('takes attention back when the pointer leaves or the page is hidden, once, and pings again on the next input', async () => {

@@ -20,9 +20,9 @@ function activeTab(state: EngineState) {
   return tabId === undefined ? undefined : state.tabs[String(tabId)];
 }
 
-/** True when some window's active tab reported playback with sound on screen (now or in its hold). */
+/** True when some tab reported playback with sound on screen (now or in its hold). */
 function anyWatched(state: EngineState): boolean {
-  return Object.values(state.activeTabs).some((tabId) => state.tabs[String(tabId)]?.media?.watched === true);
+  return Object.values(state.tabs).some((tab) => tab.media?.watched === true);
 }
 
 describe('engine invariants over generated sequences', () => {

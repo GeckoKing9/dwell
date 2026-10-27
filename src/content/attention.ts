@@ -2,10 +2,9 @@
  * Attention for the tracking engine: input the page takes outside Chrome's focus. Chrome reports a
  * focused window by itself, but a window without focus still scrolls under the pointer (Windows does
  * this by default) and only the page sees that. Sends `{ type: 'attention', present: true }` on
- * trusted input at most once per PING_MS while the page lacks focus, or once when input comes back to
- * a focused page the pointer had left; and `present: false` when the pointer leaves the page or the
- * page is hidden, if it had said present. Normal browsing in a focused window sends nothing. Reads
- * no content, no position and no key: only that input happened.
+ * trusted input at most once per PING_MS while the page lacks focus, and `present: false` when the
+ * pointer leaves the page or the page is hidden, if it had said present. Browsing in a focused window
+ * sends nothing. Reads no content, no position and no key: only that input happened.
  */
 
 export const PING_MS = 10_000;
@@ -16,24 +15,19 @@ export type Listen = (target: EventTarget, type: string, handler: (event: Event)
 
 export function watchAttention(listen: Listen, send: (present: boolean) => void): void {
   let pingedAt = -Infinity;
-  /** A `present: true` was sent and not yet taken back. */
+  /** A `present: true` was sent and not yet taken back; a leave resets it, so the next input pings at once. */
   let engaged = false;
-  /** The pointer left the page since the last ping. */
-  let left = false;
 
   const input = (event: Event): void => {
-    if (!event.isTrusted) return;
-    if (document.hasFocus() && !left) return;
+    if (!event.isTrusted || document.hasFocus()) return;
     const now = Date.now();
     if (engaged && now >= pingedAt && now - pingedAt < PING_MS) return;
     pingedAt = now;
     engaged = true;
-    left = false;
     send(true);
   };
 
   const leave = (): void => {
-    left = true;
     if (!engaged) return;
     engaged = false;
     send(false);

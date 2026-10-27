@@ -47,20 +47,23 @@ function navigate(state: EngineState, tabId: number, site: string | null, audibl
 }
 
 /**
- * Applies one event to the browser inputs held in the state. Attention ends with anything the user
- * did through Chrome or another app (a focus change, a tab switch), and when its page leaves.
+ * Applies one event to the browser inputs held in the state. Attention ends when another Chrome window
+ * gets focus, when its own window shows another tab, and when its page leaves the site or closes. Another
+ * app taking focus does not end it: the pointer leaving the page does, through the content script.
  */
 export function applyEvent(state: EngineState, event: EngineEvent): EngineState {
   switch (event.type) {
-    case 'focus':
-      return { ...dropAttention(state), focusedWindow: event.windowId };
-    case 'activate':
-      return { ...dropAttention(state), activeTabs: { ...state.activeTabs, [String(event.windowId)]: event.tabId } };
-    case 'attention': {
-      if (!event.present) return dropAttention(state, (held) => held === event.tabId);
-      const attention = { tabId: event.tabId, windowId: event.windowId, at: event.at };
-      return { ...state, attention, activeTabs: { ...state.activeTabs, [String(event.windowId)]: event.tabId } };
+    case 'focus': {
+      const elsewhere = event.windowId !== null && event.windowId !== state.attention?.windowId;
+      return { ...(elsewhere ? dropAttention(state) : state), focusedWindow: event.windowId };
     }
+    case 'activate': {
+      const hidden = event.windowId === state.attention?.windowId && event.tabId !== state.attention.tabId;
+      return { ...(hidden ? dropAttention(state) : state), activeTabs: { ...state.activeTabs, [String(event.windowId)]: event.tabId } };
+    }
+    case 'attention':
+      if (!event.present) return dropAttention(state, (held) => held === event.tabId);
+      return { ...state, attention: { tabId: event.tabId, windowId: event.windowId, at: event.at } };
     case 'url':
       return navigate(state, event.tabId, event.site, event.audible, event.nav === true, event.at);
     case 'idle':

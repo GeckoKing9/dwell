@@ -88,6 +88,14 @@ describe('the tracking job', () => {
     expect(fake.session.data.get('hot')).toMatchObject({ version: 1 });
   });
 
+  it('learns the active tab of every other window when it seeds, so a video on a second screen is known before it is ever focused', async () => {
+    openWindow(fake, 2, [{ id: 20, url: 'https://www.youtube.com/watch?v=1' }]);
+    openWindow(fake, 1, [{ id: 10, url: A }]);
+    const bg = createBackground();
+    await heartbeat(bg);
+    expect(engineState(fake)).toMatchObject({ focusedWindow: 1, activeTabs: { '1': 10, '2': 20 }, tabs: { '20': { site: 'youtube.com' } } });
+  });
+
   it('seeds with nothing focused when Chrome has no window at all', async () => {
     const bg = createBackground();
     await heartbeat(bg);

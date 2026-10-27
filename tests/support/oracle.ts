@@ -5,11 +5,13 @@ import type { Buckets, EngineEvent, IdleState, TrackerSettings } from '../../src
  * browser inputs in mutable maps, walks time one step at a time (1 s by default), asks the
  * presence question at every step, and drops each completed second into the local day and hour
  * of the step in which it completed. Gap cap, media hold, visits and the sub-second carry are
- * modelled explicitly, step by step. Presence is ranked: the page holding attention (input within
- * the idle threshold), then the focused window's active tab, then a watched tab in any window.
+ * modelled explicitly, step by step. Presence is ranked: the page holding attention within 20 s of
+ * its input, the focused window's active tab, the page holding attention within the idle threshold,
+ * then a watched tab, first by tab id.
  */
 
 const MEDIA_HOLD_MS = 30_000;
+const ATTENTION_LEAD_MS = 20_000;
 const DAY_MS = 86_400_000;
 
 interface OracleTab {
@@ -70,15 +72,14 @@ class Browser {
     switch (event.type) {
       case 'focus':
         this.focused = event.windowId;
-        this.attention = null;
+        if (event.windowId !== null && event.windowId !== this.attention?.windowId) this.attention = null;
         break;
       case 'activate':
         this.active.set(event.windowId, event.tabId);
-        this.attention = null;
+        if (event.windowId === this.attention?.windowId && event.tabId !== this.attention.tabId) this.attention = null;
         break;
       case 'attention':
         if (event.present) {
-          this.active.set(event.windowId, event.tabId);
           this.attention = { tabId: event.tabId, windowId: event.windowId, at: event.at };
         } else if (this.attention?.tabId === event.tabId) {
           this.attention = null;
@@ -121,9 +122,9 @@ class Browser {
     return tab.on || (tab.offAt !== null && t < tab.offAt + MEDIA_HOLD_MS);
   }
 
-  private attentionSite(t: number, idleMs: number): string | null {
+  private attentionSite(t: number, lastsMs: number): string | null {
     const held = this.attention;
-    if (held === null || this.active.get(held.windowId) !== held.tabId || t >= held.at + idleMs) return null;
+    if (held === null || t >= held.at + lastsMs) return null;
     return this.tabs.get(held.tabId)?.site ?? null;
   }
 
@@ -140,9 +141,9 @@ class Browser {
 
   private watchedSite(t: number, mediaOverride: boolean): string | null {
     if (!mediaOverride) return null;
-    const windows = [...this.active.keys()].sort((a, b) => a - b);
-    for (const windowId of windows) {
-      const tab = this.tabs.get(this.active.get(windowId) ?? -1);
+    const ids = [...this.tabs.keys()].sort((a, b) => a - b);
+    for (const tabId of ids) {
+      const tab = this.tabs.get(tabId);
       if (tab && tab.site !== null && tab.source === 'msg' && tab.watched && this.playingAt(tab, t)) return tab.site;
     }
     return null;
@@ -150,9 +151,11 @@ class Browser {
 
   siteAt(t: number, settings: TrackerSettings): string | null {
     if (this.paused || this.idle === 'locked') return null;
+    const idleMs = settings.idleThresholdSec * 1000;
     return (
-      this.attentionSite(t, settings.idleThresholdSec * 1000) ??
+      this.attentionSite(t, Math.min(ATTENTION_LEAD_MS, idleMs)) ??
       this.focusedSite(t, settings.mediaOverride) ??
+      this.attentionSite(t, idleMs) ??
       this.watchedSite(t, settings.mediaOverride)
     );
   }

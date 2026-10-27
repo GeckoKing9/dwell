@@ -12,7 +12,7 @@ import { checkMessage, type Message } from '../shared/messages.ts';
 import { authorize, type SenderLike } from './authorize.ts';
 import { applySaved, applySettings, groupingChanged } from './effects.ts';
 import { own } from '../tracker/records.ts';
-import { attentionEvent, mediaEvent, pauseEvent, siteOfTab } from './events.ts';
+import { attentionEvent, mediaEvent, pauseEvent, urlEvent } from './events.ts';
 import type { Queue, Stores } from './queue.ts';
 import { activeTabEvents } from './reseed.ts';
 
@@ -66,9 +66,8 @@ export function createMessageHandler(deps: MessageDeps): (raw: unknown, sender: 
     const done = await queue.track(({ at, state, settings: grouping }) => {
       const event = attentionEvent(tabId, windowId, message.present, at);
       if (!message.present) return state.attention?.tabId === tabId ? [event] : [];
-      const site = siteOfTab({ url: tab?.url, incognito: tab?.incognito ?? false }, grouping);
-      const known = own(state.tabs, String(tabId));
-      return known?.site === site ? [event] : [{ type: 'url', at, tabId, site }, event];
+      const url = urlEvent({ id: tabId, url: tab?.url, incognito: tab?.incognito ?? false }, grouping, at);
+      return own(state.tabs, String(tabId))?.site === url.site ? [event] : [url, event];
     });
     return done ? OK : FAILED;
   }

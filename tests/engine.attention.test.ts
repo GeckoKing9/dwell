@@ -46,11 +46,18 @@ describe('attention: input given to a page whose window has no focus', () => {
     expect(story.total(IG).seconds).toBe(10 + 60);
   });
 
-  it('ends with any focus change or tab switch: the user acted through Chrome or another app', () => {
-    const focused = scroll(unfocusedInstagram(), 20, 2, 30).emit({ type: 'focus', windowId: null }).wait(300).end();
+  it('ends when another Chrome window gets focus or its own window shows another tab', () => {
+    const focused = scroll(unfocusedInstagram(), 20, 2, 30).emit({ type: 'focus', windowId: 1 }).wait(300).end();
     expect(focused.total(IG).seconds).toBe(30);
-    const switched = scroll(unfocusedInstagram(), 20, 2, 30).emit(...openTab(1, 10, DOCS)).wait(300).end();
+    const switched = scroll(unfocusedInstagram(), 20, 2, 30).emit({ type: 'activate', windowId: 2, tabId: 21 }).wait(300).end();
     expect(switched.total(IG).seconds).toBe(30);
+  });
+
+  it('keeps going when another app takes focus or another window switches tabs: the pointer leaving the page ends it', () => {
+    const app = scroll(unfocusedInstagram(), 20, 2, 30).emit({ type: 'focus', windowId: null }).wait(300).end();
+    expect(app.total(IG).seconds).toBe(80);
+    const other = scroll(unfocusedInstagram(), 20, 2, 30).emit(...openTab(1, 10, DOCS)).wait(300).end();
+    expect(other.total(IG).seconds).toBe(80);
   });
 
   it('ends when its tab leaves the site or closes', () => {
@@ -66,15 +73,37 @@ describe('attention: input given to a page whose window has no focus', () => {
     expect(story.total(IG).seconds).toBe(30 + 60 - 10);
   });
 
-  it('wins over the focused window while it lasts, then hands back to it within the same interval', () => {
+  it('wins over an active focused window for 20 s after each input, so continuous scrolling keeps it, then hands back within the same interval', () => {
     const story = new Story(MORNING).emit(...openTab(2, 20, IG), ...openTab(1, 10, DOCS), { type: 'focus', windowId: 1 });
     scroll(story, 20, 2, 60).wait(240).end();
-    // Pings at 0..50 s: Instagram until 110 s, then the typing in the focused docs tab.
-    expect(story.total(IG)).toEqual({ seconds: 110, visits: 1 });
-    expect(story.total(DOCS).seconds).toBe(300 - 110);
+    // Pings at 0..50 s: Instagram until 70 s, then the typing in the focused docs tab.
+    expect(story.total(IG)).toEqual({ seconds: 70, visits: 1 });
+    expect(story.total(DOCS).seconds).toBe(300 - 70);
   });
 
-  it('marks the pinged tab as its window active tab', () => {
+  it('gives a stray wheel tick over another window at most 20 s against an active focused window', () => {
+    const story = new Story(MORNING, { ...DEFAULTS, idleThresholdSec: 300 }).emit(...openTab(2, 20, IG), ...openTab(1, 10, DOCS), { type: 'focus', windowId: 1 });
+    scroll(story, 20, 2, 10).wait(590).end();
+    expect(story.total(IG).seconds).toBe(20);
+    expect(story.total(DOCS).seconds).toBe(580);
+  });
+
+  it('keeps the full idle threshold once the focused window goes idle', () => {
+    const story = new Story(MORNING).emit(...openTab(2, 20, IG), ...openTab(1, 10, DOCS), { type: 'focus', windowId: 1 }, { type: 'idle', state: 'idle' });
+    scroll(story, 20, 2, 10).wait(290).end();
+    expect(story.total(IG).seconds).toBe(60);
+    expect(story.total(DOCS).seconds).toBe(0);
+  });
+
+  it('never changes which tab the engine holds as active', () => {
+    const story = new Story(MORNING).emit(...openTab(1, 10, DOCS), { type: 'url', tabId: 20, site: IG }, { type: 'focus', windowId: 1 });
+    scroll(story, 20, 1, 10).emit({ type: 'attention', tabId: 20, windowId: 1, present: false }).wait(290).end();
+    expect(story.state.activeTabs).toEqual({ '1': 10 });
+    expect(story.total(IG).seconds).toBe(10);
+    expect(story.total(DOCS).seconds).toBe(290);
+  });
+
+  it('counts a pinged tab the engine only knows from its address', () => {
     const story = new Story(MORNING).emit({ type: 'url', tabId: 20, site: IG }, { type: 'focus', windowId: null });
     scroll(story, 20, 2, 10).wait(120).end();
     expect(story.total(IG).seconds).toBe(60);
@@ -136,9 +165,23 @@ describe('watched media: playback with sound on a page on screen', () => {
     expect(story.total(YT).seconds).toBe(300);
   });
 
-  it('stops counting when the tab is no longer its window active tab', () => {
-    const story = unfocusedVideo(true).wait(60).emit({ type: 'activate', windowId: 2, tabId: 21 }).wait(300).end();
+  it('stops at once when a tab switch hides the page and its script says so', () => {
+    const story = unfocusedVideo(true)
+      .wait(60)
+      .emit({ type: 'activate', windowId: 2, tabId: 21 }, { type: 'media', tabId: 20, playing: true })
+      .wait(300)
+      .end();
     expect(story.total(YT).seconds).toBe(60);
+  });
+
+  it('counts a background tab whose video plays with sound in picture-in-picture', () => {
+    const story = new Story(MORNING)
+      .emit({ type: 'url', tabId: 20, site: YT }, ...openTab(1, 10, DOCS), { type: 'focus', windowId: 1 }, { type: 'idle', state: 'idle' })
+      .emit({ type: 'media', tabId: 20, playing: true, watched: true })
+      .wait(300)
+      .end();
+    expect(story.total(YT).seconds).toBe(300);
+    expect(story.total(DOCS).seconds).toBe(0);
   });
 
   it('reads a media event without the watched field, as in older logs, as not watched', () => {

@@ -14,6 +14,11 @@ import type {
 
 /** A tab keeps counting as playing for this long after its media stops (gaps between songs). */
 export const MEDIA_HOLD_MS = 30_000;
+/**
+ * How long one input to a page without focus outranks an active focused window: two of the content
+ * script's 10 s pings, so continuous scrolling keeps it and a stray wheel tick costs at most this.
+ */
+export const ATTENTION_LEAD_MS = 20_000;
 /** Site memory (visit clock and carry) is dropped this long after the site was last counted. */
 export const SITE_MEMORY_MS = 86_400_000;
 /** Outside the range of `Date`; such a timestamp cannot be bucketed. */
@@ -47,7 +52,7 @@ interface Presence {
   until: number;
 }
 
-function siteOfTab(state: EngineState, tabId: number | undefined): string | null {
+function tabSite(state: EngineState, tabId: number | undefined): string | null {
   return tabId === undefined ? null : (own(state.tabs, String(tabId))?.site ?? null);
 }
 
@@ -57,31 +62,33 @@ function playingUntil(media: MediaState): number {
   return media.offAt === undefined ? -Infinity : media.offAt + MEDIA_HOLD_MS;
 }
 
-/** The page that last took input outside Chrome's focus, while that input is younger than the idle threshold. */
-function attended(state: EngineState, settings: TrackerSettings): Presence | null {
+/** The page that last took input outside Chrome's focus, for `lastsMs` after that input. */
+function attended(state: EngineState, lastsMs: number): Presence | null {
   const held = state.attention;
-  if (held === undefined || own(state.activeTabs, String(held.windowId)) !== held.tabId) return null;
-  const site = siteOfTab(state, held.tabId);
-  return site === null ? null : { site, until: held.at + settings.idleThresholdSec * 1000 };
+  const site = tabSite(state, held?.tabId);
+  return held === undefined || site === null ? null : { site, until: held.at + lastsMs };
 }
 
 /** KTD2: the focused window's active tab, while the user is active or its media plays. */
 function focused(state: EngineState, settings: TrackerSettings): Presence | null {
   if (state.focusedWindow === null) return null;
   const tabId = own(state.activeTabs, String(state.focusedWindow));
-  const site = siteOfTab(state, tabId);
+  const site = tabSite(state, tabId);
   if (site === null) return null;
   if (state.idle === 'active') return { site, until: Infinity };
   const media = settings.mediaOverride && tabId !== undefined ? own(state.tabs, String(tabId))?.media : undefined;
   return media ? { site, until: playingUntil(media) } : null;
 }
 
-/** An active tab in any window playing with sound on screen, by window id when there are several. */
+/**
+ * A tab playing with sound on screen, first by tab id when there are several. Only its content script
+ * says `watched`, and only for a visible page or picture-in-picture, so a tab switch or a minimised
+ * window ends it through the script, and a background tab counts only in picture-in-picture.
+ */
 function watched(state: EngineState, settings: TrackerSettings, at: number): Presence | null {
   if (!settings.mediaOverride) return null;
-  for (const tabId of Object.values(state.activeTabs)) {
-    const tab = own(state.tabs, String(tabId));
-    if (tab === undefined || tab.site === null || tab.media?.src !== 'msg' || tab.media.watched !== true) continue;
+  for (const tab of Object.values(state.tabs)) {
+    if (tab.site === null || tab.media?.src !== 'msg' || tab.media.watched !== true) continue;
     const until = playingUntil(tab.media);
     if (at < until) return { site: tab.site, until };
   }
@@ -89,14 +96,16 @@ function watched(state: EngineState, settings: TrackerSettings, at: number): Pre
 }
 
 /**
- * The presence predicate at instant `at`, ranked: the page holding attention (its own input is the
- * latest thing the user did), then the focused window's active tab (KTD2), then a watched tab in
- * any window. Locked and paused always win. Each answer lasts until `until`; past it, the next rank
- * may answer, so one interval can be split between sites.
+ * The presence predicate at instant `at`, ranked (ADR-6): the page holding attention for
+ * ATTENTION_LEAD_MS after its input; the focused window's active tab (KTD2); that page again for the
+ * rest of the idle threshold; a watched tab. Locked and paused always win. Each answer lasts until
+ * `until`; past it, the next rank may answer, so one interval can be split between sites.
  */
 function presence(state: EngineState, settings: TrackerSettings, at: number): Presence | null {
   if (state.paused || state.idle === 'locked') return null;
-  for (const candidate of [attended(state, settings), focused(state, settings)]) {
+  const idleMs = settings.idleThresholdSec * 1000;
+  const ranked = [attended(state, Math.min(ATTENTION_LEAD_MS, idleMs)), focused(state, settings), attended(state, idleMs)];
+  for (const candidate of ranked) {
     if (candidate !== null && at < candidate.until) return candidate;
   }
   return watched(state, settings, at);
