@@ -319,6 +319,10 @@
     "message": "This site, daily average",
     "description": "Dashboard headline label for the selected site's daily average."
   },
+  "focusDailyAvgFull": {
+    "message": "This site, daily average, full days",
+    "description": "Dashboard headline label for the selected site's daily average in the current week, which leaves today out."
+  },
   "spanNote": {
     "message": "Changes compare $A$–$B$ with the same days last week",
     "description": "Most-used panel note for a week still running.",
@@ -1132,6 +1136,94 @@
   "focusDeltaNew": {
     "message": "Not used on the same days of the week before.",
     "description": "Week headline with a site focused: the site has no time in the comparison days of the week before."
+  },
+  "focusDeltaSame": {
+    "message": "About the same as the same days of the week before ($D$).",
+    "description": "Week headline with a site focused: within a minute of the same days of the week before, as its Most used row says.",
+    "placeholders": {
+      "d": {
+        "content": "$1",
+        "example": "2h 15m"
+      }
+    }
+  },
+  "focusDeltaLess": {
+    "message": "$P$% less than the same days of the week before ($D$).",
+    "description": "Week headline with a site focused: less time than the same days of the week before. P is a whole number, D the time then.",
+    "placeholders": {
+      "p": {
+        "content": "$1",
+        "example": "19"
+      },
+      "d": {
+        "content": "$2",
+        "example": "2h 15m"
+      }
+    }
+  },
+  "focusDeltaMore": {
+    "message": "$P$% more than the same days of the week before ($D$).",
+    "description": "Week headline with a site focused: more time than the same days of the week before. P is a whole number, D the time then.",
+    "placeholders": {
+      "p": {
+        "content": "$1",
+        "example": "19"
+      },
+      "d": {
+        "content": "$2",
+        "example": "2h 15m"
+      }
+    }
+  },
+  "focusDayLabel": {
+    "message": "$D$, this site",
+    "description": "Day headline label with a site focused: the date, then that the figure is the site's.",
+    "placeholders": {
+      "d": {
+        "content": "$1",
+        "example": "Tuesday, October 13, 2026"
+      }
+    }
+  },
+  "chartColumn": {
+    "message": "$W$, $T$",
+    "description": "Screen-reader label of a chart column: the day or hour, then its time.",
+    "placeholders": {
+      "w": {
+        "content": "$1",
+        "example": "Monday, October 12"
+      },
+      "t": {
+        "content": "$2",
+        "example": "2h 30m"
+      }
+    }
+  },
+  "chartColumnFocus": {
+    "message": "$W$, $T$; $S$ $P$",
+    "description": "Screen-reader label of a chart column with a site focused: the day or hour, its time, then the site and its part.",
+    "placeholders": {
+      "w": {
+        "content": "$1",
+        "example": "Monday, October 12"
+      },
+      "t": {
+        "content": "$2",
+        "example": "2h 30m"
+      },
+      "s": {
+        "content": "$3",
+        "example": "github.com"
+      },
+      "p": {
+        "content": "$4",
+        "example": "2h"
+      }
+    }
+  },
+  "colNotUsed": {
+    "message": "not used",
+    "description": "In a chart column's screen-reader label: the focused site has no time there."
   },
   "focusShareWeek": {
     "message": "$P$ of the time recorded this week.",

@@ -79,6 +79,9 @@ body { background: var(--page); }
 /* Charts: drawn at the wrapper's width; until it is measured, the SVG scales down instead of overflowing */
 .chart-wrap svg { max-width: 100%; height: auto; }
 .chart-bar.is-hover { fill: var(--bar-hover); }
+/* The selected hour while a site's parts hold the accent: one step past the hover shade, in both themes */
+.chart-bar.is-selected { fill: var(--ink-2); }
+.chart-wrap .hit[aria-disabled="true"] { cursor: default; }
 /* The focused site's part of a column; empty columns keep a flat, hidden path so the next height can animate */
 .chart-part { fill: var(--accent); }
 .chart-bar.is-empty, .chart-part.is-empty { visibility: hidden; }

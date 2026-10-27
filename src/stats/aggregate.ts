@@ -26,6 +26,8 @@ export interface DayAggregate {
   hours: number[];
   /** Always 24 entries; each lists that hour's top sites, busiest first. */
   hourSites: SiteTime[][];
+  /** Always 24 entries; each lists every site of that hour, busiest first (`hourSites` is cut from it). */
+  hourAll: SiteTime[][];
   blocked: Record<BlockedSite, number>;
 }
 
@@ -72,6 +74,12 @@ export interface WeekAggregate {
   busiest: DayCell | null;
   /** partial: the week is still running and is compared Monday to today. throughDay: 0 = Monday. */
   compare: { partial: boolean; throughDay: number };
+  /** The last weekday index (0 = Monday) the daily average and its comparison run through; -1 when none. */
+  averageEnd: number;
+  /** Seconds per site over the same days of the week before (Monday to today while the week runs). */
+  previous: ReadonlyMap<Site, number>;
+  /** Their sum: the base each site's change is measured against. */
+  previousTotal: number;
 }
 
 const HOUR_RE = /^(?:[0-9]|1[0-9]|2[0-3])$/;
@@ -117,15 +125,13 @@ function reduceDay(record: DayRecord): DayAggregate {
     if (seconds > 0) sites.push({ site, seconds, visits: Math.max(0, Math.trunc(safeSeconds(data.v))) });
   }
   sites.sort(bySecondsThenName);
-  const hourSites = perHour.map((m) =>
-    [...m.entries()]
-      .map(([site, seconds]): SiteTime => ({ site, seconds }))
-      .sort(bySecondsThenName)
-      .slice(0, TOP_SITES_PER_HOUR),
+  const hourAll = perHour.map((m) =>
+    [...m.entries()].map(([site, seconds]): SiteTime => ({ site, seconds })).sort(bySecondsThenName),
   );
+  const hourSites = hourAll.map((list) => list.slice(0, TOP_SITES_PER_HOUR));
   const blocked = { instagram: 0, youtube: 0, facebook: 0, x: 0 };
   for (const b of BLOCKED_SITES) blocked[b] = Math.trunc(safeSeconds(record.blocked[b]));
-  return { total, sites, hours, hourSites, blocked };
+  return { total, sites, hours, hourSites, hourAll, blocked };
 }
 
 /** Each valid hour's seconds of one site's record, by the same rules as the day reduction. */
@@ -144,13 +150,6 @@ export function siteHours(record: DayRecord, site: Site): number[] {
   return hours;
 }
 
-/** Every site of each hour, busiest first: the full lists the tooltip's top three are cut from. */
-export function sitesByHour(record: DayRecord): SiteTime[][] {
-  const lists: SiteTime[][] = Array.from({ length: 24 }, () => []);
-  for (const [site, data] of Object.entries(record.sites)) eachHour(data, (hour, seconds) => lists[hour]?.push({ site, seconds }));
-  return lists.map((list) => list.sort(bySecondsThenName));
-}
-
 /** Change of `current` against `previous`; same under 3 percent, none without a usable baseline (under one second counts as none, which also keeps the ratio finite). */
 export function weekDelta(current: number, previous: number | null): Delta {
   if (previous === null || !Number.isFinite(previous) || previous < 1) return { kind: 'none', percent: 0 };
@@ -161,7 +160,7 @@ export function weekDelta(current: number, previous: number | null): Delta {
   return { kind: cur < previous ? 'less' : 'more', percent };
 }
 
-function siteDelta(current: number, previous: number, previousTotal: number): SiteDelta {
+export function siteDelta(current: number, previous: number, previousTotal: number): SiteDelta {
   if (previousTotal <= 0) return { kind: 'none', percent: 0 };
   if (previous < 1) return { kind: 'new', percent: 0 };
   if (Math.abs(current - previous) <= SAME_SITE_SECONDS) return { kind: 'same', percent: 0 };
@@ -279,5 +278,8 @@ export function weekAggregate(
     quietest,
     busiest,
     compare: { partial: isCurrent, throughDay: Math.max(-1, lastIdx) },
+    averageEnd: compareEnd,
+    previous: new Map([...prev.sites.values()].map((s) => [s.site, s.seconds])),
+    previousTotal: prev.total,
   };
 }

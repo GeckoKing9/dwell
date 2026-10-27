@@ -1,8 +1,8 @@
-import type { ComponentChildren } from 'preact';
-import { t, tParts } from '../../shared/i18n.ts';
-import { Duration, durationText } from '../../shared/ui/Duration.tsx';
-import { fmtDate, hourRangeText, percentText, sitesText, visitsText } from '../labels.ts';
+import { t } from '../../shared/i18n.ts';
+import { Duration } from '../../shared/ui/Duration.tsx';
+import { fmtDate, percentText, sitesText, visitsText } from '../labels.ts';
 import type { DayModel } from '../model.ts';
+import { BusiestHour } from './BusiestHour.tsx';
 import { DayChart } from './DayChart.tsx';
 import type { DashboardHandlers } from './DashboardView.tsx';
 import { DayHead } from './DayHead.tsx';
@@ -17,10 +17,6 @@ export interface DayViewProps {
   chart: ChartProps;
   hour: number | null;
   on: Pick<DashboardHandlers, 'onWeek' | 'onDay' | 'onSite' | 'onHour' | 'onResume'>;
-}
-
-function BusiestHour({ peak, seconds }: { peak: number; seconds: number }) {
-  return <p id="busiest-hour">{tParts<ComponentChildren>('busiestHour', { h: <b>{hourRangeText(peak)}</b>, d: durationText(seconds) })}</p>;
 }
 
 function Notes({ model, onClear }: { model: DayModel; onClear(): void }) {
@@ -49,6 +45,12 @@ function Notes({ model, onClear }: { model: DayModel; onClear(): void }) {
   );
 }
 
+/** The date the figure belongs to, and with a site focused, that the figure is the site's. */
+function dayLabel(model: DayModel): string {
+  const date = fmtDate(model.date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  return model.focus ? t('focusDayLabel', { d: date }) : date;
+}
+
 /**
  * One day: back to its week, Today, previous and next day, the hourly chart and that day's sites. With
  * a site focused the total and notes are that site's; with an hour selected the panel lists that hour.
@@ -60,7 +62,7 @@ export function DayView({ model, paused, chart, hour, on }: DayViewProps) {
       <DayHead model={model} onWeek={on.onWeek} onDay={on.onDay} />
       <section class="headline">
         <div class="stat is-hero">
-          <h1 class="label">{fmtDate(model.date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</h1>
+          <h1 class="label">{dayLabel(model)}</h1>
           <Duration class="value" seconds={model.focus ? model.focus.total : model.agg.total} />
         </div>
         <div class="headline-notes">

@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { dayAggregate, siteHours, sitesByHour, weekAggregate, weekDelta } from '../src/stats/aggregate.ts';
+import { dayAggregate, siteHours, weekAggregate, weekDelta } from '../src/stats/aggregate.ts';
 import type { WeekAggregate } from '../src/stats/aggregate.ts';
 import { CATEGORIES, dayKey, emptyDayRecord } from '../src/store/schema.ts';
 import type { DayRecord } from '../src/store/schema.ts';
@@ -261,7 +261,7 @@ describe('weekAggregate properties', () => {
   });
 });
 
-describe('siteHours and sitesByHour', () => {
+describe('siteHours and every site of each hour', () => {
   const record: DayRecord = {
     sites: {
       'a.com': { h: { '9': 600, '10': 1200, '24': 50, x: 30, '11': -5, '12': Number.NaN }, v: 2 },
@@ -284,7 +284,7 @@ describe('siteHours and sitesByHour', () => {
   });
 
   it('lists every site of each hour busiest first, past the tooltip’s three', () => {
-    const lists = sitesByHour(record);
+    const lists = dayAggregate(record).hourAll;
     expect(lists).toHaveLength(24);
     expect(lists[9]).toEqual([
       { site: 'b.com', seconds: 900 },
@@ -294,11 +294,11 @@ describe('siteHours and sitesByHour', () => {
     ]);
     expect(lists[10]).toEqual([{ site: 'a.com', seconds: 1200 }]);
     expect(lists[11]).toEqual([]);
-    expect(dayAggregate(record).hourSites[9]).toHaveLength(3);
+    expect(dayAggregate(record).hourSites[9]).toEqual(lists[9]?.slice(0, 3));
   });
 
   it('agrees with the day total for every hour', () => {
     const agg = dayAggregate(record);
-    sitesByHour(record).forEach((list, h) => expect(list.reduce((a, s) => a + s.seconds, 0)).toBe(agg.hours[h]));
+    agg.hourAll.forEach((list, h) => expect(list.reduce((a, s) => a + s.seconds, 0)).toBe(agg.hours[h]));
   });
 });

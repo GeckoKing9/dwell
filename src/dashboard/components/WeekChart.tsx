@@ -4,7 +4,7 @@ import { durationText } from '../../shared/ui/Duration.tsx';
 import { DotChannel } from '../../shared/ui/chart.tsx';
 import { ChartTip } from '../../shared/ui/ChartTip.tsx';
 import { dateString } from '../../store/schema.ts';
-import { barClass, column } from '../bars.ts';
+import { barClass, column, columnLabel } from '../bars.ts';
 import { fmtDate, hoursLabel } from '../labels.ts';
 import type { ChartDay, WeekModel } from '../model.ts';
 import { ChartHit } from './ChartHit.tsx';
@@ -92,7 +92,8 @@ export function WeekChart({ model, width, active, onActive, onOpen, wrapRef }: W
           const bar = column(cx - bw / 2, BASE, bw, height(d.cell.total));
           const part = column(cx - bw / 2, BASE, bw, height(site ?? 0));
           const date = fmtDate(d.cell.date, { weekday: 'long', month: 'long', day: 'numeric' });
-          const label = `${date}, ${durationText(d.cell.total)}${focus && site !== null ? `; ${focus.site} ${durationText(site)}` : ''}`;
+          const sitePart = focus && site !== null ? { site: focus.site, part: site > 0 ? durationText(site) : t('colNotUsed') } : null;
+          const label = columnLabel(date, durationText(d.cell.total), sitePart);
           return (
             <g key={k}>
               <DotChannel cx={cx} base={BASE} rows={rows} step={step} majorEvery={4} faint={d.cell.status === 'future' || d.cell.status === 'old'} />
@@ -104,8 +105,9 @@ export function WeekChart({ model, width, active, onActive, onOpen, wrapRef }: W
               <text class="wc-val" x={cx} y={BASE + 40} text-anchor="middle">
                 {dayValue(d, narrow, site)}
               </text>
-              {d.cell.status === 'data' ? (
-                <ChartHit
+              <ChartHit
+                  id={`week-col-${k}`}
+                  disabled={d.cell.status !== 'data'}
                   x={cx - band / 2 + 2}
                   width={band - 4}
                   height={H}
@@ -115,7 +117,6 @@ export function WeekChart({ model, width, active, onActive, onOpen, wrapRef }: W
                   onActive={(on) => onActive(on ? k : null)}
                   onActivate={() => onOpen(dateString(d.cell.date))}
                 />
-              ) : null}
             </g>
           );
         })}

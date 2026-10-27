@@ -18,6 +18,12 @@ function call(el: El | undefined, prop: string, arg?: unknown): void {
   (fn as (a: unknown) => void)(arg);
 }
 
+
+/** The chart columns that act: a day or hour with time; the others stay mounted but disabled. */
+function live(tree: Parameters<typeof byClass>[0]): El[] {
+  return byClass(tree, 'hit').filter((h) => h.props['aria-disabled'] !== 'true');
+}
+
 describe('week view', () => {
   const on = handlers();
   const tree = renderDashboard({ view: 'week', back: 0 }, sampleData(), { on });
@@ -53,8 +59,17 @@ describe('week view', () => {
     expect(byClass(tree, 'is-accent')).toHaveLength(1);
     expect(byClass(tree, 'wc-axis').map((d) => text([d]))).toEqual(['2h', '4h']);
     expect(text(byClass(tree, 'wc-avg'))).toBe(`avg 3h${NB}10m`);
-    expect(byClass(tree, 'hit').map((h) => h.props['data-day'])).toEqual(['2026-10-12', '2026-10-13', '2026-10-14']);
+    expect(live(tree).map((h) => h.props['data-day'])).toEqual(['2026-10-12', '2026-10-13', '2026-10-14']);
     expect(all(byClass(tree, 'chart-wrap'), (el) => el.type === 'circle')).toHaveLength(7 * 16);
+  });
+
+  it('keeps a hit target with a stable id on every column, so moving between weeks never drops keyboard focus', () => {
+    const hits = byClass(tree, 'hit');
+    expect(hits.map((h) => h.props.id)).toEqual(['week-col-0', 'week-col-1', 'week-col-2', 'week-col-3', 'week-col-4', 'week-col-5', 'week-col-6']);
+    expect(hits.slice(3).map((h) => [h.props['aria-disabled'], h.props.tabindex])).toEqual(Array(4).fill(['true', -1]));
+    call(hits[4], 'onClick');
+    call(hits[4], 'onKeyDown', { key: 'Enter', preventDefault: vi.fn() });
+    expect(on.onDay).not.toHaveBeenCalled();
   });
 
   it('opens a day on click, Enter or Space, and ignores other keys', () => {
@@ -165,7 +180,7 @@ describe('week view, other weeks', () => {
     const tree = renderDashboard({ view: 'week', back: 0 }, sampleData({}));
     expect(text(byClass(tree, 'headline-notes'))).toBe('Nothing was recorded this week. Days fill in as soon as you browse with tracking on.');
     expect(text(byClass(tree, 'empty-note'))).toBe('Nothing was recorded this week. Days fill in as soon as you browse with tracking on.');
-    expect(byClass(tree, 'hit')).toHaveLength(0);
+    expect(live(tree)).toHaveLength(0);
     expect(byClass(tree, 'wc-val').map((d) => text([d]))).toEqual(['No data', 'No data', 'No data', '', '', '', '']);
     expect(everything(tree)).not.toMatch(/NaN|undefined|Infinity/);
   });
@@ -235,7 +250,8 @@ describe('day view', () => {
     expect(byClass(tree, 'is-accent')).toHaveLength(1);
     expect(byClass(tree, 'dc-hour').map((d) => text([d]))).toEqual(['12 AM', '6 AM', '12 PM', '6 PM']);
     expect(byClass(tree, 'wc-axis').map((d) => text([d]))).toEqual(['30m', '60m']);
-    expect(byClass(tree, 'hit').map((h) => h.props['aria-label'])).toEqual([
+    expect(byClass(tree, 'hit').map((h) => h.props.id)).toEqual(Array.from({ length: 24 }, (_, x) => `day-hour-${x}`));
+    expect(live(tree).map((h) => h.props['aria-label'])).toEqual([
       '9 – 10 AM, 50m',
       '10 – 11 AM, 50m',
       '11 AM – 12 PM, 50m',
@@ -255,7 +271,7 @@ describe('day view', () => {
     const hovered = renderDashboard({ view: 'day', date: '2026-10-13' }, sampleData(), { chart: { active: 21, onActive } });
     expect(text(byClass(hovered, 'tip-head'))).toBe('1h9 – 10 PM');
     expect(byClass(hovered, 'tip-row').map((r) => text([r]))).toEqual(['youtube.com1h']);
-    const hit = byClass(hovered, 'hit')[0];
+    const hit = live(hovered)[0];
     for (const event of ['onPointerEnter', 'onFocus', 'onPointerLeave', 'onBlur']) call(hit, event);
     expect(onActive.mock.calls).toEqual([[9], [9], [null], [null]]);
   });
@@ -291,9 +307,9 @@ describe('site focus, week view', () => {
   it('heads with the site’s total, average and change, its share, and a chip that clears it', () => {
     const headline = one(tree, 'headline');
     expect(byClass([headline], 'sr').map((s) => text([s]))).toEqual([`5h${NB}50m`, `2h${NB}25m`]);
-    expect(text(byClass([headline], 'label'))).toBe('This site, this week so farThis site, daily average');
+    expect(text(byClass([headline], 'label'))).toBe('This site, this week so farThis site, daily average, full days');
     expect(text([byId(tree, 'focus-chip') as El])).toBe('github.com×');
-    expect(text([byId(tree, 'delta-line') as El])).toBe('Daily average is 222% higher than the week before (45m).');
+    expect(text([byId(tree, 'delta-line') as El])).toBe(`133% more than the same days of the week before (2h${NB}30m).`);
     expect(text([byId(tree, 'focus-share') as El])).toBe('80% of the time recorded this week.');
     expect(text([headline])).not.toContain('Quietest');
     expect(byId(tree, 'focus-clear')?.props.title).toBe('Show all sites (Esc)');
@@ -337,7 +353,8 @@ describe('site focus, day view', () => {
     expect(text([byId(tree, 'focus-share') as El])).toBe('74% of the time recorded this day · 3 visits');
     expect(byClass(byClass(tree, 'chart-wrap'), 'is-accent')).toHaveLength(0);
     expect(byClass(tree, 'chart-part').filter((p) => !String(p.props.class).includes('is-empty'))).toHaveLength(4);
-    expect(byClass(tree, 'hit').map((h) => h.props['aria-label'])[4]).toBe('9 – 10 PM, 1h; github.com –');
+    expect(live(tree).map((h) => h.props['aria-label'])[4]).toBe('9 – 10 PM, 1h; github.com not used');
+    expect(text(byClass([one(tree, 'headline')], 'label'))).toBe('Tuesday, October 13, 2026, this site');
     const picks = byClass([byId(tree, 'day-sites') as El], 'row-pick');
     expect(picks.map((p) => p.props['aria-pressed'])).toEqual(['true', 'false']);
     call(picks[1], 'onClick');
@@ -356,7 +373,7 @@ describe('hour focus, day view', () => {
   it('makes each hour with time a pressed-state button that selects it on click, Enter or Space', () => {
     const on = handlers();
     const tree = renderDashboard({ view: 'day', date: '2026-10-13' }, sampleData(), { on, hour: 9 });
-    const hits = byClass(tree, 'hit');
+    const hits = live(tree);
     expect(hits.map((h) => [h.props['data-hour'], h.props.role, h.props['aria-pressed']])).toEqual([
       ['9', 'button', 'true'],
       ['10', 'button', 'false'],
@@ -383,9 +400,11 @@ describe('hour focus, day view', () => {
     expect(on.onHour).toHaveBeenCalledWith(null);
   });
 
-  it('shades the selected hour while a site is focused, and says a second click clears it', () => {
+  it('shades the selected hour apart from the hovered one while a site is focused, and says a second click clears it', () => {
+    const both = renderDashboard({ view: 'day', date: '2026-10-13', site: 'github.com' }, sampleData(), { hour: 21, chart: { active: 9 } });
+    expect(all(both, (el) => String(el.props.class).includes('chart-bar is-selected'))).toHaveLength(1);
+    expect(byClass(both, 'is-hover')).toHaveLength(1);
     const tree = renderDashboard({ view: 'day', date: '2026-10-13', site: 'github.com' }, sampleData(), { hour: 21, chart: { active: 21 } });
-    expect(byClass(tree, 'is-hover')).toHaveLength(1);
     expect(byClass(tree, 'is-accent')).toHaveLength(0);
     expect(text(byClass(tree, 'tip-foot'))).toBe('Click again for the whole day');
     const other = renderDashboard({ view: 'day', date: '2026-10-13' }, sampleData(), { chart: { active: 9 } });

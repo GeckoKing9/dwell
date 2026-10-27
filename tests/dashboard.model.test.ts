@@ -159,10 +159,10 @@ describe('site focus on a week', () => {
     expect(focus?.share).toBeCloseTo((21_000 / 26_400) * 100);
   });
 
-  it('compares with the same days of the week before', () => {
-    const focus = weekModel(sampleData(), 0, 'github.com').focus;
-    expect(focus?.previousAverage).toBe(2700);
-    expect(focus?.delta).toEqual({ kind: 'more', percent: 222 });
+  it('compares exactly as its Most used row does, against the same days of the week before', () => {
+    const model = weekModel(sampleData(), 0, 'github.com');
+    expect(model.focus?.delta).toEqual(model.agg.sites.find((s) => s.site === 'github.com')?.delta);
+    expect(model.focus?.previous).toBe(model.previous.get('github.com'));
     expect(weekModel(sampleData(), 0, 'netflix.com').focus?.delta).toEqual({ kind: 'less', percent: 100 });
   });
 
@@ -170,7 +170,7 @@ describe('site focus on a week', () => {
     const focus = weekModel(sampleData(), 0, 'instagram.com').focus;
     expect(focus?.days).toEqual([1800, 0, 0, 0, 0, 0, 0]);
     expect(focus?.dailyAverage).toBe(900);
-    expect(focus?.previousAverage).toBe(0);
+    expect(focus?.previous).toBe(0);
     expect(focus?.delta.kind).toBe('new');
   });
 
@@ -183,7 +183,7 @@ describe('site focus on a week', () => {
 
   it('has nothing to compare with in an empty week and no focus without a site', () => {
     const focus = weekModel(sampleData({}), 0, 'a.com').focus;
-    expect(focus).toMatchObject({ total: 0, dailyAverage: 0, previousAverage: null, share: 0, delta: { kind: 'none', percent: 0 } });
+    expect(focus).toMatchObject({ total: 0, dailyAverage: 0, previous: 0, share: 0, delta: { kind: 'none', percent: 0 } });
     expect(weekModel(sampleData(), 0).focus).toBeNull();
   });
 
@@ -191,7 +191,6 @@ describe('site focus on a week', () => {
     const only = { 'd:2026-10-14': sampleData().days['d:2026-10-14']! };
     const focus = weekModel(sampleData(only), 0, 'github.com').focus;
     expect(focus?.dailyAverage).toBe(3600);
-    expect(focus?.previousAverage).toBeNull();
   });
 });
 
@@ -213,8 +212,8 @@ describe('site focus on a day', () => {
   it('lists every site of every hour and names today', () => {
     const many = { 'd:2026-10-13': day({ 'a.com': { 9: 400 }, 'b.com': { 9: 300 }, 'c.com': { 9: 200 }, 'd.com': { 9: 100 } }) };
     const tue = dayModel(sampleData(many), '2026-10-13');
-    expect(tue?.byHour[9]?.map((s) => s.site)).toEqual(['a.com', 'b.com', 'c.com', 'd.com']);
-    expect(tue?.byHour).toHaveLength(24);
+    expect(tue?.agg.hourAll[9]?.map((s) => s.site)).toEqual(['a.com', 'b.com', 'c.com', 'd.com']);
+    expect(tue?.agg.hourAll).toHaveLength(24);
     expect(tue?.today).toBe('2026-10-14');
   });
 

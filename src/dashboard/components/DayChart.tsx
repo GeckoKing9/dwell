@@ -2,7 +2,7 @@ import { t } from '../../shared/i18n.ts';
 import { durationText } from '../../shared/ui/Duration.tsx';
 import { DotChannel } from '../../shared/ui/chart.tsx';
 import { ChartTip } from '../../shared/ui/ChartTip.tsx';
-import { barClass, column } from '../bars.ts';
+import { barClass, column, columnLabel } from '../bars.ts';
 import { hourLabel, hourRangeText, minutesLabel } from '../labels.ts';
 import type { DayModel } from '../model.ts';
 import { ChartHit } from './ChartHit.tsx';
@@ -61,19 +61,20 @@ export function DayChart({ model, hour, onHour, width, active, onActive, wrapRef
           const site = focus ? (focus.hours[x] ?? 0) : 0;
           const bar = column(cx - bw / 2, BASE, bw, height(s));
           const part = column(cx - bw / 2, BASE, bw, height(site));
-          const label = `${hourRangeText(x)}, ${durationText(s)}${focus ? `; ${focus.site} ${site > 0 ? durationText(site) : '–'}` : ''}`;
+          const label = columnLabel(hourRangeText(x), durationText(s), focus ? { site: focus.site, part: site > 0 ? durationText(site) : t('colNotUsed') } : null);
           return (
             <g key={x}>
               <DotChannel cx={cx} base={BASE} rows={ROWS} step={step} majorEvery={3} faint={model.isToday && x > nowHour} />
-              <path class={barClass('chart-bar', bar, x === accent, active === x || (focus !== null && hour === x))} d={bar.d} />
+              <path class={barClass('chart-bar', bar, x === accent, active === x, focus !== null && hour === x)} d={bar.d} />
               <path class={part.empty ? 'chart-part is-empty' : 'chart-part'} d={part.d} />
               {x % 6 === 0 ? (
                 <text class="dc-hour" x={PAD_L + band * x} y={BASE + 22}>
                   {hourLabel(x)}
                 </text>
               ) : null}
-              {s > 0 ? (
-                <ChartHit
+              <ChartHit
+                  id={`day-hour-${x}`}
+                  disabled={!(s > 0)}
                   x={cx - band / 2}
                   width={band}
                   height={BASE + 4}
@@ -84,7 +85,6 @@ export function DayChart({ model, hour, onHour, width, active, onActive, wrapRef
                   onActive={(on) => onActive(on ? x : null)}
                   onActivate={() => onHour(x)}
                 />
-              ) : null}
             </g>
           );
         })}

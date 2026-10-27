@@ -88,9 +88,11 @@ export function App({ deps }: { deps: PageDeps }) {
       deps.hash.onChange(() => {
         const next = parseRoute(deps.hash.get());
         if (!samePage(shown.current, next)) setHour(null);
+        // A column index means a weekday on the week and an hour on a day: keep it (and its tooltip under a
+        // focused or hovered column) while only the week or the day changes.
+        if (shown.current.view !== next.view) setActive(null);
         shown.current = next;
         setRoute(next);
-        setActive(null);
       }),
     [deps],
   );

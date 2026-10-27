@@ -1,7 +1,7 @@
 /** View models for the week and day views: pure functions of the stored days, the settings and the clock. */
-import { dayAggregate, RETENTION_DAYS, sitesByHour, weekAggregate } from '../stats/aggregate.ts';
+import { dayAggregate, RETENTION_DAYS, weekAggregate } from '../stats/aggregate.ts';
 import type { DayAggregate, DayCell, SiteRow, SiteTime, WeekAggregate } from '../stats/aggregate.ts';
-import { addDays, dayDiff, startOfDay, weekIndexFromToday, weekOf } from '../stats/weeks.ts';
+import { addDays, startOfDay, weekIndexFromToday, weekOf } from '../stats/weeks.ts';
 import type { WeekRange } from '../stats/weeks.ts';
 import { dateString, dayKey, emptyDayRecord, parseDayKey } from '../store/schema.ts';
 import type { DayRecord } from '../store/schema.ts';
@@ -57,8 +57,6 @@ export interface DayModel {
   next: string | null;
   /** Today's 'YYYY-MM-DD', for the Today control. */
   today: string;
-  /** Every site of each hour, busiest first, for the hour focus. */
-  byHour: SiteTime[][];
   /** The focused site's part of the day, or null with no site focused. */
   focus: SiteDay | null;
 }
@@ -71,19 +69,6 @@ export type View =
 
 function record(days: Record<string, DayRecord>, key: string): DayRecord {
   return days[key] ?? emptyDayRecord();
-}
-
-function previousSites(days: Record<string, DayRecord>, week: WeekRange, now: Date): Map<string, number> {
-  const today = startOfDay(now);
-  const keepFrom = addDays(today, -(RETENTION_DAYS - 1));
-  const lastIdx = Math.min(6, dayDiff(week.start, today));
-  const out = new Map<string, number>();
-  for (let k = 0; k <= lastIdx; k++) {
-    const date = addDays(week.start, k - 7);
-    if (date.getTime() < keepFrom.getTime()) continue;
-    for (const s of dayAggregate(record(days, dayKey(date))).sites) out.set(s.site, (out.get(s.site) ?? 0) + s.seconds);
-  }
-  return out;
 }
 
 export function clampBack(back: number, weekCount: number): number {
@@ -110,11 +95,11 @@ export function weekModel(data: DashboardData, back: number, site?: string): Wee
     current: b === 0,
     agg,
     days,
-    previous: previousSites(data.days, week, data.now),
+    previous: agg.previous,
     averaged: fullDays > 0 ? fullDays : Number(todayData),
     fullDays,
     gaps: days.filter((d) => d.cell.status === 'empty' && !d.isToday).map((d) => d.cell),
-    focus: site === undefined ? null : siteWeek(data.days, week, data.now, site, agg.total),
+    focus: site === undefined ? null : siteWeek(agg, data.days, site),
   };
 }
 
@@ -153,7 +138,6 @@ export function dayModel(data: DashboardData, date: string, site?: string): DayM
     prev: day.getTime() > earliest.getTime() ? dateString(addDays(day, -1)) : null,
     next: day.getTime() < today.getTime() ? dateString(addDays(day, 1)) : null,
     today: dateString(today),
-    byHour: sitesByHour(stored),
     focus: site === undefined ? null : siteDay(stored, site),
   };
 }

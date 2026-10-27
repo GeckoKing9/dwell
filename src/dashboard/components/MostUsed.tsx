@@ -5,8 +5,8 @@ import { Track } from '../../shared/ui/Track.tsx';
 import { addDays } from '../../stats/weeks.ts';
 import { categoryName, fmtDate, percentText, sitesText, visitsText } from '../labels.ts';
 import { deltaText } from '../model.ts';
-import { idSlug } from '../settingsUi.ts';
 import type { WeekModel } from '../model.ts';
+import { RowPick } from './RowPick.tsx';
 
 export const TOP_ROWS = 10;
 
@@ -60,14 +60,7 @@ export function MostUsed({ model, showAll, onToggle, onSite }: MostUsedProps) {
               const selected = row.site === focused;
               return (
                 <li class={selected ? 'mu-row is-selected' : 'mu-row'} key={row.site}>
-                  <button
-                    type="button"
-                    class="row-pick"
-                    id={`mu-pick-${idSlug(row.site)}`}
-                    aria-label={t('focusSite', { s: row.site })}
-                    aria-pressed={selected ? 'true' : 'false'}
-                    onClick={() => onSite(row.site)}
-                  />
+                  <RowPick prefix="mu-pick" site={row.site} selected={selected} onSite={onSite} />
                   <span class="rank">{k + 1}</span>
                   <LetterMark site={row.site} />
                   <div class="site">

@@ -1,10 +1,12 @@
 import type { ComponentChildren } from 'preact';
 import { t, tParts } from '../../shared/i18n.ts';
 import { Duration, durationText } from '../../shared/ui/Duration.tsx';
-import type { DayCell, SiteDelta } from '../../stats/aggregate.ts';
+import type { DayCell, Delta } from '../../stats/aggregate.ts';
 import { fmtDate, percentText } from '../labels.ts';
 import type { WeekModel } from '../model.ts';
 import { FocusChip } from './FocusChip.tsx';
+import { FocusDelta } from './FocusDelta.tsx';
+import { GapNote } from './GapNote.tsx';
 
 /** The headline labels say whose figures they are: the week's, or the selected site's. */
 function totalLabel(current: boolean, focused: boolean): string {
@@ -13,7 +15,7 @@ function totalLabel(current: boolean, focused: boolean): string {
 }
 
 function averageLabel(current: boolean, focused: boolean): string {
-  if (focused) return t('focusDailyAvg');
+  if (focused) return current ? t('focusDailyAvgFull') : t('focusDailyAvg');
   return current ? t('dailyAvgFull') : t('dailyAvg');
 }
 
@@ -27,12 +29,11 @@ export function Stat({ label, seconds, hero = false }: { label: string; seconds:
 }
 
 /** Week-over-week, with the comparison base named and only the number in bold. */
-function DeltaLine({ delta, previousAverage }: { delta: SiteDelta; previousAverage: number | null }) {
+function DeltaLine({ delta, previousAverage }: { delta: Delta; previousAverage: number | null }) {
   const d = durationText(previousAverage ?? 0);
   const p = <b>{delta.percent}</b>;
   let parts: ComponentChildren = t('deltaNone');
-  if (delta.kind === 'new') parts = t('focusDeltaNew');
-  else if (delta.kind === 'same') parts = tParts<ComponentChildren>('deltaSame', { d });
+  if (delta.kind === 'same') parts = tParts<ComponentChildren>('deltaSame', { d });
   else if (delta.kind === 'less') parts = tParts<ComponentChildren>('deltaLess', { p, d });
   else if (delta.kind === 'more') parts = tParts<ComponentChildren>('deltaMore', { p, d });
   return <p id="delta-line">{parts}</p>;
@@ -40,13 +41,6 @@ function DeltaLine({ delta, previousAverage }: { delta: SiteDelta; previousAvera
 
 function dayAndTotal(cell: DayCell): string {
   return `${fmtDate(cell.date, { weekday: 'long' })} ${durationText(cell.total)}`;
-}
-
-function GapNote({ model }: { model: WeekModel }) {
-  const { gaps, averaged } = model;
-  if (gaps.length === 0) return null;
-  const days = gaps.map((g) => fmtDate(g.date, { weekday: 'short', month: 'short', day: 'numeric' })).join(', ');
-  return <p id="gap-note">{averaged === 1 ? t('gapNoteOne', { days }) : t('gapNote', { days, n: averaged })}</p>;
 }
 
 function Notes({ model, onClear }: { model: WeekModel; onClear(): void }) {
@@ -60,7 +54,7 @@ function Notes({ model, onClear }: { model: WeekModel; onClear(): void }) {
         ) : (
           <>
             {focus.total === 0 ? <p>{t('focusWeekEmpty', { s: focus.site })}</p> : null}
-            <DeltaLine delta={focus.delta} previousAverage={focus.previousAverage} />
+            <FocusDelta focus={focus} />
             {focus.total > 0 ? <p id="focus-share">{t('focusShareWeek', { p: percentText(focus.share) })}</p> : null}
             <GapNote model={model} />
           </>

@@ -281,6 +281,16 @@ test.describe('dashboard', () => {
     await expect(page).toHaveURL(new RegExp(`#day/${tuesday}$`));
   });
 
+  test('a focused chart column keeps keyboard focus and its tooltip when the arrow keys change the week', async () => {
+    await seedSimulated();
+    const page = await openDashboard('#week/1');
+    await page.locator('#week-col-1').focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page).toHaveURL(/#week\/2$/);
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe('week-col-1');
+    await expect(page.locator('[data-chart="week"] .tip')).toHaveCount(1);
+  });
+
   test('a click on a most-used row focuses its site through day and week navigation and a reload, and Escape clears it', async () => {
     await seedSimulated();
     const page = await openDashboard('#week/1');
