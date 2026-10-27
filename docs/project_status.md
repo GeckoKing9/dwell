@@ -52,6 +52,6 @@ What only the operating system and the live, logged-in sites can show. Tick each
 3. Tag `v0.1.0` on `main` and push the tag; the release workflow builds, tests and attaches the zip and hash list.
 
 <!-- session-end:auto -->
-**Last session (2026-10-15, coding):** Reworked reel blocking (Facebook viewer Previous Card, Instagram smoother open/close), hourglass icon, ponytail method added to code-review; merged to main.
-**Next:** Signed-in Facebook/Instagram checks, one real day with event log, tag v0.1.0.
+**Last session (2026-10-27, coding):** Attention counting (ADR-6), dashboard site/hour focus, tailnet and hosting site names, popup day links; PRs #1-#2 merged, build deployed to Windows. Unit+e2e green; live hover-scroll/2nd-screen not run.
+**Next:** Reload Dwell, run the two owner checks in docs/project_status.md, then tag v0.1.0.
 <!-- /session-end:auto -->
