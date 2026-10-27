@@ -9,7 +9,7 @@ interface WeekNavProps {
   onWeek(back: number): void;
 }
 
-/** Previous and next stop at the oldest kept week and at the current week. */
+/** Previous and next stop at the oldest kept week and at the current week; This week shows only on an older one. */
 export function WeekNav({ model, onWeek }: WeekNavProps) {
   const oldest = model.back >= model.maxBack;
   return (
@@ -19,17 +19,29 @@ export function WeekNav({ model, onWeek }: WeekNavProps) {
         id="week-prev"
         class="icon-btn"
         aria-label={t('prevWeek')}
-        title={oldest ? t('olderGone') : t('prevWeek')}
+        title={oldest ? t('olderGone') : t('prevWeekKey')}
         disabled={oldest}
         onClick={() => onWeek(model.back + 1)}
       >
         <ArrowIcon dir="left" />
       </button>
-      <button type="button" id="week-next" class="icon-btn" aria-label={t('nextWeek')} disabled={model.back === 0} onClick={() => onWeek(model.back - 1)}>
+      <button
+        type="button"
+        id="week-next"
+        class="icon-btn"
+        aria-label={t('nextWeek')}
+        title={t('nextWeekKey')}
+        disabled={model.back === 0}
+        onClick={() => onWeek(model.back - 1)}
+      >
         <ArrowIcon />
       </button>
       <h1 class="range">{weekRangeText(model.week)}</h1>
       <span class="rel">{relWeek(model.back)}</span>
+      <span class="spacer" />
+      <button type="button" id="week-today" class="btn btn-quiet" title={t('thisWeekKey')} hidden={model.back === 0} onClick={() => onWeek(0)}>
+        {t('thisWeek')}
+      </button>
     </div>
   );
 }

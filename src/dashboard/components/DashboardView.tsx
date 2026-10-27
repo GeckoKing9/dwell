@@ -1,5 +1,6 @@
 import type { Settings } from '../../store/schema.ts';
 import type { View } from '../model.ts';
+import type { Route } from '../route.ts';
 import type { SettingsHandlers, SettingsUi } from '../settingsUi.ts';
 import { DayView } from './DayView.tsx';
 import { Header } from './Header.tsx';
@@ -10,8 +11,15 @@ import type { ChartProps } from './WeekChart.tsx';
 import { WeekView } from './WeekView.tsx';
 
 export interface DashboardHandlers {
+  /** Another week or day; the focused site goes along. */
   onWeek(back: number): void;
   onDay(date: string): void;
+  /** Any route, as the keyboard picks it. */
+  onRoute(route: Route): void;
+  /** Focuses a site; the focused site again, or null, clears it. */
+  onSite(site: string | null): void;
+  /** Selects an hour of the day view; the selected hour again, or null, clears it. */
+  onHour(hour: number | null): void;
   onResume(): void;
   onToggleAll(): void;
   onUndo(): void;
@@ -22,12 +30,14 @@ interface DashboardViewProps {
   view: View;
   settings: Settings;
   chart: ChartProps;
+  /** The selected hour of the day view, or null. */
+  hour: number | null;
   showAll: boolean;
   ui: SettingsUi;
   on: DashboardHandlers;
 }
 
-function Main({ view, settings, chart, showAll, ui, on }: DashboardViewProps) {
+function Main({ view, settings, chart, hour, showAll, ui, on }: DashboardViewProps) {
   switch (view.kind) {
     case 'week':
       return (
@@ -39,11 +49,12 @@ function Main({ view, settings, chart, showAll, ui, on }: DashboardViewProps) {
           onToggleAll={on.onToggleAll}
           onWeek={on.onWeek}
           onOpenDay={on.onDay}
+          onSite={on.onSite}
           onResume={on.onResume}
         />
       );
     case 'day':
-      return <DayView model={view.model} paused={settings.paused} chart={chart} onWeek={on.onWeek} onDay={on.onDay} onResume={on.onResume} />;
+      return <DayView model={view.model} paused={settings.paused} chart={chart} hour={hour} on={on} />;
     case 'settings':
       return <SettingsView settings={settings} sites={view.sites} ui={ui} on={on.settings} />;
     case 'privacy':

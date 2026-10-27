@@ -23,12 +23,16 @@ export interface DashboardDeps {
   download(filename: string, text: string): void;
 }
 
-/** The page's DOM seams, wired in main.tsx: the location hash, file reading, element sizes and scrolling. */
+/** The page's DOM seams, wired in main.tsx: the location hash, file reading, element sizes, scrolling and keys. */
 export interface PageDeps extends DashboardDeps {
   hash: { get(): string; set(hash: string): void; onChange(listener: () => void): () => void };
   readFile(file: File): Promise<string>;
   observeWidth(element: HTMLElement, listener: (width: number) => void): () => void;
   scrollTo(id: string): void;
+  /** Scrolls the page to the top, for a move between the week and the day view. */
+  scrollTop(): void;
+  /** Calls `listener` for each key pressed on the page; returns the unsubscribe function. */
+  onKeyDown(listener: (event: KeyboardEvent) => void): () => void;
 }
 
 export interface DashboardData {

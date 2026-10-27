@@ -17,16 +17,17 @@ export interface WeekViewProps {
   onToggleAll(): void;
   onWeek(back: number): void;
   onOpenDay(date: string): void;
+  onSite(site: string | null): void;
   onResume(): void;
 }
 
 /** Week navigator and headline, then the chart beside categories, then most used beside blocked. */
-export function WeekView({ model, paused, chart, showAll, onToggleAll, onWeek, onOpenDay, onResume }: WeekViewProps) {
+export function WeekView({ model, paused, chart, showAll, onToggleAll, onWeek, onOpenDay, onSite, onResume }: WeekViewProps) {
   return (
     <>
       {paused ? <PausedBanner onResume={onResume} /> : null}
       <WeekNav model={model} onWeek={onWeek} />
-      <Headline model={model} />
+      <Headline model={model} onSite={onSite} />
       <div class="grid">
         <section class="panel" aria-labelledby="chart-title">
           <div class="panel-head">
@@ -36,7 +37,7 @@ export function WeekView({ model, paused, chart, showAll, onToggleAll, onWeek, o
           <WeekChart model={model} onOpen={onOpenDay} {...chart} />
         </section>
         <Categories agg={model.agg} />
-        <MostUsed model={model} showAll={showAll} onToggle={onToggleAll} />
+        <MostUsed model={model} showAll={showAll} onToggle={onToggleAll} onSite={onSite} />
         <Blocked blocked={model.agg.blocked} />
       </div>
     </>

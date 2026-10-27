@@ -68,6 +68,13 @@ const deps: PageDeps = {
   scrollTo(id) {
     document.getElementById(id)?.scrollIntoView({ block: 'start', behavior: reducedMotion.matches ? 'auto' : 'smooth' });
   },
+  scrollTop() {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  },
+  onKeyDown(listener) {
+    document.addEventListener('keydown', listener);
+    return () => document.removeEventListener('keydown', listener);
+  },
 };
 
 document.documentElement.lang = uiLang();

@@ -275,3 +275,145 @@ describe('day view', () => {
     expect(everything(empty)).not.toMatch(/NaN|undefined|Infinity/);
   });
 });
+
+describe('site focus, week view', () => {
+  const on = handlers();
+  const tree = renderDashboard({ view: 'week', back: 0, site: 'github.com' }, sampleData(), { on });
+
+  it('draws every column neutral with the site’s part in the accent, and labels the site’s time', () => {
+    expect(byClass(byClass(tree, 'chart-wrap'), 'is-accent')).toHaveLength(0);
+    expect(byClass(tree, 'chart-part').filter((p) => !String(p.props.class).includes('is-empty'))).toHaveLength(3);
+    expect(byClass(tree, 'wc-val').map((d) => text([d]))).toEqual(['2h', `2h${NB}50m`, '1h', '', '', '', '']);
+    expect(text(byClass(tree, 'wc-avg'))).toBe(`avg 2h${NB}25m`);
+    expect(byClass(tree, 'hit')[0]?.props['aria-label']).toBe(`Monday, October 12, 2h${NB}30m; github.com 2h`);
+  });
+
+  it('heads with the site’s total, average and change, its share, and a chip that clears it', () => {
+    const headline = one(tree, 'headline');
+    expect(byClass([headline], 'sr').map((s) => text([s]))).toEqual([`5h${NB}50m`, `2h${NB}25m`]);
+    expect(text([byId(tree, 'focus-chip') as El])).toBe('github.com×');
+    expect(text([byId(tree, 'delta-line') as El])).toBe('Daily average is 222% higher than the week before (45m).');
+    expect(text([byId(tree, 'focus-share') as El])).toBe('80% of the time recorded this week.');
+    expect(text([headline])).not.toContain('Quietest');
+    expect(byId(tree, 'focus-clear')?.props.title).toBe('Show all sites (Esc)');
+    call(byId(tree, 'focus-clear'), 'onClick');
+    expect(on.onSite).toHaveBeenCalledWith(null);
+  });
+
+  it('marks the focused row as pressed, and focuses another row on click', () => {
+    const picks = byClass([byId(tree, 'most-used') as El], 'row-pick');
+    expect(picks.map((p) => [p.props.id, p.props['aria-pressed']])).toEqual([
+      ['mu-pick-github_com', 'true'],
+      ['mu-pick-youtube_com', 'false'],
+      ['mu-pick-instagram_com', 'false'],
+    ]);
+    expect(all(tree, (el) => el.type === 'li' && el.props.class === 'mu-row is-selected')).toHaveLength(1);
+    call(picks[1], 'onClick');
+    expect(on.onSite).toHaveBeenLastCalledWith('youtube.com');
+  });
+
+  it('says when the site was not used, and that the week before had none of it either', () => {
+    const quiet = renderDashboard({ view: 'week', back: 1, site: 'instagram.com' }, sampleData());
+    expect(text(byClass(quiet, 'headline-notes'))).toContain('instagram.com was not used this week.');
+    expect(text([byId(quiet, 'delta-line') as El])).toBe('Not used on the same days of the week before.');
+    expect(byClass(quiet, 'wc-val').map((d) => text([d]))).toEqual(['–', '–', '–', 'No data', 'No data', '–', '–']);
+    expect(byClass(quiet, 'wc-avg')).toHaveLength(0);
+    expect(everything(quiet)).not.toMatch(/NaN|undefined|Infinity/);
+  });
+
+  it('keeps the empty-week copy on a week with nothing recorded', () => {
+    const empty = renderDashboard({ view: 'week', back: 0, site: 'a.com' }, sampleData({}));
+    expect(text(byClass(empty, 'headline-notes'))).toBe('a.com×Nothing was recorded this week. Days fill in as soon as you browse with tracking on.');
+  });
+});
+
+describe('site focus, day view', () => {
+  it('heads with the site’s day total, busiest hour, share and visits, and overlays its hours', () => {
+    const on = handlers();
+    const tree = renderDashboard({ view: 'day', date: '2026-10-13', site: 'github.com' }, sampleData(), { on });
+    expect(byClass([one(tree, 'headline')], 'sr').map((s) => text([s]))).toEqual([`2h${NB}50m`]);
+    expect(text([byId(tree, 'busiest-hour') as El])).toBe('Busiest hour: 9 – 10 AM, 50m.');
+    expect(text([byId(tree, 'focus-share') as El])).toBe('74% of the time recorded this day · 3 visits');
+    expect(byClass(byClass(tree, 'chart-wrap'), 'is-accent')).toHaveLength(0);
+    expect(byClass(tree, 'chart-part').filter((p) => !String(p.props.class).includes('is-empty'))).toHaveLength(4);
+    expect(byClass(tree, 'hit').map((h) => h.props['aria-label'])[4]).toBe('9 – 10 PM, 1h; github.com –');
+    const picks = byClass([byId(tree, 'day-sites') as El], 'row-pick');
+    expect(picks.map((p) => p.props['aria-pressed'])).toEqual(['true', 'false']);
+    call(picks[1], 'onClick');
+    call(byId(tree, 'focus-clear'), 'onClick');
+    expect(vi.mocked(on.onSite).mock.calls).toEqual([['youtube.com'], [null]]);
+  });
+
+  it('says so when the site was not used that day', () => {
+    const tree = renderDashboard({ view: 'day', date: '2026-10-13', site: 'instagram.com' }, sampleData());
+    expect(text(byClass(tree, 'headline-notes'))).toBe('instagram.com×instagram.com was not used on this day.');
+    expect(everything(tree)).not.toMatch(/NaN|undefined|Infinity/);
+  });
+});
+
+describe('hour focus, day view', () => {
+  it('makes each hour with time a pressed-state button that selects it on click, Enter or Space', () => {
+    const on = handlers();
+    const tree = renderDashboard({ view: 'day', date: '2026-10-13' }, sampleData(), { on, hour: 9 });
+    const hits = byClass(tree, 'hit');
+    expect(hits.map((h) => [h.props['data-hour'], h.props.role, h.props['aria-pressed']])).toEqual([
+      ['9', 'button', 'true'],
+      ['10', 'button', 'false'],
+      ['11', 'button', 'false'],
+      ['12', 'button', 'false'],
+      ['21', 'button', 'false'],
+    ]);
+    call(hits[4], 'onClick');
+    call(hits[0], 'onKeyDown', { key: 'Enter', preventDefault: vi.fn() });
+    expect(vi.mocked(on.onHour).mock.calls).toEqual([[21], [9]]);
+  });
+
+  it('puts the accent on the selected hour instead of the busiest, and lists every site of it', () => {
+    const on = handlers();
+    const many = { 'd:2026-10-13': day({ 'a.com': { 9: 400, 21: 3000 }, 'b.com': { 9: 300 }, 'c.com': { 9: 200 }, 'd.com': { 9: 100 } }) };
+    const tree = renderDashboard({ view: 'day', date: '2026-10-13' }, sampleData(many), { on, hour: 9 });
+    const accent = byClass(tree, 'is-accent');
+    expect(accent).toHaveLength(1);
+    expect(text([byId(tree, 'day-sites-title') as El])).toBe('Sites, 9 – 10 AM');
+    expect(text(byClass([byId(tree, 'day-sites') as El], 'aside'))).toBe('17m');
+    expect(byClass([byId(tree, 'day-sites') as El], 'name').map((n) => text([n]))).toEqual(['a.com', 'b.com', 'c.com', 'd.com']);
+    expect(byId(tree, 'hour-clear')?.props.title).toBe('Show the whole day (Esc)');
+    call(byId(tree, 'hour-clear'), 'onClick');
+    expect(on.onHour).toHaveBeenCalledWith(null);
+  });
+
+  it('shades the selected hour while a site is focused, and says a second click clears it', () => {
+    const tree = renderDashboard({ view: 'day', date: '2026-10-13', site: 'github.com' }, sampleData(), { hour: 21, chart: { active: 21 } });
+    expect(byClass(tree, 'is-hover')).toHaveLength(1);
+    expect(byClass(tree, 'is-accent')).toHaveLength(0);
+    expect(text(byClass(tree, 'tip-foot'))).toBe('Click again for the whole day');
+    const other = renderDashboard({ view: 'day', date: '2026-10-13' }, sampleData(), { chart: { active: 9 } });
+    expect(text(byClass(other, 'tip-foot'))).toBe('Click to list this hour’s sites');
+  });
+});
+
+describe('today controls and key hints', () => {
+  it('offers This week only on an older week, and names the keys in the titles', () => {
+    const on = handlers();
+    const older = renderDashboard({ view: 'week', back: 1 }, sampleData(), { on });
+    expect(byId(older, 'week-today')?.props.hidden).toBe(false);
+    expect(byId(older, 'week-today')?.props.title).toBe('Go to this week (T)');
+    expect(byId(older, 'week-prev')?.props.title).toBe('Previous week (Left arrow)');
+    expect(byId(older, 'week-next')?.props.title).toBe('Next week (Right arrow)');
+    call(byId(older, 'week-today'), 'onClick');
+    expect(on.onWeek).toHaveBeenCalledWith(0);
+    expect(byId(renderDashboard({ view: 'week', back: 0 }, sampleData()), 'week-today')?.props.hidden).toBe(true);
+  });
+
+  it('offers Today only on an earlier day, and names the keys in the titles', () => {
+    const on = handlers();
+    const tue = renderDashboard({ view: 'day', date: '2026-10-13' }, sampleData(), { on });
+    expect(byId(tue, 'day-today')?.props.hidden).toBe(false);
+    expect(byId(tue, 'day-today')?.props.title).toBe('Go to today (T)');
+    expect(byId(tue, 'day-prev')?.props.title).toBe('Previous day (Left arrow)');
+    expect(byId(tue, 'day-next')?.props.title).toBe('Next day (Right arrow)');
+    call(byId(tue, 'day-today'), 'onClick');
+    expect(on.onDay).toHaveBeenCalledWith('2026-10-14');
+    expect(byId(renderDashboard({ view: 'day', date: '2026-10-14' }, sampleData()), 'day-today')?.props.hidden).toBe(true);
+  });
+});
