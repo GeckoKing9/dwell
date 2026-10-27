@@ -6,6 +6,7 @@
 import { siteOf } from '../tracker/grouping.ts';
 import type {
   ActivateEvent,
+  AttentionEvent,
   CloseEvent,
   FocusEvent,
   IdleEvent,
@@ -101,6 +102,11 @@ export function pauseEvent(paused: boolean, at: number): PauseEvent {
   return { type: 'pause', at, paused };
 }
 
-export function mediaEvent(tabId: number, playing: boolean, at: number): MediaEvent {
-  return { type: 'media', at, tabId, playing };
+/** A watched flag only travels with playback: a stop is never watched. */
+export function mediaEvent(tabId: number, playing: boolean, watched: boolean, at: number): MediaEvent {
+  return playing && watched ? { type: 'media', at, tabId, playing, watched: true } : { type: 'media', at, tabId, playing };
+}
+
+export function attentionEvent(tabId: number, windowId: number, present: boolean, at: number): AttentionEvent {
+  return { type: 'attention', at, tabId, windowId, present };
 }

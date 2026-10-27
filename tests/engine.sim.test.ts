@@ -20,6 +20,11 @@ function activeTab(state: EngineState) {
   return tabId === undefined ? undefined : state.tabs[String(tabId)];
 }
 
+/** True when some window's active tab reported playback with sound on screen (now or in its hold). */
+function anyWatched(state: EngineState): boolean {
+  return Object.values(state.activeTabs).some((tabId) => state.tabs[String(tabId)]?.media?.watched === true);
+}
+
 describe('engine invariants over generated sequences', () => {
   it('never attributes more seconds than the wall-clock span', () => {
     fc.assert(
@@ -32,11 +37,14 @@ describe('engine invariants over generated sequences', () => {
     );
   });
 
-  it('attributes nothing while no Chrome window has focus', () => {
+  it('attributes nothing while no Chrome window has focus, unless a page holds attention or plays watched media', () => {
     fc.assert(
       fc.property(sequenceArb(), ({ startAt, settings, events }) => {
         for (const step of steps(events, settings, startAt)) {
-          if (step.before.focusedWindow === null) expect(step.attributions).toEqual([]);
+          const { before } = step;
+          if (before.focusedWindow === null && before.attention === undefined && !(settings.mediaOverride && anyWatched(before))) {
+            expect(step.attributions).toEqual([]);
+          }
         }
       }),
       { numRuns: 150 },
@@ -54,11 +62,11 @@ describe('engine invariants over generated sequences', () => {
     );
   });
 
-  it('attributes nothing while idle unless the active tab plays media and the override is on', () => {
+  it('attributes nothing while idle unless a page holds attention or the active tab plays media and the override is on', () => {
     fc.assert(
       fc.property(sequenceArb(), ({ startAt, settings, events }) => {
         for (const step of steps(events, settings, startAt)) {
-          if (step.before.idle !== 'idle') continue;
+          if (step.before.idle !== 'idle' || step.before.attention !== undefined || anyWatched(step.before)) continue;
           const media = activeTab(step.before)?.media;
           const seconds = secondsOf(step.attributions);
           if (!settings.mediaOverride || !media) {
@@ -73,11 +81,11 @@ describe('engine invariants over generated sequences', () => {
     );
   });
 
-  it('gives every interval to at most one site and never more than its length', () => {
+  it('splits an interval between at most the three ranked sites and never gives more than its length', () => {
     fc.assert(
       fc.property(sequenceArb(), ({ startAt, settings, events }) => {
         for (const step of steps(events, settings, startAt)) {
-          expect(new Set(step.attributions.map((a) => a.site)).size).toBeLessThanOrEqual(1);
+          expect(new Set(step.attributions.map((a) => a.site)).size).toBeLessThanOrEqual(3);
           const length = Math.max(0, step.event.at - step.before.lastAt);
           expect(secondsOf(step.attributions) * 1000).toBeLessThanOrEqual(length);
         }
@@ -177,17 +185,24 @@ describe('engine invariants over generated sequences', () => {
       fc.property(sequenceArb(), ({ startAt, settings, events }) => {
         const lastEnd = new Map<string, number>();
         for (const step of steps(events, settings, startAt)) {
-          const seconds = secondsOf(step.attributions);
-          const site = step.attributions[0]?.site;
-          const visits = step.attributions.filter((a) => a.visit).length;
-          if (site === undefined || seconds === 0) {
-            expect(visits).toBe(0);
-            continue;
+          // Attributions come in counting order; consecutive ones for the same site are one stretch.
+          const stretches: { site: string; seconds: number; visits: number }[] = [];
+          for (const a of step.attributions) {
+            const last = stretches.at(-1);
+            if (last?.site === a.site) {
+              last.seconds += a.seconds;
+              last.visits += a.visit ? 1 : 0;
+            } else {
+              stretches.push({ site: a.site, seconds: a.seconds, visits: a.visit ? 1 : 0 });
+            }
           }
-          const from = step.before.lastAt;
-          const previous = lastEnd.get(site);
-          expect(visits).toBe(previous === undefined || from - previous >= 60_000 ? 1 : 0);
-          lastEnd.set(site, from + seconds * 1000);
+          let from = step.before.lastAt;
+          for (const { site, seconds, visits } of stretches) {
+            const previous = lastEnd.get(site);
+            expect(visits).toBe(previous === undefined || from - previous >= 60_000 ? 1 : 0);
+            from += seconds * 1000;
+            lastEnd.set(site, from);
+          }
         }
       }),
       { numRuns: 200 },

@@ -20,6 +20,10 @@ const valid: Message[] = [
   { type: 'blocked', site: 'x' },
   { type: 'media', playing: true },
   { type: 'media', playing: false },
+  { type: 'media', playing: true, watched: true },
+  { type: 'media', playing: false, watched: false },
+  { type: 'attention', present: true },
+  { type: 'attention', present: false },
   { type: 'settings', patch: { idleThresholdSec: 120 } },
   { type: 'settings', patch: { blockers: { instagramReels: false } } },
   {
@@ -77,6 +81,10 @@ const rejected: [string, unknown][] = [
   ['media with a string flag', { type: 'media', playing: 'true' }],
   ['media with a number flag', { type: 'media', playing: 1 }],
   ['media with a title', { type: 'media', playing: true, title: 'x' }],
+  ['media with a string watched flag', { type: 'media', playing: true, watched: 'yes' }],
+  ['attention without its flag', { type: 'attention' }],
+  ['attention with a number flag', { type: 'attention', present: 1 }],
+  ['attention with a position', { type: 'attention', present: true, x: 10 }],
   ['pause with no flag', { type: 'pause' }],
   ['pause with a string flag', { type: 'pause', paused: 'yes' }],
   ['import with an object', { type: 'import', text: { days: {} } }],
@@ -206,17 +214,17 @@ describe('isHostname', () => {
 });
 
 describe('sender authorisation', () => {
-  it('lets content scripts send only blocked and media', () => {
-    expect([...CONTENT_MESSAGE_TYPES]).toEqual(['blocked', 'media']);
+  it('lets content scripts send only blocked, media and attention', () => {
+    expect([...CONTENT_MESSAGE_TYPES]).toEqual(['blocked', 'media', 'attention']);
     for (const message of valid) {
-      expect(allowedFrom(message, 'content')).toBe(message.type === 'blocked' || message.type === 'media');
+      expect(allowedFrom(message, 'content')).toBe(['blocked', 'media', 'attention'].includes(message.type));
     }
   });
 
   it('lets extension pages send everything except the content-script types', () => {
     expect([...PAGE_MESSAGE_TYPES]).toEqual(['settings', 'pause', 'import', 'deleteAll', 'undoDelete']);
     for (const message of valid) {
-      expect(allowedFrom(message, 'page')).toBe(!CONTENT_MESSAGE_TYPES.includes(message.type as 'blocked' | 'media'));
+      expect(allowedFrom(message, 'page')).toBe(!CONTENT_MESSAGE_TYPES.includes(message.type as 'blocked' | 'media' | 'attention'));
     }
   });
 

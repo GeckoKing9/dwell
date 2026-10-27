@@ -16,7 +16,7 @@ A Chrome extension that records how many minutes each website is in front of its
 
 ## What it does — MVP scope
 
-- [ ] Counts a second for a site only when a Chrome window is focused, that tab is active, and the owner is present (input, or media playing in that tab; never while locked).
+- [ ] Counts a second for one site at a time, where the owner's attention is: a page scrolled without focus (the four script sites), else the focused window's active tab, else a video with sound on screen; only while present (input, or media playing; never while locked). ADR-6.
 - [ ] Keeps 90 rolling days of domain, seconds per hour, visits per day, and redirect counts, locally.
 - [ ] Popup: today's total against the usual amount by this time, a 7-day chart, top 3 sites, this site's time and visits, the blocker toggle for this site, pause.
 - [ ] Dashboard: week navigation over the retained weeks, week total, daily average, change against the previous week in plain words, 7-day chart, hourly day view, most used with deltas and visits, categories, blocked counts, settings, privacy.
@@ -89,7 +89,7 @@ A Chrome extension that records how many minutes each website is in front of its
 ### Data Flow (MVP)
 
 ```
-1. Chrome fires a tab, window, idle or alarm event, or a content script sends media/blocked
+1. Chrome fires a tab, window, idle or alarm event, or a content script sends media/attention/blocked
 2. The service worker pushes it onto one serialised queue
 3. The event is reduced by the pure engine: close the open interval, split at hour boundaries, apply the gap cap, decide visits
 4. Attributions are written to d:<YYYY-MM-DD> in storage.local; hot state to storage.session

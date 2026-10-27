@@ -11,7 +11,8 @@ import { loadSettings, saveSettings } from '../shared/settings.ts';
 import { checkMessage, type Message } from '../shared/messages.ts';
 import { authorize, type SenderLike } from './authorize.ts';
 import { applySaved, applySettings, groupingChanged } from './effects.ts';
-import { mediaEvent, pauseEvent } from './events.ts';
+import { own } from '../tracker/records.ts';
+import { attentionEvent, mediaEvent, pauseEvent, siteOfTab } from './events.ts';
 import type { Queue, Stores } from './queue.ts';
 import { activeTabEvents } from './reseed.ts';
 
@@ -51,7 +52,25 @@ export function createMessageHandler(deps: MessageDeps): (raw: unknown, sender: 
 
   async function media(message: Of<'media'>, tabId: number | undefined): Promise<Reply> {
     if (tabId === undefined) return FAILED;
-    return (await queue.track(({ at }) => [mediaEvent(tabId, message.playing, at)])) ? OK : FAILED;
+    return (await queue.track(({ at }) => [mediaEvent(tabId, message.playing, message.watched === true, at)])) ? OK : FAILED;
+  }
+
+  /**
+   * Input the page took outside Chrome's focus. The engine may not know the tab yet (a window it was never
+   * focused in), so a page that takes input first tells it which site the tab shows.
+   */
+  async function attention(message: Of<'attention'>, tab: SenderLike['tab']): Promise<Reply> {
+    const tabId = tab?.id;
+    const windowId = tab?.windowId;
+    if (tabId === undefined || windowId === undefined) return FAILED;
+    const done = await queue.track(({ at, state, settings: grouping }) => {
+      const event = attentionEvent(tabId, windowId, message.present, at);
+      if (!message.present) return state.attention?.tabId === tabId ? [event] : [];
+      const site = siteOfTab({ url: tab?.url, incognito: tab?.incognito ?? false }, grouping);
+      const known = own(state.tabs, String(tabId));
+      return known?.site === site ? [event] : [{ type: 'url', at, tabId, site }, event];
+    });
+    return done ? OK : FAILED;
   }
 
   async function pause(message: Of<'pause'>): Promise<Reply> {
@@ -121,6 +140,8 @@ export function createMessageHandler(deps: MessageDeps): (raw: unknown, sender: 
         return blocked(message);
       case 'media':
         return media(message, sender.tab?.id);
+      case 'attention':
+        return attention(message, sender.tab);
       case 'pause':
         return pause(message);
       case 'settings':

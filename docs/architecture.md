@@ -73,7 +73,8 @@ Every message is parsed by `parseMessage` (`src/shared/messages.ts`): a plain ob
 | Type | Allowed sender | Payload |
 |---|---|---|
 | `blocked` | content script, only for the site its tab is on | `{ site: 'instagram' \| 'youtube' \| 'facebook' \| 'x' }` |
-| `media` | content script | `{ playing: boolean }` |
+| `media` | content script | `{ playing: boolean, watched?: boolean }`: `watched` = playing with sound on a page on screen |
+| `attention` | content script | `{ present: boolean }`: the page took trusted input outside Chrome's focus, or (false) the pointer left or the page hid; the worker reads the tab and window ids and the site from `sender.tab` |
 | `settings` | extension pages only | `{ patch }`: any non-empty subset of `PATCH_KEYS`, each value checked by its parser in `PATCH_FIELDS`; an unknown key or a bad value rejects the whole message |
 | `pause` | extension pages only | `{ paused: boolean }` |
 | `import` | extension pages only | `{ text }`, at most 10 MB of characters, then the hardened import parser (2 MB) |
@@ -85,7 +86,7 @@ Sender rules, in order:
 2. A sender with a `frameId` other than 0 is refused: top frames only.
 3. A sender URL under `chrome-extension://<id>/` is an extension page.
 4. Otherwise the sender needs a tab whose URL is `https:` on one of the nine hosts (www, m and bare hosts of Instagram, YouTube and Facebook, and x.com); that host decides the sender's site.
-5. A content script may send only `blocked` and `media`; an extension page only the five page types.
+5. A content script may send only `blocked`, `media` and `attention`; an extension page only the five page types.
 6. A content script may only report blocks for its own site: a `blocked` message whose `site` differs from the sender's site is refused.
 
 Refusal reasons name the rule that failed and never echo the sender URL. No content-script message carries a URL or a title.
@@ -143,3 +144,10 @@ The plan's Key Technical Decisions (KTD1 to KTD12) are the ADRs for this project
 - **Options:** (a) keep the hand-wired guard; (b) move every decision into a pure machine and keep the content script as an adapter.
 - **Decision:** (b). `src/blocker/guard-machine.ts` is `step(state, input) → { state, effects }` for a navigation, a committed URL, settings, a deadline and an Instagram open; effects are data the adapter carries out (cancel, count, load, back, later, save a log, hider, sync). `src/content/guard-core.ts` is the core adapter on every site, started by the entries `guard.ts` (YouTube, X), `guard-instagram.ts`, which adds Instagram's pieces through hooks and gives the machine Instagram's post rule as data, and `guard-facebook.ts`, which gives it Facebook's reel rule the same way; with no post rule the machine never swaps a move for a post or keeps a pop-up to one post, so the other sites' bundle carries no post paths. A load passes its mode to the site: on Instagram a `replace` becomes the router's replacing navigation, so the entry it replaces is not left under the post. One `navigation.currententrychange` listener replaces the poll, `popstate` and `yt-navigate-finish`, which needs Chrome 111 (the manifest rules require `minimum_chrome_version` 111). Before the settings load nothing moves, but the input lock and the hiders follow the default toggles.
 - **Consequences:** nothing runs on a schedule while nothing happens (it was 4 wake-ups a second per tab). `guard.js` on YouTube and X is 16.4 KB (was 20.7 KB) and carries no Instagram rule; `guard-instagram.js` is 26.0 KB, `guard-facebook.js` 16.7 KB. The machine has full line coverage under 60 tests. An orphaned guard (the extension reloaded) lets go at its next event rather than within 250 ms. Chrome before 111 is not supported.
+
+### ADR-6: Presence follows attention, not only window focus
+
+- **Context:** on Windows a window without focus still scrolls under the pointer, and a video can play on a second screen while another app has focus. KTD2 counted only the focused window's active tab, so the owner's hover-scrolled Instagram feed and a video watched beside other work counted nothing.
+- **Options:** (a) keep focus-only; (b) count Chrome's audible tab in any window; (c) let the content scripts report input the page takes and playback that is on screen, and rank presence; (d) add content scripts on every site.
+- **Decision:** (c). Presence at any instant is the first of: the page holding attention (the last trusted wheel, key, click or touch it took outside focus, for the idle threshold, ended by the pointer leaving, the page hiding, any focus change or tab switch, the tab leaving its site or closing); the focused window's active tab (KTD2, unchanged); an active tab in any window whose media plays with sound on a page that is visible or in picture-in-picture (with the media setting, 30 s hold). Locked and paused always win. An interval is split between ranks as they run out. The content script sends attention at most every 10 s, only without focus or after the pointer came back, so focused browsing sends nothing new. (b) was rejected because Chrome cannot say whether a window is on screen, so music left behind other windows would count; (d) because it needs access to every site, a permission change.
+- **Consequences:** the engine state gains an optional `attention` slot and media a `watched` flag; three log kinds (`media-watched`, `attention-on`, `attention-off`) keep the log lossless, and older logs and hot states still read. The oracle ranks the same way and the engine equals it on the generated sequences. Known costs: after hover-scrolling, typing in another app counts the page up to the idle threshold; a muted video watched without focus counts only while its page takes input; sites without a script keep focus-only counting.

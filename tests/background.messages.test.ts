@@ -74,6 +74,28 @@ describe('content-script messages', () => {
   it('gives a media message to the engine for the sender tab', async () => {
     await bg.handleMessage({ type: 'media', playing: true }, { ...INSTAGRAM, url: 'https://www.youtube.com/' });
     expect(engineState(fake).tabs['8']?.media).toMatchObject({ src: 'msg', on: true });
+    await bg.handleMessage({ type: 'media', playing: true, watched: true }, { ...INSTAGRAM, url: 'https://www.youtube.com/' });
+    expect(engineState(fake).tabs['8']?.media).toEqual({ src: 'msg', on: true, watched: true });
+  });
+
+  it('counts a page the user scrolls while Chrome has no focus, under the site its tab shows', async () => {
+    const sender = { ...INSTAGRAM, tab: { id: 8, windowId: 2, url: 'https://www.instagram.com/', incognito: false } };
+    await bg.onFocusChanged(-1);
+    expect((await bg.handleMessage({ type: 'attention', present: true }, sender)).ok).toBe(true);
+    advance(40);
+    await bg.onAlarm({ name: 'heartbeat' });
+    expect(engineState(fake).attention).toEqual({ tabId: 8, windowId: 2, at: T0 });
+    expect(totals(fake, 'instagram.com').seconds).toBe(40);
+    await bg.handleMessage({ type: 'attention', present: false }, sender);
+    expect(engineState(fake).attention).toBeUndefined();
+    advance(60);
+    await bg.onAlarm({ name: 'heartbeat' });
+    expect(totals(fake, 'instagram.com').seconds).toBe(40);
+  });
+
+  it('refuses an attention message from a sender without a tab or window id', async () => {
+    expect((await bg.handleMessage({ type: 'attention', present: true }, INSTAGRAM)).ok).toBe(false);
+    expect((await bg.handleMessage({ type: 'attention', present: true }, { ...INSTAGRAM, tab: { windowId: 2 } })).ok).toBe(false);
   });
 });
 

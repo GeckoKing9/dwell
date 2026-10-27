@@ -14,7 +14,11 @@ interface Day {
   blocked?: Record<string, number>;
 }
 interface Hot {
-  engine?: { activeTabs?: Record<string, number>; tabs?: Record<string, { media?: { src: string; on: boolean } }> };
+  engine?: {
+    activeTabs?: Record<string, number>;
+    tabs?: Record<string, { media?: { src: string; on: boolean } }>;
+    attention?: { tabId: number; windowId: number; at: number };
+  };
 }
 interface World {
   id: number;
@@ -233,4 +237,17 @@ test('a muted video playing on the YouTube host reaches the engine as media for 
   expect(await seconds('youtube.com')).toBeGreaterThanOrEqual(2);
   expect(await seconds('youtube.com')).toBeLessThanOrEqual(7);
   await yt.close();
+});
+
+test('input a page takes outside Chrome focus gives its tab attention, under the sender tab and window, until it takes it back', async () => {
+  const ig = await open(`${IG}/`);
+  await front(ig);
+  const attention = async () =>
+    (await sw()).evaluate(async () => ((await chrome.storage.session.get('hot')) as { hot?: Hot }).hot?.engine?.attention);
+  const tab = await (await sw()).evaluate(async () => (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0]);
+  expect(await fromContentScript(ig, { type: 'attention', present: true })).toMatchObject({ ok: true });
+  await expect.poll(attention).toMatchObject({ tabId: tab?.id, windowId: tab?.windowId });
+  expect(await fromContentScript(ig, { type: 'attention', present: false })).toMatchObject({ ok: true });
+  await expect.poll(attention).toBeUndefined();
+  await ig.close();
 });

@@ -36,12 +36,31 @@ export interface IdleEvent {
   state: IdleState;
 }
 
-/** From the media content script: a level signal, sent when playback starts or stops. */
+/**
+ * From the media content script: a level signal, sent when either level changes. `watched`: the
+ * playback has sound and its page is on screen (visible, or in picture-in-picture), so it counts
+ * even when its window has no focus. Absent in logs from before it existed: read as false.
+ */
 export interface MediaEvent {
   type: 'media';
   at: number;
   tabId: number;
   playing: boolean;
+  /** Only with `playing`: a stop is never watched. */
+  watched?: true;
+}
+
+/**
+ * From a content script: the user gave the page input through the page itself, not through Chrome's
+ * focus (hover-scrolling a window that does not have focus), or (`present: false`) the pointer left
+ * the page or the page was hidden. A page that takes input is its window's active tab.
+ */
+export interface AttentionEvent {
+  type: 'attention';
+  at: number;
+  tabId: number;
+  windowId: number;
+  present: boolean;
 }
 
 export interface PauseEvent {
@@ -83,13 +102,17 @@ export type EngineEvent =
   | UrlEvent
   | IdleEvent
   | MediaEvent
+  | AttentionEvent
   | PauseEvent
   | TickEvent
   | CloseEvent
   | SeedEvent;
 
 export interface TrackerSettings {
-  /** The worker hands it to the idle detector; the reducer itself trusts the idle events. */
+  /**
+   * The worker hands it to the idle detector, and the reducer trusts the idle events. The reducer
+   * also uses it as the page's own idle threshold: attention lasts this long after the last input.
+   */
   idleThresholdSec: IdleThresholdSec;
   mediaOverride: boolean;
   heartbeatSec: number;
@@ -110,6 +133,8 @@ export interface MediaState {
   src: 'msg' | 'audible';
   on: boolean;
   offAt?: number;
+  /** Content script only: the playback had sound on a page on screen; kept through the hold after a stop. */
+  watched?: true;
 }
 
 export interface TabState {
@@ -121,6 +146,13 @@ export interface TabState {
 export interface SiteMemory {
   at: number;
   carryMs: number;
+}
+
+/** The tab whose page last took the user's input outside Chrome's focus; `at` is that input. */
+export interface Attention {
+  tabId: number;
+  windowId: number;
+  at: number;
 }
 
 /** Plain JSON: it survives `JSON.stringify`/`JSON.parse` unchanged (restart equivalence). */
@@ -138,6 +170,8 @@ export interface EngineState {
   sites: Record<string, SiteMemory>;
   /** Set after a clock jump; the worker should answer with a `seed` event read from the live tabs. */
   needsReseed: boolean;
+  /** Absent when no page holds attention; any focus, tab switch or seed clears it. */
+  attention?: Attention;
 }
 
 export interface Attribution {

@@ -37,6 +37,8 @@ What only the operating system and the live, logged-in sites can show. Tick each
 - [ ] Lock the screen with a video playing: counting stops
 - [ ] Close the lid 10 min: at most 60 s attributed
 - [ ] Focus an incognito window: nothing recorded
+- [ ] Click another app, then scroll Instagram's home feed with the wheel without clicking Chrome for 2 minutes: the popup shows about 2 minutes plus the idle threshold for instagram.com. Move the pointer off the page: counting stops at once
+- [ ] Play a YouTube video with sound, then click another app and leave the video on screen: youtube.com keeps counting. Mute it: it stops after 30 s. Minimise the window: it stops at once
 - [ ] Instagram: tap a Reel in search, on a profile, in the feed and in a message; each opens in Instagram's own pop-up over the page, with no page load, and scrolling does not reach another Reel. A Reel opened from a link outside Instagram shows as Dwell's look-alike pop-up. The Reels tab goes home
 - [ ] YouTube: no Shorts on home, in search or beside a video; a Short opened from a link plays on the watch page with no Shorts scroller
 - [ ] Facebook: open a reel; the wheel, arrow keys and swipes do not move to another reel, and the viewer's up and down card buttons are gone; on the home feed nothing else is missing. Comments still scroll

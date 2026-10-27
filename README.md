@@ -12,7 +12,13 @@ More screenshots: [popup, dark](docs/screenshots/popup-dark.png), [week, dark](d
 
 ## What it counts
 
-A second goes to a site only when a Chrome window has focus, the site is in that window's active tab, and you are present. Present means Chrome's idle detector has seen input within your idle threshold (30, 60, 120 or 300 seconds; 60 by default), or, with the media setting on, that the tab in front is playing video or audio; a locked screen always stops the count, whatever is playing. Playing is reported by a small script on Instagram, YouTube, Facebook and X, and taken from Chrome's audible flag everywhere else, with a 30-second hold so a gap between two songs does not count as leaving. After any gap with no events longer than 90 seconds (sleep, a closed lid, the service worker being stopped), at most one minute is given to the site that was in front before the gap, and the state is rebuilt from the live browser. A visit is counted when a site becomes the counted site after at least 60 seconds of not being counted. Never counted: background tabs, unfocused windows, audio in either, incognito windows, `chrome://`, `file://` and other non-web pages, the new tab page, sites on your ignore list, and anything while tracking is paused.
+A second goes to one site at a time: the site your attention is on, and only while you are present. In order:
+
+1. **A page you scroll without clicking it.** On Instagram, YouTube, Facebook and X, a small script notices input the page takes while its window has no focus (Windows scrolls the window under the pointer). That site counts until your idle threshold passes without input there (30, 60, 120 or 300 seconds; 60 by default), or at once when the pointer leaves the page, the page is hidden, or you click or switch tabs anywhere. Ten minutes of scrolling is ten minutes, whether or not a video plays in the feed.
+2. **The focused window's active tab**, while Chrome's idle detector has seen input within your idle threshold, or, with the media setting on, while that tab plays video or audio.
+3. **A video you are watching in a window without focus**, with the media setting on: playback with sound, on a page that is on screen (or in picture-in-picture), on one of those four sites. Muted autoplay never counts here, and a background tab is never on screen.
+
+A locked screen always stops the count, whatever is playing. Playing is reported by the same script on the four sites, and taken from Chrome's audible flag everywhere else (for the focused tab only), with a 30-second hold so a gap between two songs does not count as leaving. After any gap with no events longer than 90 seconds (sleep, a closed lid, the service worker being stopped), at most one minute is given to the site that was in front before the gap, and the state is rebuilt from the live browser. A visit is counted when a site becomes the counted site after at least 60 seconds of not being counted. Never counted: background tabs, unfocused windows, audio in either, incognito windows, `chrome://`, `file://` and other non-web pages, the new tab page, sites on your ignore list, and anything while tracking is paused.
 
 ## What it stores
 
@@ -57,7 +63,7 @@ default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; f
 2. `eslint.config.js` bans the same APIs in `src/`, plus computed access on `globalThis`, `self` and `window` (so `self['fe' + 'tch']` fails lint), dynamic `import()`, and `createElement` of `script`, `link` or `iframe`.
 3. `tests/e2e/privacy.spec.ts` loads the built extension in Chromium and calls `fetch` from the service worker and from the dashboard: both are refused with a `connect-src` violation, and a remote image never loads. Its fourth test, `a full tracking and blocking session makes no request outside the fixture hosts and the four sites`, records every request during a scripted session and checks that extension pages and the worker reach only `chrome-extension:`, `data:` and `blob:`.
 
-The service worker authorises every message by sender. The sender must be this extension. Extension pages (popup, dashboard) may send only `settings`, `pause`, `import`, `deleteAll` and `undoDelete`. A content script, recognised by its top-frame `https` tab on one of the nine hosts, may send only `media { playing }` and `blocked { site }`, and `blocked` only for the site it runs on. Every payload must have exactly the documented keys and types and is copied before use; no content-script message carries an address or a title.
+The service worker authorises every message by sender. The sender must be this extension. Extension pages (popup, dashboard) may send only `settings`, `pause`, `import`, `deleteAll` and `undoDelete`. A content script, recognised by its top-frame `https` tab on one of the nine hosts, may send only `media { playing, watched? }`, `attention { present }` and `blocked { site }`, and `blocked` only for the site it runs on. Every payload must have exactly the documented keys and types and is copied before use; no content-script message carries an address or a title.
 
 Import treats the file as untrusted: at most 2 MB, 400 days, 500 sites a day and 500 entries per settings list; dates must be real `YYYY-MM-DD` days, sites must be hostnames, hours 0 to 23, seconds whole numbers from 0 to 3,600, visits and redirect counts whole numbers in range; unknown keys and `__proto__`, `constructor` or `prototype` anywhere reject the file; records are built on null-prototype objects; days outside the 90-day window are skipped and counted. The merge keeps the larger value everywhere, so importing the same file twice changes nothing, and it is written in one commit, so a rejected or failed import leaves your data as it was.
 
@@ -82,13 +88,13 @@ Each release on GitHub attaches `dwell-<version>.zip` and `dwell-<version>.sha25
 
 ## How it is tested
 
-The counting rule lives in one pure reducer, `src/tracker/engine.ts`, which is what makes it testable without Chrome. `tests/support/oracle.ts` is a deliberately naive second model: it shares only the types with the engine, walks time one second at a time and asks the presence question at every step. fast-check generates event sequences (focus changes, tab switches, address changes, idle and lock, media, pause, ticks, gaps, clock jumps) and `tests/engine.sim.test.ts` requires the engine to equal the oracle on 2,000 sequences at one-second resolution and 500 at 100 ms, and to hold these invariants:
+The counting rule lives in one pure reducer, `src/tracker/engine.ts`, which is what makes it testable without Chrome. `tests/support/oracle.ts` is a deliberately naive second model: it shares only the types with the engine, walks time one second at a time and asks the presence question at every step. fast-check generates event sequences (focus changes, tab switches, address changes, idle and lock, media, watched media, page attention, pause, ticks, gaps, clock jumps) and `tests/engine.sim.test.ts` requires the engine to equal the oracle on 2,000 sequences at one-second resolution and 500 at 100 ms, and to hold these invariants:
 
 - never attributes more seconds than the wall-clock span
-- attributes nothing while no Chrome window has focus
+- attributes nothing while no Chrome window has focus, unless a page holds attention or plays watched media
 - attributes nothing while locked or paused, whatever the media
-- attributes nothing while idle unless the active tab plays media and the override is on
-- gives every interval to at most one site and never more than its length
+- attributes nothing while idle unless a page holds attention or the active tab plays media and the override is on
+- splits an interval between at most the three ranked sites and never gives more than its length
 - places every attribution in a local day and hour its own interval touches
 - splits a continuous session at hour, midnight and DST boundaries without losing a second
 - attributes at most one heartbeat across a gap longer than 1.5 heartbeats
@@ -103,7 +109,7 @@ The privacy checks are themselves tested with planted violations: `tests/lint.pr
 
 The Playwright specs load the built extension in Chromium with routed fixture pages:
 
-- `tests/e2e/tracking.spec.ts`: real tab switches give the expected seconds, a worker stopped mid-session resumes with the totals intact, pause records nothing, the worker refuses misdirected messages, a redirect landing is counted once, and a muted video on YouTube counts as media.
+- `tests/e2e/tracking.spec.ts`: real tab switches give the expected seconds, a worker stopped mid-session resumes with the totals intact, pause records nothing, the worker refuses misdirected messages, a redirect landing is counted once, a muted video on YouTube counts as media, and a page's attention message lands on its own tab and window.
 - `tests/e2e/blocker.spec.ts`: Chrome itself accepts every redirect rule (`isRegexSupported`) and matches the same URLs as the classifier (`testMatchOutcome`); a Shorts load lands on the watch page without the Shorts request reaching the server; the Instagram Reels scroller lands on its post page, a single Reel opens untouched, a full post page hides its "More posts" unless the post is a pop-up, and a Reels feed tap loads the home page; an X video viewer, loaded or tapped, lands on its tweet page; a Facebook viewer pushed to the next reel is taken back by Back without a reload, other moves are put back by the viewer's Previous Card without a reload (and reload the first reel only when that button is missing), its card buttons are hidden on a viewer and nowhere else, and its wheel and arrow keys never reach the page; switches take effect without a reload; the loop guard holds.
 - `tests/e2e/privacy.spec.ts`: the refused requests and the recorded session described above.
 - `tests/e2e/ui.spec.ts`: popup states and the one-tap switch (YouTube and X), pause everywhere, week navigation bounds, the day view, export and re-import, delete with undo, no horizontal overflow at three widths in both themes, and a privacy panel that lists exactly the manifest's permissions.
@@ -138,8 +144,10 @@ Preact is the only runtime dependency. The design system is in `design/DESIGN.md
 
 ## Limits
 
-- Two Chrome windows side by side: only the focused one counts, so reading in one window while the other has focus gives the time to the focused one.
-- Idle is system-wide: any keyboard or mouse input on the computer counts as presence, so scrolling another window without clicking it, while Chrome keeps focus, still counts for the site in front.
+- Scrolling a window without clicking it is seen only on Instagram, YouTube, Facebook and X, where Dwell has a script. Elsewhere only the focused window counts, and a video in a window without focus (Netflix on a second screen) is not counted: telling it apart from music left playing behind other windows would need a script on every site, which needs access to every site.
+- After scrolling a page without clicking it, going back to typing in another app is invisible to Chrome, so the page keeps counting up to your idle threshold. Moving the pointer off the page ends it at once.
+- Idle is system-wide: any keyboard or mouse input on the computer counts as presence for the focused window, so typing in another app without clicking it, while Chrome keeps focus, still counts for the site in front.
+- A muted video in a window without focus counts only while you scroll or touch its page.
 - The hiders depend on each site's markup and will break when the sites change; the guard and redirect rules do not depend on markup.
 - Reels inside the Instagram home feed are not hidden: they have no stable selector without reading page content, which Dwell does not do.
 - No sync: each Chrome profile keeps its own data, and moving it means Export and Import.

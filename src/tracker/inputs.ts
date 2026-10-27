@@ -6,13 +6,23 @@ import type { EngineEvent, EngineState, MediaState, TabState } from './types.ts'
  * keeps the first stop time. Chrome's `audible` is ignored once the content script owns the tab. A
  * content-script stop only ends playback the content script reported: a stop from a page that has
  * already left (its `pagehide` arriving after the next site's url event) has nothing to end.
+ * `watched` comes only from the content script; a stop keeps it, so the hold counts the same way.
  */
-function signal(media: MediaState | undefined, src: MediaState['src'], playing: boolean, at: number): MediaState | undefined {
+function signal(media: MediaState | undefined, src: MediaState['src'], playing: boolean, at: number, watched = false): MediaState | undefined {
   if (src === 'audible' && media?.src === 'msg') return media;
   if (src === 'msg' && !playing && media?.src !== 'msg') return media;
-  if (playing) return { src, on: true };
-  if (media?.on) return { src, on: false, offAt: at };
-  return media?.offAt === undefined ? { src, on: false } : { src, on: false, offAt: media.offAt };
+  if (playing) return src === 'msg' && watched ? { src, on: true, watched: true } : { src, on: true };
+  const kept = media?.watched ? { watched: true as const } : {};
+  if (media?.on) return { src, on: false, offAt: at, ...kept };
+  return media?.offAt === undefined ? { src, on: false, ...kept } : { src, on: false, offAt: media.offAt, ...kept };
+}
+
+/** The state without attention, or unchanged when no page holds it or `when` says to keep it. */
+function dropAttention(state: EngineState, when: (tabId: number) => boolean = () => true): EngineState {
+  if (state.attention === undefined || !when(state.attention.tabId)) return state;
+  const rest = { ...state };
+  delete rest.attention;
+  return rest;
 }
 
 function tabWith(site: string | null, media: MediaState | undefined): TabState {
@@ -32,16 +42,25 @@ function navigate(state: EngineState, tabId: number, site: string | null, audibl
   const stale = left || (nav && previous?.media?.src === 'msg');
   const kept = stale ? undefined : previous?.media;
   const media = audible === undefined ? kept : signal(kept, 'audible', audible, at);
-  return { ...state, tabs: { ...state.tabs, [key]: tabWith(site, media) } };
+  const next = previous?.site === site ? state : dropAttention(state, (held) => held === tabId);
+  return { ...next, tabs: { ...next.tabs, [key]: tabWith(site, media) } };
 }
 
-/** Applies one event to the browser inputs held in the state. */
+/**
+ * Applies one event to the browser inputs held in the state. Attention ends with anything the user
+ * did through Chrome or another app (a focus change, a tab switch), and when its page leaves.
+ */
 export function applyEvent(state: EngineState, event: EngineEvent): EngineState {
   switch (event.type) {
     case 'focus':
-      return { ...state, focusedWindow: event.windowId };
+      return { ...dropAttention(state), focusedWindow: event.windowId };
     case 'activate':
-      return { ...state, activeTabs: { ...state.activeTabs, [String(event.windowId)]: event.tabId } };
+      return { ...dropAttention(state), activeTabs: { ...state.activeTabs, [String(event.windowId)]: event.tabId } };
+    case 'attention': {
+      if (!event.present) return dropAttention(state, (held) => held === event.tabId);
+      const attention = { tabId: event.tabId, windowId: event.windowId, at: event.at };
+      return { ...state, attention, activeTabs: { ...state.activeTabs, [String(event.windowId)]: event.tabId } };
+    }
     case 'url':
       return navigate(state, event.tabId, event.site, event.audible, event.nav === true, event.at);
     case 'idle':
@@ -49,7 +68,7 @@ export function applyEvent(state: EngineState, event: EngineEvent): EngineState 
     case 'media': {
       const key = String(event.tabId);
       const tab = own(state.tabs, key);
-      const media = signal(tab?.media, 'msg', event.playing, event.at);
+      const media = signal(tab?.media, 'msg', event.playing, event.at, event.watched === true);
       if (media === tab?.media) return state;
       return { ...state, tabs: { ...state.tabs, [key]: tabWith(tab?.site ?? null, media) } };
     }
@@ -57,14 +76,16 @@ export function applyEvent(state: EngineState, event: EngineEvent): EngineState 
       return { ...state, paused: event.paused };
     case 'tick':
       return state;
-    case 'close':
+    case 'close': {
+      const kept = dropAttention(state, (held) => held === event.tabId);
       return {
-        ...state,
+        ...kept,
         tabs: without(state.tabs, (key) => key === String(event.tabId)),
         activeTabs: without(state.activeTabs, (_, tabId) => tabId === event.tabId),
       };
+    }
     case 'seed': {
-      const seeded = { ...state, focusedWindow: event.windowId, idle: event.idle, needsReseed: false };
+      const seeded = { ...dropAttention(state), focusedWindow: event.windowId, idle: event.idle, needsReseed: false };
       if (event.windowId === null || event.tabId === null) return seeded;
       const active = { ...seeded, activeTabs: { ...seeded.activeTabs, [String(event.windowId)]: event.tabId } };
       return navigate(active, event.tabId, event.site, event.audible, false, event.at);

@@ -30,7 +30,17 @@ export const bodyArb: fc.Arbitrary<EventBody> = fc.oneof(
     ),
   },
   { weight: 3, arbitrary: fc.record({ type: fc.constant('idle' as const), state: idleArb }) },
-  { weight: 3, arbitrary: fc.record({ type: fc.constant('media' as const), tabId: tabArb, playing: fc.boolean() }) },
+  {
+    weight: 3,
+    arbitrary: fc.oneof(
+      fc.record({ type: fc.constant('media' as const), tabId: tabArb, playing: fc.boolean() }),
+      fc.record({ type: fc.constant('media' as const), tabId: tabArb, playing: fc.constant(true), watched: fc.constant(true as const) }),
+    ),
+  },
+  {
+    weight: 3,
+    arbitrary: fc.record({ type: fc.constant('attention' as const), tabId: tabArb, windowId: windowArb, present: fc.boolean() }),
+  },
   { weight: 1, arbitrary: fc.record({ type: fc.constant('pause' as const), paused: fc.constantFrom(false, false, true) }) },
   { weight: 4, arbitrary: fc.record({ type: fc.constant('tick' as const) }) },
   { weight: 1, arbitrary: fc.record({ type: fc.constant('close' as const), tabId: tabArb }) },
