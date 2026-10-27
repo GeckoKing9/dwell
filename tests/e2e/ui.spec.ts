@@ -113,6 +113,28 @@ test.describe('popup', () => {
     return popup;
   }
 
+  test('a day in the popup chart shows that day in the open dashboard tab, or a new one when none is open', async () => {
+    await seedSimulated();
+    const dash = await context.newPage();
+    opened.push(dash);
+    await dash.goto(`chrome-extension://${extensionId}/src/dashboard/index.html#week`);
+    const popup = await openPopup();
+    const link = popup.locator('.pp-week a.day-link').first();
+    const date = /#day\/(\d{4}-\d{2}-\d{2})$/.exec((await link.getAttribute('href')) ?? '')?.[1];
+    expect(date).toBeDefined();
+    await link.hover();
+    await expect(popup.locator('.pp-week .tip-foot')).toHaveText('Opens this day in the dashboard');
+    const before = context.pages().length;
+    await link.click();
+    await expect(dash).toHaveURL(new RegExp(`#day/${date}$`));
+    await expect(dash.locator('[data-chart="day"]')).toBeVisible();
+    expect(context.pages().length).toBe(before);
+    await dash.close();
+    const [fresh] = await Promise.all([context.waitForEvent('page'), link.click()]);
+    opened.push(fresh);
+    await expect(fresh).toHaveURL(new RegExp(`/src/dashboard/index\\.html#day/${date}$`));
+  });
+
   test('a YouTube tab shows the Shorts toggle, and one tap flips it in storage', async () => {
     await seedSimulated();
     const popup = await openPopup(YOUTUBE);

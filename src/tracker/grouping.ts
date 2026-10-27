@@ -1,4 +1,4 @@
-import { TWO_LEVEL_SUFFIXES } from './suffixes.ts';
+import { HOSTED_SUFFIXES, MACHINE_SUFFIXES, TWO_LEVEL_SUFFIXES } from './suffixes.ts';
 
 /** A site id is plain DNS labels: no underscore, so no `__proto__`-style key can ever be one. */
 const SITE_ID = /^[a-z0-9-]+(\.[a-z0-9-]+)*$/;
@@ -29,16 +29,37 @@ function isIp(host: string): boolean {
   return host.startsWith('[') || IPV4.test(host);
 }
 
-/** eTLD+1 using the bundled two-level suffix subset (KTD8). */
-export function registrableDomain(host: string): string {
+/**
+ * How many trailing labels make the site under a two-label ending (KTD8): the machine on a tailnet, one
+ * more under a country or hosting suffix, else two. Without `hosted`, only the country suffixes count.
+ */
+function siteLabels(ending: string, hosted: boolean): number {
+  if (hosted && MACHINE_SUFFIXES.has(ending)) return 4;
+  return TWO_LEVEL_SUFFIXES.has(ending) || (hosted && HOSTED_SUFFIXES.has(ending)) ? 3 : 2;
+}
+
+function domainOf(host: string, hosted: boolean): string {
   if (isIp(host)) return host;
   const labels = host.split('.');
   if (labels.length <= 2) return host;
-  const keep = TWO_LEVEL_SUFFIXES.has(labels.slice(-2).join('.')) ? 3 : 2;
-  return labels.slice(-keep).join('.');
+  return labels.slice(-siteLabels(labels.slice(-2).join('.'), hosted)).join('.');
 }
 
-/** The host and each parent domain down to the registrable domain. */
+/** eTLD+1 using the bundled suffix subsets (KTD8); a tailnet machine keeps its machine label. */
+export function registrableDomain(host: string): string {
+  return domainOf(host, true);
+}
+
+/**
+ * The shortest name an ignore entry can cover: the domain under a country suffix, as before the hosting
+ * and tailnet suffixes. Those are each one company's names, so `ts.net`, a tailnet or `github.io` can be
+ * ignored whole; `co.uk` cannot.
+ */
+function ignoreFloor(host: string): string {
+  return domainOf(host, false);
+}
+
+/** The host and each parent domain down to `domain`. */
 function hostChain(host: string, domain: string): string[] {
   if (isIp(host)) return [host];
   const labels = host.split('.');
@@ -57,7 +78,7 @@ export function siteOf(url: string, overrides: readonly string[], ignore: readon
   const site = overrides.some((o) => normalise(o) === host) ? host : domain;
   if (!isIp(site) && !SITE_ID.test(site)) return null;
   const ignored = new Set(ignore.map(normalise));
-  return hostChain(host, domain).some((h) => ignored.has(h)) ? null : site;
+  return hostChain(host, ignoreFloor(host)).some((h) => ignored.has(h)) ? null : site;
 }
 
 export function isTrackableUrl(url: string): boolean {

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { classify, type Classification } from '../src/blocker/patterns.ts';
 import {
   REDIRECT_TARGETS,
+  dashboardDayUrl,
   facebookReelTarget,
   instagramPostTarget,
   isAllowedTarget,
@@ -273,6 +274,23 @@ describe('classify: per-site toggles', () => {
   });
 });
 
+describe('dashboard day target', () => {
+  const BASE = 'chrome-extension://abcdefghijklmnopabcdefghijklmnop/src/dashboard/index.html';
+
+  it('is this extension’s dashboard page with a day route, and nothing else', () => {
+    expect(dashboardDayUrl(BASE, '2026-10-22')).toBe(`${BASE}#day/2026-10-22`);
+    expect(dashboardDayUrl(BASE, '2026-10-22#x')).toBeNull();
+    expect(dashboardDayUrl(BASE, '22/10/2026')).toBeNull();
+    expect(dashboardDayUrl('https://evil.example/index.html', '2026-10-22')).toBeNull();
+    expect(dashboardDayUrl(`${BASE}?x=1`, '2026-10-22')).toBeNull();
+  });
+
+  it('is never a blocker target: the redirect allowlist stays web-only, for this extension and any other', () => {
+    expect(isAllowedTarget(dashboardDayUrl(BASE, '2026-10-22') ?? '')).toBe(false);
+    expect(isAllowedTarget('chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/any/page.html#day/2026-01-01')).toBe(false);
+  });
+});
+
 describe('targets', () => {
   it('never classify as blocked, for every pattern (loop guard)', () => {
     const targets = [IG_HOME, FB_HOME, WATCH, POST, FB_REEL, TWEET, TWEET_I, youtubeWatchTarget('ABCDEFGHIJK') ?? ''];
@@ -428,7 +446,9 @@ describe('redirect sinks in src/ (KTD5)', () => {
     for (const file of sources(root)) {
       const text = readFileSync(file, 'utf8');
       if ([...text.matchAll(SINK)].length === 0) continue;
-      expect({ file: relative(root, file), usesAllowlist: text.includes('isAllowedTarget(') }).toEqual({
+      // The blockers check `isAllowedTarget`; the popup's one extension target is built only by `dashboardDayUrl`.
+      const usesAllowlist = text.includes('isAllowedTarget(') || text.includes('dashboardDayUrl(');
+      expect({ file: relative(root, file), usesAllowlist }).toEqual({
         file: relative(root, file),
         usesAllowlist: true,
       });

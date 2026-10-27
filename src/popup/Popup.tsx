@@ -69,6 +69,10 @@ export function Popup({ deps }: { deps: PopupDeps }) {
       onOpenDashboard={() => {
         deps.openDashboard().catch((error: unknown) => console.error('Dwell popup: opening the dashboard failed', error));
       }}
+      dayUrl={deps.dayUrl}
+      onOpenDay={(date) => {
+        deps.openDay(date).catch((error: unknown) => console.error('Dwell popup: opening the day failed', error));
+      }}
     />
   );
 }

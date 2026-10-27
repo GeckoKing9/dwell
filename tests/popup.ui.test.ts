@@ -21,6 +21,9 @@ const days = buildModel({
   url: null,
 }).week;
 
+const DASH = 'chrome-extension://abcdefghijklmnopabcdefghijklmnop/src/dashboard/index.html';
+const LINKS = { dayUrl: (date: string) => `${DASH}#day/${date}`, onOpenDay: vi.fn() };
+
 describe('week chart', () => {
   it('scales to at least 4 hours, else the busiest day rounded up', () => {
     expect(scaleHours(days)).toBe(4);
@@ -30,20 +33,57 @@ describe('week chart', () => {
   });
 
   it('shows the hovered day’s total, date and top sites in a tooltip', () => {
-    const tree = expand(WeekChart({ days, empty: false, paused: false, active: 5, onActive: vi.fn() }));
+    const tree = expand(WeekChart({ days, empty: false, paused: false, active: 5, onActive: vi.fn(), ...LINKS }));
     const tip = byClass(tree, 'tip');
     expect(tip).toHaveLength(1);
     expect(text(byClass(tip, 'tip-head'))).toBe('2h\u00a030mTue, Oct 13');
     expect(byClass(tip, 'tip-row').map((r) => text([r]))).toEqual(['github.com2h\u00a030m']);
   });
 
+  it('makes every day with time a link to that day in the dashboard, in a new tab, and says so in the tooltip', () => {
+    const quiet = days.map((d, k) => (k === 2 ? { ...d, total: 0, top: [] } : d));
+    const tree = expand(WeekChart({ days: quiet, empty: false, paused: false, active: 5, onActive: vi.fn(), ...LINKS }));
+    const links = all(tree, (el) => el.type === 'a');
+    expect(links).toHaveLength(6);
+    expect(links[4]?.props.href).toBe(`${DASH}#day/2026-10-13`);
+    expect(links[4]?.props.target).toBe('_blank');
+    expect(links[4]?.props['aria-label']).toBe('Tuesday, 2h\u00a030m. Opens this day in the dashboard');
+    expect(links.map((a) => a.props.href)).not.toContain(`${DASH}#day/2026-10-10`);
+    expect(text(byClass(byClass(tree, 'tip'), 'tip-foot'))).toBe('Opens this day in the dashboard');
+  });
+
+  it('opens the day through the popup’s handler on a plain click, and leaves a new-tab click to the browser', () => {
+    const onOpenDay = vi.fn();
+    const tree = expand(WeekChart({ days, empty: false, paused: false, active: null, onActive: vi.fn(), dayUrl: LINKS.dayUrl, onOpenDay }));
+    const link = all(tree, (el) => el.type === 'a')[5];
+    const click = (init: Partial<MouseEvent>) => {
+      const preventDefault = vi.fn();
+      (link?.props.onClick as (e: unknown) => void)({ button: 0, ctrlKey: false, metaKey: false, shiftKey: false, ...init, preventDefault });
+      return preventDefault;
+    };
+    expect(click({})).toHaveBeenCalled();
+    expect(click({ ctrlKey: true })).not.toHaveBeenCalled();
+    expect(click({ button: 1 })).not.toHaveBeenCalled();
+    expect(onOpenDay.mock.calls).toEqual([['2026-10-13']]);
+  });
+
+  it('reports hover on the bar and focus on the link', () => {
+    const onActive = vi.fn();
+    const tree = expand(WeekChart({ days, empty: false, paused: false, active: null, onActive, ...LINKS }));
+    const link = all(tree, (el) => el.type === 'a')[6];
+    const hit = byClass(tree, 'hit')[6];
+    for (const event of ['onFocus', 'onBlur']) (link?.props[event] as () => void)();
+    for (const event of ['onPointerEnter', 'onPointerLeave']) (hit?.props[event] as () => void)();
+    expect(onActive.mock.calls).toEqual([[6], [null], [6], [null]]);
+  });
+
   it('shows no tooltip for a day without data', () => {
     const quiet = days.map((d, k) => (k === 2 ? { ...d, total: 0, top: [] } : d));
-    expect(byClass(expand(WeekChart({ days: quiet, empty: false, paused: false, active: 2, onActive: vi.fn() })), 'tip')).toHaveLength(0);
+    expect(byClass(expand(WeekChart({ days: quiet, empty: false, paused: false, active: 2, onActive: vi.fn(), ...LINKS })), 'tip')).toHaveLength(0);
   });
 
   it('labels the chart with every day and its total', () => {
-    const svg = all(expand(WeekChart({ days, empty: false, paused: false, active: null, onActive: vi.fn() })), (el) => el.type === 'svg')[0];
+    const svg = all(expand(WeekChart({ days, empty: false, paused: false, active: null, onActive: vi.fn(), ...LINKS })), (el) => el.type === 'svg')[0];
     expect(svg?.props['aria-label']).toBe('Last 7 days: Thu 2h\u00a030m, Fri 2h\u00a030m, Sat 2h\u00a030m, Sun 2h\u00a030m, Mon 2h\u00a030m, Tue 2h\u00a030m, Wed 1h\u00a014m');
   });
 });

@@ -99,6 +99,24 @@
       }
     }
   },
+  "openDayAria": {
+    "message": "$DAY$, $TIME$. Opens this day in the dashboard",
+    "description": "Accessible label of a popup chart day that links to the dashboard's day view.",
+    "placeholders": {
+      "day": {
+        "content": "$1",
+        "example": "Wednesday"
+      },
+      "time": {
+        "content": "$2",
+        "example": "3h 12m"
+      }
+    }
+  },
+  "tipOpenDay": {
+    "message": "Opens this day in the dashboard",
+    "description": "Popup week chart tooltip footer: the day opens in the dashboard."
+  },
   "firstCap": {
     "message": "Your week fills in as you browse",
     "description": "Popup week chart caption before anything is recorded."
@@ -723,6 +741,10 @@
     "message": "Counted separately",
     "description": "Grouping override state: the subdomain is its own site."
   },
+  "splitOwnSite": {
+    "message": "Counted as its own site already",
+    "description": "Settings, kept-apart subdomains: this host is already a site of its own (a hosting customer or a tailnet machine), so there is nothing to switch."
+  },
   "countWith": {
     "message": "Counted with $D$",
     "description": "Grouping override state: the subdomain counts with its main site.",
@@ -1062,7 +1084,7 @@
     "description": "Why the storage permission exists."
   },
   "perm_tabs": {
-    "message": "Reads the domain of the tab in front, so time goes to the right site.",
+    "message": "Reads the domain of the tab in front, so time goes to the right site, and finds an open Dwell dashboard to show a day in.",
     "description": "Why the tabs permission exists."
   },
   "perm_idle": {

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { dashboardDayUrl } from '../src/blocker/targets.ts';
 import { describe, expect, it } from 'vitest';
 import {
   EXPECTED_CSP,
@@ -180,5 +181,12 @@ describe('manifestProblems', () => {
 
   it('rejects a non-object manifest', () => {
     expect(manifestProblems(null)).toEqual(['manifest is not an object']);
+  });
+});
+
+describe('the popup\u2019s dashboard target', () => {
+  it('accepts the dashboard page the manifest names, so a popup day always lands on its day', () => {
+    const page = (JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8')) as { options_ui: { page: string } }).options_ui.page;
+    expect(dashboardDayUrl(`chrome-extension://${'a'.repeat(32)}/${page}`, '2026-10-22')).toBe(`chrome-extension://${'a'.repeat(32)}/${page}#day/2026-10-22`);
   });
 });

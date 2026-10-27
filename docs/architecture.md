@@ -34,7 +34,7 @@ declarativeNetRequest: five static rulesets for direct loads, enabled to match t
 - **What it does:** reduces timestamped events into attributions; the counting rule lives here and nowhere else.
 - **Location:** `src/tracker/`
 - **Depends on:** nothing (pure).
-- **Key files:** `engine.ts` (`reduce`, `replay`, `currentSite`, `createInitialState`), `inputs.ts` (applies one event to the state, media hold), `buckets.ts` (splits intervals at local hour boundaries), `grouping.ts` + `suffixes.ts` (eTLD+1 from a bundled suffix subset, overrides, ignore list, http(s) only), `records.ts` (own-key maps safe from prototype names), `replayLog.ts` (event log back to engine events, ADR-1).
+- **Key files:** `engine.ts` (`reduce`, `replay`, `currentSite`, `createInitialState`), `inputs.ts` (applies one event to the state, media hold), `buckets.ts` (splits intervals at local hour boundaries), `grouping.ts` + `suffixes.ts` (eTLD+1 from bundled suffix subsets: country two-level suffixes, hosting suffixes from the PSL private section where the customer label is the site, and Tailscale's `ts.net` where the machine label is; overrides, ignore list, http(s) only), `records.ts` (own-key maps safe from prototype names), `replayLog.ts` (event log back to engine events, ADR-1).
 
 ### Service worker
 - **What it does:** registers every Chrome listener, runs each job on one promise queue, seeds state from the live browser on start or after a gap, keeps the heartbeat (1 min) and prune (daily) alarms, authorises and handles messages, keeps the DNR rulesets and the idle interval in step with settings, and appends to the event log when it is on.
@@ -48,7 +48,7 @@ declarativeNetRequest: five static rulesets for direct loads, enabled to match t
 - **Key files:** `adapter.ts` (the one storage seam, with a memory fake for tests), `days.ts`, `prune.ts`, `export.ts` (larger-value merge, one write), `import.ts` (caps and validation), `validate.ts`, `delete.ts`, `log.ts`, `schema.ts`.
 
 ### Blocker
-- **What it does:** a pure URL classifier, the one allowlist of redirect targets, five static DNR rulesets, the guard's state machine and its pure rules (viewer lock, undo, input lock, post page, pop-up sizing, the router bridge's protocol), and the hider stylesheets.
+- **What it does:** a pure URL classifier, the one allowlist of navigation targets (the blockers' redirects, and the popup's one extension target: the dashboard at a day route), five static DNR rulesets, the guard's state machine and its pure rules (viewer lock, undo, input lock, post page, pop-up sizing, the router bridge's protocol), and the hider stylesheets.
 - **Location:** `src/blocker/` (`patterns.ts`, `targets.ts`, `decide.ts`, `viewer.ts`, `scroll.ts`, `post.ts`, `bridge.ts`, `guard-machine.ts`, `rulesets/*.json`), `src/content/*.css`
 - **Depends on:** nothing at runtime except `chrome.runtime` and `chrome.storage` in the guard.
 

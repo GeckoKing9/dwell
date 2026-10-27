@@ -2,6 +2,7 @@ import { dateLocale, t } from '../../shared/i18n.ts';
 import { durationText } from '../../shared/ui/Duration.tsx';
 import { barPath, DotChannel } from '../../shared/ui/chart.tsx';
 import { ChartTip } from '../../shared/ui/ChartTip.tsx';
+import { dateString } from '../../store/schema.ts';
 import type { WeekDay } from '../data.ts';
 
 /** Drawn to scale in the popup's 328px content width; each dot is 30 minutes, every hour dot larger. */
@@ -18,6 +19,26 @@ interface WeekChartProps {
   /** Index of the hovered or focused day, or null. */
   active: number | null;
   onActive(index: number | null): void;
+  /** The dashboard's day view for a 'YYYY-MM-DD' date: the link's href, for a new-tab click. */
+  dayUrl(date: string): string;
+  /** Opens that day in the dashboard, reusing its tab when one is open. */
+  onOpenDay(date: string): void;
+}
+
+/** A day's whole band, bigger than its bar: hover shows the tooltip. */
+function Hit({ cx, band, onActive }: { cx: number; band: number; onActive(on: boolean): void }) {
+  return (
+    <rect
+      class="hit"
+      x={cx - band / 2}
+      y={0}
+      width={band}
+      height={BASE + 24}
+      fill="transparent"
+      onPointerEnter={() => onActive(true)}
+      onPointerLeave={() => onActive(false)}
+    />
+  );
 }
 
 function fmt(date: Date, options: Intl.DateTimeFormatOptions): string {
@@ -29,8 +50,8 @@ export function scaleHours(days: readonly WeekDay[]): number {
   return Math.max(4, Math.ceil(Math.max(0, ...days.map((d) => d.total)) / 3600));
 }
 
-/** Last 7 days in channels of time-dots, today in the accent unless tracking is paused. */
-export function WeekChart({ days, empty, paused, active, onActive }: WeekChartProps) {
+/** Last 7 days in channels of time-dots, today in the accent unless tracking is paused; a day with time opens in the dashboard. */
+export function WeekChart({ days, empty, paused, active, onActive, dayUrl, onOpenDay }: WeekChartProps) {
   const maxH = scaleHours(days);
   const rows = maxH * 2;
   const step = PLOT_H / rows;
@@ -53,20 +74,26 @@ export function WeekChart({ days, empty, paused, active, onActive }: WeekChartPr
                 <text class={d.isToday ? 'pw-day is-today' : 'pw-day'} x={cx} y={BASE + 18} text-anchor="middle">
                   {d.isToday ? t('today') : fmt(d.date, { weekday: 'narrow' })}
                 </text>
-                <rect
-                  class="hit"
-                  x={cx - band / 2}
-                  y={0}
-                  width={band}
-                  height={BASE + 24}
-                  fill="transparent"
-                  tabindex={d.total > 0 ? 0 : undefined}
-                  aria-label={t('dayAria', { day: fmt(d.date, { weekday: 'long' }), time: durationText(d.total) })}
-                  onPointerEnter={() => onActive(d.total > 0 ? k : null)}
-                  onPointerLeave={() => onActive(null)}
-                  onFocus={() => onActive(d.total > 0 ? k : null)}
-                  onBlur={() => onActive(null)}
-                />
+                {d.total > 0 ? (
+                  <a
+                    class="day-link"
+                    href={dayUrl(dateString(d.date))}
+                    target="_blank"
+                    aria-label={t('openDayAria', { day: fmt(d.date, { weekday: 'long' }), time: durationText(d.total) })}
+                    onFocus={() => onActive(k)}
+                    onBlur={() => onActive(null)}
+                    onClick={(e) => {
+                      // A plain click reuses the dashboard's tab; a click asking for a new tab stays the browser's.
+                      if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+                      e.preventDefault();
+                      onOpenDay(dateString(d.date));
+                    }}
+                  >
+                    <Hit cx={cx} band={band} onActive={(on) => onActive(on ? k : null)} />
+                  </a>
+                ) : (
+                  <Hit cx={cx} band={band} onActive={() => onActive(null)} />
+                )}
                 <rect class="focus-ring" x={cx - band / 2 + 1} y={1} width={band - 2} height={BASE + 22} rx={6} />
               </g>
             );
@@ -88,6 +115,7 @@ export function WeekChart({ days, empty, paused, active, onActive }: WeekChartPr
             title={fmt(tipDay.date, { weekday: 'short', month: 'short', day: 'numeric' })}
             value={durationText(tipDay.total)}
             rows={tipDay.top.map((s) => ({ label: s.site, value: durationText(s.seconds) }))}
+            foot={t('tipOpenDay')}
           />
         ) : null}
       </div>

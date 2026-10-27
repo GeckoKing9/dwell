@@ -89,3 +89,17 @@ export function xTweetTarget(user: string, id: string): string | null {
 export function isAllowedTarget(url: string): boolean {
   return FIXED.has(url) || TEMPLATE_RES.some((re) => re.test(url));
 }
+
+const DASHBOARD_PAGE = 'chrome-extension:\\/\\/[a-p]{32}\\/[a-z0-9/-]+\\.html';
+const DAY = '\\d{4}-\\d{2}-\\d{2}';
+const DASHBOARD_RE = new RegExp(`^${DASHBOARD_PAGE}$`);
+const DAY_RE = new RegExp(`^${DAY}$`);
+
+/**
+ * The popup's one tab target, apart from the blockers' web-only `isAllowedTarget`: the dashboard page
+ * (`base`, this extension's own address from the manifest) at a day route, or null for anything else.
+ * The popup's `tabs.update` and `tabs.create` take only what this returns.
+ */
+export function dashboardDayUrl(base: string, date: string): string | null {
+  return DASHBOARD_RE.test(base) && DAY_RE.test(date) ? `${base}#day/${date}` : null;
+}
