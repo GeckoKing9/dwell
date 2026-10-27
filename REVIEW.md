@@ -16,3 +16,5 @@ Read both sides of every contract: the engine and `tests/support/oracle.ts`, the
 - A label that names the wrong owner of a figure ("Week total" over one site's time).
 - An element unmounted while focused, so the keyboard falls back to the page.
 - A test that passes before the fix: run it against the old code first.
+- A guard removed to make one case work (picture-in-picture in a background tab) that another failure relied on (a crashed page counting forever).
+- A message shape changed and one spec still pinning the old shape: grep every spec, e2e included, for the old payload.

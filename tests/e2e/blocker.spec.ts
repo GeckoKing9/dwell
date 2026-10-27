@@ -1318,7 +1318,7 @@ test('YouTube search results hide Short videos and the Shorts shelf, and keep re
   await page.close();
 });
 
-test('media reports playing and paused, and nothing else', async () => {
+test('media reports playing, watched once it has sound on screen, and paused, and nothing else', async () => {
   const page = await context.newPage();
   await page.goto(`${IG}/`);
   await page.evaluate(async () => {
@@ -1329,14 +1329,23 @@ test('media reports playing and paused, and nothing else', async () => {
     await video.play();
   });
   await expect.poll(messages).toEqual([
-    { type: 'media', playing: false },
-    { type: 'media', playing: true },
+    { type: 'media', playing: false, watched: false },
+    { type: 'media', playing: true, watched: false },
+  ]);
+  await page.evaluate(() => {
+    (document.getElementById('clip') as HTMLVideoElement).muted = false;
+  });
+  await expect.poll(messages).toEqual([
+    { type: 'media', playing: false, watched: false },
+    { type: 'media', playing: true, watched: false },
+    { type: 'media', playing: true, watched: true },
   ]);
   await page.evaluate(() => (document.getElementById('clip') as HTMLVideoElement).pause());
   await expect.poll(messages).toEqual([
-    { type: 'media', playing: false },
-    { type: 'media', playing: true },
-    { type: 'media', playing: false },
+    { type: 'media', playing: false, watched: false },
+    { type: 'media', playing: true, watched: false },
+    { type: 'media', playing: true, watched: true },
+    { type: 'media', playing: false, watched: false },
   ]);
   await page.close();
 });

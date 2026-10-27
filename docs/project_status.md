@@ -4,30 +4,30 @@ Last session: 2026-10-15. The MVP is on `main`. One-video mode (ADR-4) and X as 
 
 ## State
 
-- Tracking: pure engine with an oracle-checked simulation suite; service worker with one serialised queue, live reseed after gaps, heartbeat and prune alarms, sender authorisation.
+- Tracking: presence follows attention (ADR-6): a page scrolled without focus on the four script sites, then the focused window's active tab, then a video with sound on screen in any window; pure engine with an oracle-checked simulation suite; service worker with one serialised queue, live reseed after gaps, heartbeat and prune alarms, sender authorisation.
 - Storage: day records, 90-day prune, export, hardened import, delete with 10 s undo, optional 24-hour event log that replays exactly (ADR-1).
 - One-video mode (ADR-4): a Short opens on the watch page, an X video on its tweet, Instagram's Reels scroller on the post; Facebook's viewer is held to its first reel: its card buttons are hidden and a move made anyway is put back with its own Previous Card, with no reload. On Instagram a tapped Reel opens in Instagram's own pop-up, or as the post in the same page framed like it, through Instagram's router via the one page-world script; nothing reloads, a curtain covers the page while Instagram swaps it, and closing fades the card out and goes back in the same document. No app navigation is just cancelled. The guard is a pure state machine (ADR-5) with one navigation trigger and no timers; Instagram's and Facebook's pieces load only on their own site.
 - Sites: Instagram, YouTube, Facebook, and X (`https://x.com/*`, added 2026-10-15). Settings from before X read the missing switch as on.
-- UI: popup and dashboard (week, day, settings, privacy) from the design pass, light and dark.
+- UI: popup and dashboard (week, day, settings, privacy) from the design pass, light and dark. The dashboard follows one site across weeks and days (`?site=` in the address), lists every site of a selected hour, has This week / Today, Left/Right/T/Esc keys, and bars that move instead of jumping.
 - Release: `npm run zip` writes a deterministic zip and a per-file SHA-256 list; `.github/workflows/release.yml` publishes them on a `v*` tag. Screenshots in `docs/screenshots/` come from `npm run screenshots` (they predate the X switch).
 - Defaults shipped: media override on; idle 60 s; one-video mode on for all four sites; Explore blocking off; Monday weeks; visits counted; event log off; English UI; unpacked install.
 
 ## Gates
 
-Last run 2026-10-15 on `refactor/blocker-cleanup` before its merge.
+Last run 2026-10-27 on `feature/attention-and-dashboard` before its merge.
 
 | Gate | Command | Last result |
 |---|---|---|
 | Typecheck | `npm run typecheck` | 0 errors |
 | Lint | `npm run lint` | 0 problems |
-| Unit and simulation | `npm test` | 1483 passed, 1 skipped (the real-day replay, no real export present). Coverage: statements 98.18%, branches 96.21%, lines 98.5%; `src/content` (DOM adapters) is excluded, the guard's decisions are in `src/blocker/guard-machine.ts` at full line coverage |
-| Time zones | `npm run test:tz` | 1483 of 1483 under each of UTC, America/Toronto, Asia/Kolkata, Australia/Lord_Howe |
-| Privacy bundle | `npm run check:privacy` | passed: 22 files scanned, manifest matches the declared list (one page-world script, Instagram only; Chrome 111+) |
-| Build | `npm run build` | guard.js 16.4 KB (YouTube, X), guard-instagram.js 26.0 KB, guard-facebook.js 16.7 KB, instagram-router.js 1.6 KB, media.js 0.9 KB |
-| Real browser | `npm run test:e2e` | 93 passed, headless Chromium with the extension loaded, site hosts served by fixtures (Instagram's with a router that remembers each entry's route, as Comet does; Facebook's viewer with card buttons that replace the address, as measured) |
-| Live sites, signed out | scratch probes, 2026-10-15 | Instagram's router moving to the Reels scroller is replaced by the post in the same document, framed as a pop-up; closing goes back to the profile and stays; one document load end to end. YouTube Shorts land on the watch page. Facebook: the wheel and keys do not move the viewer, its card buttons are hidden, and four forced moves were each put back to the same reel (caption and address) with one document load in all; the next reel shows for one frame first. Signed-in Instagram, Facebook and X not checked live |
-| Dependencies | `npm audit --audit-level=high` | 0 vulnerabilities |
-| Audit and reviews | independent staff-level audit, then `/code-review high` twice with the staff bar, 2026-10-15 | audit: 9 findings, 8 fixed, 1 declined (a single redirect limit would leave a third move to a bare cancel); review 1: 10 findings, all fixed; review 2: 5 findings, all fixed. Smooth one-video branch, `!/code-review` with the ponytail method: review 3: 9 findings, 7 fixed, 1 made moot (the page-world bridge no longer runs on Facebook), 1 declined (an Instagram router that rejects after it moved: older than this branch, and the next move is still caught); re-review: 9 findings, 6 fixed, 1 covered by the landing check, 2 declined (a tap on a Reel is the user's own choice of one video; a third link push within 5 s keeps one duplicate history entry rather than reload). The live check then found a refused third move left under the first reel's address; fixed (it commits and the re-check puts it back). Known flake: the Instagram tap tests can click before the stored settings load under a loaded machine (passes alone) |
+| Unit and simulation | `npm test` | 1591 passed, 1 skipped (the real-day replay, no real export present). Coverage: statements 98.37%, branches 96.14%. The engine equals the ranked oracle on 2,000 sequences at 1 s and 500 at 100 ms |
+| Time zones | `npm run test:tz` | 1591 of 1591 under each of UTC, America/Toronto, Asia/Kolkata, Australia/Lord_Howe |
+| Privacy bundle | `npm run check:privacy` | passed: 22 files scanned, manifest matches the declared list (no permission change) |
+| Build | `npm run build` | media.js 1.7 KB (was 0.9 KB: watched and attention), guard.js 16.4 KB, guard-instagram.js 26.0 KB, guard-facebook.js 16.7 KB |
+| Real browser | `npx playwright test` | 96 passed: an attention message lands on its sender's tab and window, a muted clip reports playing then watched once unmuted, site focus by click, a focused chart column keeps keyboard focus and its tooltip across weeks |
+| Dependencies | `npm audit` | 0 vulnerabilities |
+| Reviews | `!/code-review` (high, staff bar) and `!/security-check`, 2026-10-27 | tracking: 8 findings, 8 fixed; dashboard: 10 findings, 10 fixed; one re-review of the fixes: 10 findings, 9 fixed, 1 declined (per-hour site lists kept in the day memo: the same size as the stored record). Security check clean |
+| Live sites | not run | hover-scrolling a window without focus and a video on a second screen are OS behaviour: owner checklist below |
 
 ## Manual checklist (owner)
 
