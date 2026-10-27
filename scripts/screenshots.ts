@@ -48,6 +48,8 @@ const SHOTS: readonly Shot[] = [
   { file: 'dashboard-week-light.png', theme: 'light', hash: '#week/1' },
   { file: 'dashboard-week-dark.png', theme: 'dark', hash: '#week/1' },
   { file: 'dashboard-day-light.png', theme: 'light', hash: `#day/${lastTuesday()}` },
+  { file: 'dashboard-week-focus-light.png', theme: 'light', hash: '#week/1?site=instagram.com' },
+  { file: 'dashboard-day-focus-light.png', theme: 'light', hash: `#day/${lastTuesday()}?site=instagram.com` },
   { file: 'dashboard-settings-light.png', theme: 'light', hash: '#settings' },
   { file: 'dashboard-privacy-light.png', theme: 'light', hash: '#privacy' },
 ];
