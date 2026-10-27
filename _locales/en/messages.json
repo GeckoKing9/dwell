@@ -307,6 +307,18 @@
     "message": "Daily average, full days",
     "description": "Label above the daily average of the current week, which leaves today out."
   },
+  "focusWeekTotal": {
+    "message": "This site, this week so far",
+    "description": "Dashboard headline label when one site is selected, current week."
+  },
+  "focusWeekTotalPast": {
+    "message": "This site, week total",
+    "description": "Dashboard headline label when one site is selected, past week."
+  },
+  "focusDailyAvg": {
+    "message": "This site, daily average",
+    "description": "Dashboard headline label for the selected site's daily average."
+  },
   "spanNote": {
     "message": "Changes compare $A$–$B$ with the same days last week",
     "description": "Most-used panel note for a week still running.",

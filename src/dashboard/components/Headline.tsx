@@ -6,6 +6,17 @@ import { fmtDate, percentText } from '../labels.ts';
 import type { WeekModel } from '../model.ts';
 import { FocusChip } from './FocusChip.tsx';
 
+/** The headline labels say whose figures they are: the week's, or the selected site's. */
+function totalLabel(current: boolean, focused: boolean): string {
+  if (focused) return current ? t('focusWeekTotal') : t('focusWeekTotalPast');
+  return current ? t('weekTotal') : t('weekTotalPast');
+}
+
+function averageLabel(current: boolean, focused: boolean): string {
+  if (focused) return t('focusDailyAvg');
+  return current ? t('dailyAvgFull') : t('dailyAvg');
+}
+
 export function Stat({ label, seconds, hero = false }: { label: string; seconds: number; hero?: boolean }) {
   return (
     <div class={hero ? 'stat is-hero' : 'stat'}>
@@ -77,8 +88,8 @@ export function Headline({ model, onSite }: { model: WeekModel; onSite(site: str
   const focus = model.focus;
   return (
     <section class="headline" aria-label={t('weekTotalPast')}>
-      <Stat hero label={model.current ? t('weekTotal') : t('weekTotalPast')} seconds={focus ? focus.total : model.agg.total} />
-      <Stat label={model.current ? t('dailyAvgFull') : t('dailyAvg')} seconds={focus ? focus.dailyAverage : model.agg.dailyAverage} />
+      <Stat hero label={totalLabel(model.current, focus !== null)} seconds={focus ? focus.total : model.agg.total} />
+      <Stat label={averageLabel(model.current, focus !== null)} seconds={focus ? focus.dailyAverage : model.agg.dailyAverage} />
       <div class="headline-notes">
         <Notes model={model} onClear={() => onSite(null)} />
       </div>

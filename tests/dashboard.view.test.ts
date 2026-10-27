@@ -291,6 +291,7 @@ describe('site focus, week view', () => {
   it('heads with the site’s total, average and change, its share, and a chip that clears it', () => {
     const headline = one(tree, 'headline');
     expect(byClass([headline], 'sr').map((s) => text([s]))).toEqual([`5h${NB}50m`, `2h${NB}25m`]);
+    expect(text(byClass([headline], 'label'))).toBe('This site, this week so farThis site, daily average');
     expect(text([byId(tree, 'focus-chip') as El])).toBe('github.com×');
     expect(text([byId(tree, 'delta-line') as El])).toBe('Daily average is 222% higher than the week before (45m).');
     expect(text([byId(tree, 'focus-share') as El])).toBe('80% of the time recorded this week.');
