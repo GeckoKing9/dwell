@@ -1068,5 +1068,127 @@
   "catsEmpty": {
     "message": "Sites appear here once Dwell has recorded them.",
     "description": "Category editor when no site has been recorded yet."
+  },
+  "prevWeekKey": {
+    "message": "Previous week (Left arrow)",
+    "description": "Tooltip of the previous-week button; names the key that does the same."
+  },
+  "nextWeekKey": {
+    "message": "Next week (Right arrow)",
+    "description": "Tooltip of the next-week button; names the key that does the same."
+  },
+  "thisWeekKey": {
+    "message": "Go to this week (T)",
+    "description": "Tooltip of the This week button on an older week; names the key that does the same."
+  },
+  "prevDayKey": {
+    "message": "Previous day (Left arrow)",
+    "description": "Tooltip of the previous-day button; names the key that does the same."
+  },
+  "nextDayKey": {
+    "message": "Next day (Right arrow)",
+    "description": "Tooltip of the next-day button; names the key that does the same."
+  },
+  "todayKey": {
+    "message": "Go to today (T)",
+    "description": "Tooltip of the Today button on an earlier day; names the key that does the same."
+  },
+  "focusSite": {
+    "message": "Show $S$ alone in the charts",
+    "description": "Accessible name of a site row: selecting it focuses the charts and headline on that site.",
+    "placeholders": {
+      "s": {
+        "content": "$1",
+        "example": "instagram.com"
+      }
+    }
+  },
+  "clearFocus": {
+    "message": "Show all sites again, not only $S$",
+    "description": "Accessible name of the x on the focused-site chip.",
+    "placeholders": {
+      "s": {
+        "content": "$1",
+        "example": "instagram.com"
+      }
+    }
+  },
+  "clearFocusKey": {
+    "message": "Show all sites (Esc)",
+    "description": "Tooltip of the x on the focused-site chip; names the key that does the same."
+  },
+  "focusDeltaNew": {
+    "message": "Not used on the same days of the week before.",
+    "description": "Week headline with a site focused: the site has no time in the comparison days of the week before."
+  },
+  "focusShareWeek": {
+    "message": "$P$ of the time recorded this week.",
+    "description": "Week headline with a site focused: the site’s share of the week total. P is a percentage such as 14%.",
+    "placeholders": {
+      "p": {
+        "content": "$1",
+        "example": "14%"
+      }
+    }
+  },
+  "focusShareDay": {
+    "message": "$P$ of the time recorded this day · $V$",
+    "description": "Day headline with a site focused: the site’s share of the day and its visits. P is a percentage, V the visits text.",
+    "placeholders": {
+      "p": {
+        "content": "$1",
+        "example": "14%"
+      },
+      "v": {
+        "content": "$2",
+        "example": "6 visits"
+      }
+    }
+  },
+  "focusDayEmpty": {
+    "message": "$S$ was not used on this day.",
+    "description": "Day headline with a site focused that has no time that day.",
+    "placeholders": {
+      "s": {
+        "content": "$1",
+        "example": "instagram.com"
+      }
+    }
+  },
+  "hourSites": {
+    "message": "Sites, $H$",
+    "description": "Day view sites panel title while one hour is selected. H is the hour range.",
+    "placeholders": {
+      "h": {
+        "content": "$1",
+        "example": "9 – 10 PM"
+      }
+    }
+  },
+  "hourClear": {
+    "message": "Whole day",
+    "description": "Button that clears the selected hour and lists the whole day’s sites again."
+  },
+  "hourClearKey": {
+    "message": "Show the whole day (Esc)",
+    "description": "Tooltip of the Whole day button; names the key that does the same."
+  },
+  "tipHour": {
+    "message": "Click to list this hour’s sites",
+    "description": "Hourly chart tooltip footer: clicking the hour selects it and lists its sites."
+  },
+  "tipHourSelected": {
+    "message": "Click again for the whole day",
+    "description": "Hourly chart tooltip footer on the selected hour."
+  },
+  "focusWeekEmpty": {
+    "message": "$S$ was not used this week.",
+    "description": "Week headline with a site focused that has no time that week.",
+    "placeholders": {
+      "s": {
+        "content": "$1",
+        "example": "instagram.com"
+      }
+    }
   }
 }

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeHandlers } from '../src/dashboard/handlers.ts';
 import type { PageDeps, Pending } from '../src/dashboard/data.ts';
+import { HOME } from '../src/dashboard/route.ts';
+import type { Route } from '../src/dashboard/route.ts';
 import { EMPTY_UI } from '../src/dashboard/settingsUi.ts';
 import type { SettingsUi } from '../src/dashboard/settingsUi.ts';
 import { memoryStore } from '../src/store/adapter.ts';
@@ -24,7 +26,7 @@ const flush = async (): Promise<void> => {
   for (let i = 0; i < 6; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
-function setup(settings: Partial<Settings> = {}, ui: Partial<SettingsUi> = {}, reply: unknown = { ok: true }) {
+function setup(settings: Partial<Settings> = {}, ui: Partial<SettingsUi> = {}, reply: unknown = { ok: true }, route: Route = HOME) {
   const deps = {
     store: memoryStore(sampleDays()),
     send: vi.fn().mockResolvedValue(reply),
@@ -35,12 +37,15 @@ function setup(settings: Partial<Settings> = {}, ui: Partial<SettingsUi> = {}, r
     readFile: vi.fn().mockResolvedValue('{"format":"dwell-export"}'),
     observeWidth: vi.fn(),
     scrollTo: vi.fn(),
+    scrollTop: vi.fn(),
+    onKeyDown: vi.fn(),
   } satisfies PageDeps;
   const state = {
     ui: cell<SettingsUi>({ ...EMPTY_UI, ...ui }),
     pending: cell<Pending>({}),
     showAll: cell(false),
     undoUntil: cell<number | null>(null),
+    hour: cell<number | null>(null),
   };
   const refresh = vi.fn().mockResolvedValue(undefined);
   const handlers = makeHandlers({
@@ -51,6 +56,8 @@ function setup(settings: Partial<Settings> = {}, ui: Partial<SettingsUi> = {}, r
     setPending: state.pending.set,
     setShowAll: state.showAll.set,
     setUndoUntil: state.undoUntil.set,
+    route,
+    setHour: state.hour.set,
     refresh,
     fileRef: { current: null },
   });
@@ -68,6 +75,49 @@ describe('navigation handlers', () => {
     handlers.onDay('2026-10-13');
     handlers.onWeek(0);
     expect(deps.hash.set.mock.calls).toEqual([['#week/2'], ['#day/2026-10-13'], ['#week']]);
+  });
+
+  it('keep the focused site on another week or day', () => {
+    const { deps, handlers } = setup({}, {}, { ok: true }, { view: 'week', back: 1, site: 'instagram.com' });
+    handlers.onWeek(2);
+    handlers.onDay('2026-10-06');
+    expect(deps.hash.set.mock.calls).toEqual([['#week/2?site=instagram.com'], ['#day/2026-10-06?site=instagram.com']]);
+  });
+
+  it('scroll to the top when the view changes between week and day, and keep the place within one', () => {
+    const week = setup({}, {}, { ok: true }, { view: 'week', back: 1 });
+    week.handlers.onWeek(2);
+    week.handlers.onSite('github.com');
+    expect(week.deps.scrollTop).not.toHaveBeenCalled();
+    week.handlers.onDay('2026-10-06');
+    expect(week.deps.scrollTop).toHaveBeenCalledTimes(1);
+    const day = setup({}, {}, { ok: true }, { view: 'day', date: '2026-10-06' });
+    day.handlers.onDay('2026-10-07');
+    expect(day.deps.scrollTop).not.toHaveBeenCalled();
+    day.handlers.onWeek(1);
+    expect(day.deps.scrollTop).toHaveBeenCalledTimes(1);
+  });
+
+  it('focus a site, clear it when chosen again or cleared, and go to any route', () => {
+    const { deps, handlers } = setup({}, {}, { ok: true }, { view: 'week', back: 1, site: 'instagram.com' });
+    handlers.onSite('github.com');
+    handlers.onSite('instagram.com');
+    handlers.onSite(null);
+    handlers.onRoute({ view: 'day', date: '2026-10-14', site: 'a.com' });
+    expect(deps.hash.set.mock.calls).toEqual([['#week/1?site=github.com'], ['#week/1'], ['#week/1'], ['#day/2026-10-14?site=a.com']]);
+  });
+
+  it('select an hour, clear it when chosen again or cleared', () => {
+    const { state, handlers } = setup();
+    handlers.onHour(21);
+    expect(state.hour.value).toBe(21);
+    handlers.onHour(9);
+    expect(state.hour.value).toBe(9);
+    handlers.onHour(9);
+    expect(state.hour.value).toBeNull();
+    handlers.onHour(0);
+    handlers.onHour(null);
+    expect(state.hour.value).toBeNull();
   });
 
   it('toggle the full most-used list and scroll to a settings group', () => {

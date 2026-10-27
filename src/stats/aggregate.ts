@@ -128,6 +128,29 @@ function reduceDay(record: DayRecord): DayAggregate {
   return { total, sites, hours, hourSites, blocked };
 }
 
+/** Each valid hour's seconds of one site's record, by the same rules as the day reduction. */
+function eachHour(data: { h: Record<string, unknown> }, visit: (hour: number, seconds: number) => void): void {
+  for (const [h, value] of Object.entries(data.h)) {
+    const s = safeSeconds(value);
+    if (HOUR_RE.test(h) && s > 0) visit(Number(h), s);
+  }
+}
+
+/** One site's seconds in each of the 24 hours of a stored day; zeros when the site is absent. */
+export function siteHours(record: DayRecord, site: Site): number[] {
+  const hours = new Array<number>(24).fill(0);
+  const data = Object.hasOwn(record.sites, site) ? record.sites[site] : undefined;
+  if (data) eachHour(data, (hour, s) => (hours[hour] = s));
+  return hours;
+}
+
+/** Every site of each hour, busiest first: the full lists the tooltip's top three are cut from. */
+export function sitesByHour(record: DayRecord): SiteTime[][] {
+  const lists: SiteTime[][] = Array.from({ length: 24 }, () => []);
+  for (const [site, data] of Object.entries(record.sites)) eachHour(data, (hour, seconds) => lists[hour]?.push({ site, seconds }));
+  return lists.map((list) => list.sort(bySecondsThenName));
+}
+
 /** Change of `current` against `previous`; same under 3 percent, none without a usable baseline (under one second counts as none, which also keeps the ratio finite). */
 export function weekDelta(current: number, previous: number | null): Delta {
   if (previous === null || !Number.isFinite(previous) || previous < 1) return { kind: 'none', percent: 0 };

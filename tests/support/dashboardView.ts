@@ -14,6 +14,9 @@ export function handlers(): DashboardHandlers {
   return {
     onWeek: vi.fn(),
     onDay: vi.fn(),
+    onRoute: vi.fn(),
+    onSite: vi.fn(),
+    onHour: vi.fn(),
     onResume: vi.fn(),
     onToggleAll: vi.fn(),
     onUndo: vi.fn(),
@@ -35,6 +38,7 @@ export function handlers(): DashboardHandlers {
 
 export interface RenderOptions {
   chart?: Partial<ChartProps>;
+  hour?: number | null;
   showAll?: boolean;
   ui?: Partial<SettingsUi>;
   on?: DashboardHandlers;
@@ -47,6 +51,7 @@ export function renderDashboard(route: Route, data: DashboardData, options: Rend
       view: buildView(route, data),
       settings: data.settings,
       chart: { width: 720, active: null, onActive: vi.fn(), wrapRef: null, ...options.chart },
+      hour: options.hour ?? null,
       showAll: options.showAll ?? false,
       ui: { ...EMPTY_UI, ...options.ui },
       on: options.on ?? handlers(),
