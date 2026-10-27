@@ -1,4 +1,4 @@
-import { TWO_LEVEL_SUFFIXES } from './suffixes.ts';
+import { HOSTED_SUFFIXES, MACHINE_SUFFIXES, TWO_LEVEL_SUFFIXES } from './suffixes.ts';
 
 /** A site id is plain DNS labels: no underscore, so no `__proto__`-style key can ever be one. */
 const SITE_ID = /^[a-z0-9-]+(\.[a-z0-9-]+)*$/;
@@ -29,13 +29,18 @@ function isIp(host: string): boolean {
   return host.startsWith('[') || IPV4.test(host);
 }
 
-/** eTLD+1 using the bundled two-level suffix subset (KTD8). */
+/** How many trailing labels make the site under a two-label ending (KTD8): the machine on a tailnet, one more under a public or hosting suffix, else two. */
+function siteLabels(ending: string): number {
+  if (MACHINE_SUFFIXES.has(ending)) return 4;
+  return TWO_LEVEL_SUFFIXES.has(ending) || HOSTED_SUFFIXES.has(ending) ? 3 : 2;
+}
+
+/** eTLD+1 using the bundled suffix subsets (KTD8); a tailnet machine keeps its machine label. */
 export function registrableDomain(host: string): string {
   if (isIp(host)) return host;
   const labels = host.split('.');
   if (labels.length <= 2) return host;
-  const keep = TWO_LEVEL_SUFFIXES.has(labels.slice(-2).join('.')) ? 3 : 2;
-  return labels.slice(-keep).join('.');
+  return labels.slice(-siteLabels(labels.slice(-2).join('.'))).join('.');
 }
 
 /** The host and each parent domain down to the registrable domain. */

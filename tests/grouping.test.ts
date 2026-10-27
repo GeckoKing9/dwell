@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isTrackableUrl, registrableDomain, siteOf } from '../src/tracker/grouping.ts';
-import { TWO_LEVEL_SUFFIXES } from '../src/tracker/suffixes.ts';
+import { HOSTED_SUFFIXES, MACHINE_SUFFIXES, TWO_LEVEL_SUFFIXES } from '../src/tracker/suffixes.ts';
 
 const OVERRIDES = ['music.youtube.com', 'Docs.Google.com'];
 
@@ -13,6 +13,11 @@ describe('siteOf groups a URL into a site id', () => {
     ['https://docs.google.com/document/d/1/edit', 'docs.google.com'],
     ['https://mail.google.com/mail/u/0/', 'google.com'],
     ['https://www.bbc.co.uk/news', 'bbc.co.uk'],
+    ['https://privacypi.tail5e7cff.ts.net/koel', 'privacypi.tail5e7cff.ts.net'],
+    ['https://koel.privacypi.tail5e7cff.ts.net/', 'privacypi.tail5e7cff.ts.net'],
+    ['https://alice.github.io/notes/', 'alice.github.io'],
+    ['https://my-app.vercel.app/', 'my-app.vercel.app'],
+    ['https://preview.my-site.pages.dev/', 'my-site.pages.dev'],
     ['https://news.bbc.co.uk/', 'bbc.co.uk'],
     ['https://www.abc.net.au/', 'abc.net.au'],
     ['https://www.quebec.qc.ca/', 'quebec.qc.ca'],
@@ -78,6 +83,8 @@ describe('siteOf groups a URL into a site id', () => {
     expect(siteOf('https://a.mail.google.com/', [], ignore)).toBeNull();
     expect(siteOf('https://docs.google.com/', [], ignore)).toBe('google.com');
     expect(siteOf('https://www.bbc.co.uk/', [], ['co.uk'])).toBe('bbc.co.uk');
+    expect(siteOf('https://privacypi.tail5e7cff.ts.net/', [], ['privacypi.tail5e7cff.ts.net'])).toBeNull();
+    expect(siteOf('https://privacypi.tail5e7cff.ts.net/', [], ['ts.net'])).toBe('privacypi.tail5e7cff.ts.net');
   });
 });
 
@@ -88,6 +95,25 @@ describe('registrableDomain', () => {
     expect(registrableDomain('example.com')).toBe('example.com');
     expect(registrableDomain('localhost')).toBe('localhost');
     expect(registrableDomain('10.0.0.12')).toBe('10.0.0.12');
+  });
+
+  it('keeps the customer label under a hosting suffix, and the machine under a tailnet', () => {
+    expect(registrableDomain('blog.alice.github.io')).toBe('alice.github.io');
+    expect(registrableDomain('github.io')).toBe('github.io');
+    expect(registrableDomain('privacypi.tail5e7cff.ts.net')).toBe('privacypi.tail5e7cff.ts.net');
+    expect(registrableDomain('tail5e7cff.ts.net')).toBe('tail5e7cff.ts.net');
+    expect(registrableDomain('ts.net')).toBe('ts.net');
+  });
+
+  it('bundles hosting and tailnet suffixes from the private section of the Public Suffix List, apart from the country ones', () => {
+    for (const suffix of [...HOSTED_SUFFIXES, ...MACHINE_SUFFIXES]) {
+      expect(suffix).toMatch(/^[a-z0-9-]+\.[a-z]+$/);
+      expect(TWO_LEVEL_SUFFIXES.has(suffix)).toBe(false);
+    }
+    for (const named of ['github.io', 'vercel.app', 'netlify.app', 'pages.dev', 'herokuapp.com', 'blogspot.com', 'duckdns.org']) {
+      expect(HOSTED_SUFFIXES.has(named)).toBe(true);
+    }
+    expect([...MACHINE_SUFFIXES]).toEqual(['ts.net']);
   });
 
   it('bundles about sixty two-level suffixes, all lowercase pairs', () => {

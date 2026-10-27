@@ -28,3 +28,23 @@ export const TWO_LEVEL_SUFFIXES: ReadonlySet<string> = new Set([
   'com.tr', 'gov.tr', 'com.pl', 'com.ua', 'co.at',
   'co.za', 'org.za', 'gov.za', 'com.ng', 'co.ke', 'com.eg', 'com.sa',
 ]);
+
+/**
+ * Hosting suffixes from the private section of the Public Suffix List, checked against the list on
+ * 2026-10-27: under each, every customer owns one more label (alice.github.io), so that label is the
+ * site. CDN suffixes are left out on purpose: their extra label is a random id nobody would recognise.
+ */
+export const HOSTED_SUFFIXES: ReadonlySet<string> = new Set([
+  'github.io', 'gitlab.io', 'readthedocs.io', 'webflow.io', 'ngrok.io',
+  'vercel.app', 'netlify.app', 'web.app', 'framer.app', 'replit.app', 'ngrok.app', 'ngrok-free.app',
+  'pages.dev', 'workers.dev', 'fly.dev', 'deno.dev',
+  'herokuapp.com', 'firebaseapp.com', 'appspot.com', 'onrender.com', 'blogspot.com', 'myshopify.com',
+  'azurewebsites.net', 'duckdns.org', 'hf.space', 'repl.co', 'surge.sh',
+]);
+
+/**
+ * Tailscale's `ts.net` (in the list as a suffix): the label under it is the tailnet, a random name, and
+ * the one under that is the machine a person knows it by (privacypi.tail5e7cff.ts.net), so the machine
+ * is the site.
+ */
+export const MACHINE_SUFFIXES: ReadonlySet<string> = new Set(['ts.net']);
