@@ -43,7 +43,18 @@ export function registrableDomain(host: string): string {
   return labels.slice(-siteLabels(labels.slice(-2).join('.'))).join('.');
 }
 
-/** The host and each parent domain down to the registrable domain. */
+/**
+ * The shortest name an ignore entry can cover: the domain under a country suffix, as before the hosting
+ * and tailnet suffixes. Those are each one company's names, so `ts.net`, a tailnet or `github.io` can be
+ * ignored whole; `co.uk` cannot.
+ */
+function ignoreFloor(host: string): string {
+  const labels = host.split('.');
+  if (isIp(host) || labels.length <= 2) return host;
+  return labels.slice(TWO_LEVEL_SUFFIXES.has(labels.slice(-2).join('.')) ? -3 : -2).join('.');
+}
+
+/** The host and each parent domain down to `domain`. */
 function hostChain(host: string, domain: string): string[] {
   if (isIp(host)) return [host];
   const labels = host.split('.');
@@ -62,7 +73,7 @@ export function siteOf(url: string, overrides: readonly string[], ignore: readon
   const site = overrides.some((o) => normalise(o) === host) ? host : domain;
   if (!isIp(site) && !SITE_ID.test(site)) return null;
   const ignored = new Set(ignore.map(normalise));
-  return hostChain(host, domain).some((h) => ignored.has(h)) ? null : site;
+  return hostChain(host, ignoreFloor(host)).some((h) => ignored.has(h)) ? null : site;
 }
 
 export function isTrackableUrl(url: string): boolean {

@@ -32,13 +32,20 @@ export function SettingsSites({ settings, sites, ui, on }: SitesProps) {
             <FieldError field="split" ui={ui} />
             {ui.seenSplits.map((host) => {
               const separate = settings.overrides.includes(host);
+              // Grouping already counts a hosting customer or a tailnet machine on its own: nothing to switch.
+              const own = registrableDomain(host) === host;
+              let state = t('countWith', { d: registrableDomain(host) });
+              if (own) state = t('splitOwnSite');
+              else if (separate) state = t('countSeparately');
               return (
                 <div class="ovr-row" key={host}>
                   <span id={`split-label-${idSlug(host)}`}>
                     <span class="mono">{host}</span>
-                    <span class="muted">{` \u00b7 ${separate ? t('countSeparately') : t('countWith', { d: registrableDomain(host) })}`}</span>
+                    <span class="muted">{` \u00b7 ${state}`}</span>
                   </span>
-                  <Switch id={`split-${idSlug(host)}`} checked={separate} labelledBy={`split-label-${idSlug(host)}`} onChange={(v) => toggleSplit(host, v)} />
+                  {own ? null : (
+                    <Switch id={`split-${idSlug(host)}`} checked={separate} labelledBy={`split-label-${idSlug(host)}`} onChange={(v) => toggleSplit(host, v)} />
+                  )}
                 </div>
               );
             })}

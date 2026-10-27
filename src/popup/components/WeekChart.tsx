@@ -19,6 +19,10 @@ interface WeekChartProps {
   /** Index of the hovered or focused day, or null. */
   active: number | null;
   onActive(index: number | null): void;
+  /** The dashboard's day view for a 'YYYY-MM-DD' date: the link's href, for a new-tab click. */
+  dayUrl(date: string): string;
+  /** Opens that day in the dashboard, reusing its tab when one is open. */
+  onOpenDay(date: string): void;
 }
 
 /** A day's whole band, bigger than its bar: hover shows the tooltip. */
@@ -46,13 +50,8 @@ export function scaleHours(days: readonly WeekDay[]): number {
   return Math.max(4, Math.ceil(Math.max(0, ...days.map((d) => d.total)) / 3600));
 }
 
-/** The dashboard's day view for `date`, from the popup page beside it: a plain link, no extension API. */
-export function dayHref(date: Date): string {
-  return `../dashboard/index.html#day/${dateString(date)}`;
-}
-
 /** Last 7 days in channels of time-dots, today in the accent unless tracking is paused; a day with time opens in the dashboard. */
-export function WeekChart({ days, empty, paused, active, onActive }: WeekChartProps) {
+export function WeekChart({ days, empty, paused, active, onActive, dayUrl, onOpenDay }: WeekChartProps) {
   const maxH = scaleHours(days);
   const rows = maxH * 2;
   const step = PLOT_H / rows;
@@ -78,11 +77,17 @@ export function WeekChart({ days, empty, paused, active, onActive }: WeekChartPr
                 {d.total > 0 ? (
                   <a
                     class="day-link"
-                    href={dayHref(d.date)}
+                    href={dayUrl(dateString(d.date))}
                     target="_blank"
                     aria-label={t('openDayAria', { day: fmt(d.date, { weekday: 'long' }), time: durationText(d.total) })}
                     onFocus={() => onActive(k)}
                     onBlur={() => onActive(null)}
+                    onClick={(e) => {
+                      // A plain click reuses the dashboard's tab; a click asking for a new tab stays the browser's.
+                      if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+                      e.preventDefault();
+                      onOpenDay(dateString(d.date));
+                    }}
                   >
                     <Hit cx={cx} band={band} onActive={(on) => onActive(on ? k : null)} />
                   </a>

@@ -68,6 +68,8 @@ describe('loadPopupData', () => {
       tabs: { getCurrent: async () => undefined, query: async () => (url === undefined ? [] : [{ id: 1, url }]) },
       send: async () => undefined,
       openDashboard: async () => undefined,
+      dayUrl: (date) => `#day/${date}`,
+      openDay: async () => undefined,
       onChange: () => () => undefined,
       now: () => NOW,
     };

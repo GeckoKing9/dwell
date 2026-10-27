@@ -32,11 +32,12 @@ export const TWO_LEVEL_SUFFIXES: ReadonlySet<string> = new Set([
 /**
  * Hosting suffixes from the private section of the Public Suffix List, checked against the list on
  * 2026-10-27: under each, every customer owns one more label (alice.github.io), so that label is the
- * site. CDN suffixes are left out on purpose: their extra label is a random id nobody would recognise.
+ * site. CDN and tunnel suffixes (cloudfront.net, ngrok) are left out on purpose: their extra label is a
+ * random id nobody would recognise, new with every tunnel.
  */
 export const HOSTED_SUFFIXES: ReadonlySet<string> = new Set([
-  'github.io', 'gitlab.io', 'readthedocs.io', 'webflow.io', 'ngrok.io',
-  'vercel.app', 'netlify.app', 'web.app', 'framer.app', 'replit.app', 'ngrok.app', 'ngrok-free.app',
+  'github.io', 'gitlab.io', 'readthedocs.io', 'webflow.io',
+  'vercel.app', 'netlify.app', 'web.app', 'framer.app', 'replit.app',
   'pages.dev', 'workers.dev', 'fly.dev', 'deno.dev',
   'herokuapp.com', 'firebaseapp.com', 'appspot.com', 'onrender.com', 'blogspot.com', 'myshopify.com',
   'azurewebsites.net', 'duckdns.org', 'hf.space', 'repl.co', 'surge.sh',

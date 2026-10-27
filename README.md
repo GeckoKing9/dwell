@@ -44,7 +44,7 @@ Small stylesheets also hide the Reels and Shorts links and shelves on Instagram,
 
 | Permission | Why |
 |---|---|
-| `tabs` | Reads the address of the tab in front so its time goes to the right domain; only the domain is kept. |
+| `tabs` | Reads the address of the tab in front so its time goes to the right domain; only the domain is kept. The popup also looks for an open Dwell dashboard tab, by its own extension address, to show a day there. |
 | `idle` | Stops the count after your idle threshold, and at once when the screen locks. |
 | `storage` | Keeps your totals and settings in this Chrome profile. |
 | `alarms` | Saves the running total once a minute and deletes days older than 90 once a day. |

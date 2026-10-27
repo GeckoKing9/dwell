@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { classify, type Classification } from '../src/blocker/patterns.ts';
 import {
   REDIRECT_TARGETS,
+  dashboardDayUrl,
   facebookReelTarget,
   instagramPostTarget,
   isAllowedTarget,
@@ -270,6 +271,25 @@ describe('classify: per-site toggles', () => {
     expect(classify(samples.facebookReels, defaults)).not.toBeNull();
     expect(classify(samples.xVideos, defaults)).not.toBeNull();
     expect(classify(samples.instagramExplore, defaults)).toBeNull();
+  });
+});
+
+describe('dashboard day target', () => {
+  const BASE = 'chrome-extension://abcdefghijklmnopabcdefghijklmnop/src/dashboard/index.html';
+
+  it('is this extension’s dashboard page with a day route, and nothing else', () => {
+    expect(dashboardDayUrl(BASE, '2026-10-22')).toBe(`${BASE}#day/2026-10-22`);
+    expect(dashboardDayUrl(BASE, '2026-10-22#x')).toBeNull();
+    expect(dashboardDayUrl(BASE, '22/10/2026')).toBeNull();
+    expect(dashboardDayUrl('https://evil.example/index.html', '2026-10-22')).toBeNull();
+    expect(dashboardDayUrl(`${BASE}?x=1`, '2026-10-22')).toBeNull();
+  });
+
+  it('is accepted by the one allowlist, and a near miss is not', () => {
+    expect(isAllowedTarget(dashboardDayUrl(BASE, '2026-10-22') ?? '')).toBe(true);
+    expect(isAllowedTarget(`${BASE}#day/2026-10-22x`)).toBe(false);
+    expect(isAllowedTarget(`${BASE}#settings`)).toBe(false);
+    expect(isAllowedTarget('https://evil.example/src/dashboard/index.html#day/2026-10-22')).toBe(false);
   });
 });
 

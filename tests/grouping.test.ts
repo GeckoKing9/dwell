@@ -84,7 +84,10 @@ describe('siteOf groups a URL into a site id', () => {
     expect(siteOf('https://docs.google.com/', [], ignore)).toBe('google.com');
     expect(siteOf('https://www.bbc.co.uk/', [], ['co.uk'])).toBe('bbc.co.uk');
     expect(siteOf('https://privacypi.tail5e7cff.ts.net/', [], ['privacypi.tail5e7cff.ts.net'])).toBeNull();
-    expect(siteOf('https://privacypi.tail5e7cff.ts.net/', [], ['ts.net'])).toBe('privacypi.tail5e7cff.ts.net');
+    expect(siteOf('https://privacypi.tail5e7cff.ts.net/', [], ['ts.net'])).toBeNull();
+    expect(siteOf('https://privacypi.tail5e7cff.ts.net/', [], ['tail5e7cff.ts.net'])).toBeNull();
+    expect(siteOf('https://alice.github.io/', [], ['github.io'])).toBeNull();
+    expect(siteOf('https://bob.github.io/', [], ['alice.github.io'])).toBe('bob.github.io');
   });
 });
 
@@ -114,6 +117,8 @@ describe('registrableDomain', () => {
       expect(HOSTED_SUFFIXES.has(named)).toBe(true);
     }
     expect([...MACHINE_SUFFIXES]).toEqual(['ts.net']);
+    // A tunnel's label is a random id that changes with every restart: one site, not one per tunnel.
+    for (const random of ['ngrok.io', 'ngrok.app', 'ngrok-free.app']) expect(HOSTED_SUFFIXES.has(random)).toBe(false);
   });
 
   it('bundles about sixty two-level suffixes, all lowercase pairs', () => {

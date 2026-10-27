@@ -48,6 +48,10 @@ export interface PopupDeps {
   tabs: TabsApi;
   send(message: PauseMessage | SettingsMessage): Promise<unknown>;
   openDashboard(): Promise<void>;
+  /** The dashboard's day view for a 'YYYY-MM-DD' date. */
+  dayUrl(date: string): string;
+  /** Opens that day in the dashboard, in its open tab when there is one. */
+  openDay(date: string): Promise<void>;
   /** Calls `listener` when a stored key the popup shows changes; returns the unsubscribe function. */
   onChange(listener: () => void): () => void;
   now(): Date;

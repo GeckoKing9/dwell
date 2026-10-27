@@ -32,6 +32,8 @@ function render(m: PopupModel, activeDay: number | null = null, handlers: Partia
       activeDay,
       onPause: vi.fn(),
       onBlocker: vi.fn(),
+      onOpenDay: vi.fn(),
+      dayUrl: (date: string) => `#day/${date}`,
       onOpenDashboard: vi.fn(),
       onActiveDay: vi.fn(),
       ...handlers,

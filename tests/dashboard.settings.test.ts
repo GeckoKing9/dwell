@@ -97,6 +97,13 @@ describe('settings', () => {
     expect(vi.mocked(on.settings.change).mock.calls.slice(-2)).toEqual([[{ overrides: [] }], [{ overrides: ['mail.google.com', 'docs.google.com'] }]]);
   });
 
+  it('says a kept-apart entry is already its own site, with no switch, when grouping counts it that way anyway', () => {
+    const hosted = sampleData(sampleDays(), { overrides: ['alice.github.io'] });
+    const view = renderDashboard({ view: 'settings' }, hosted, { on, ui: { seenSplits: ['alice.github.io'] } });
+    expect(byClass(view, 'ovr-row').map((r) => text([r]))).toEqual(['alice.github.io · Counted as its own site already']);
+    expect(byId(view, 'split-alice_github_io')).toBeUndefined();
+  });
+
   it('gives every settings control a stable id, with host-based ids made selector-safe', () => {
     const controls = all(tree, (e) => e.type === 'button' || e.type === 'select' || e.type === 'input');
     expect(controls.length).toBeGreaterThan(20);
