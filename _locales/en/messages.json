@@ -99,6 +99,24 @@
       }
     }
   },
+  "openDayAria": {
+    "message": "$DAY$, $TIME$. Opens this day in the dashboard",
+    "description": "Accessible label of a popup chart day that links to the dashboard's day view.",
+    "placeholders": {
+      "day": {
+        "content": "$1",
+        "example": "Wednesday"
+      },
+      "time": {
+        "content": "$2",
+        "example": "3h 12m"
+      }
+    }
+  },
+  "tipOpenDay": {
+    "message": "Click to open this day",
+    "description": "Popup week chart tooltip footer: the day opens in the dashboard."
+  },
   "firstCap": {
     "message": "Your week fills in as you browse",
     "description": "Popup week chart caption before anything is recorded."

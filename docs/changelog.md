@@ -8,6 +8,8 @@
 - Keys: Left and Right for the previous and next week or day, T for this week or today, Esc to clear the hour and then the site. Keys held with Ctrl, Alt, Shift or Cmd, typed into a field, or pressed on Settings and Privacy are left alone. The buttons' tooltips name the keys.
 
 ### Changed
+- Sites on hosting platforms and tailnets are named by what you know them by: `alice.github.io`, `my-app.vercel.app`, and a Tailscale machine as `privacypi.tail5e7cff.ts.net` instead of a bare `ts.net` that hid every machine on the tailnet. Days already recorded keep the old name.
+- A day in the popup's chart opens that day in the dashboard.
 - Time follows your attention, not only the window that has focus. On Instagram, YouTube, Facebook and X, scrolling a page whose window you never clicked counts, the same as a focused one: ten minutes of scrolling is ten minutes, video or not. It stops at your idle threshold without input there, or at once when the pointer leaves the page; a stray wheel tick over another window takes at most 20 seconds from the window you are typing in. A video playing with sound on screen in a window without focus counts too, and so does one in picture-in-picture from a minimised window; muted autoplay does not. Focused browsing sends nothing new, and a page sends at most one message every 10 seconds while you scroll it (ADR-6).
 - Bar heights move between weeks, days and focus in 200 ms instead of jumping, and do not move at all when the system asks for reduced motion.
 - Opening a day starts at the top of the page; the previous and next day keep where you were. The hourly chart is the week chart's height, so the panels below no longer shift when you switch between them.

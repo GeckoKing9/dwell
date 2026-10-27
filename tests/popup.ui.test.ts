@@ -37,6 +37,28 @@ describe('week chart', () => {
     expect(byClass(tip, 'tip-row').map((r) => text([r]))).toEqual(['github.com2h\u00a030m']);
   });
 
+  it('makes every day with time a link to that day in the dashboard, in a new tab, and says so in the tooltip', () => {
+    const quiet = days.map((d, k) => (k === 2 ? { ...d, total: 0, top: [] } : d));
+    const tree = expand(WeekChart({ days: quiet, empty: false, paused: false, active: 5, onActive: vi.fn() }));
+    const links = all(tree, (el) => el.type === 'a');
+    expect(links).toHaveLength(6);
+    expect(links[4]?.props.href).toBe('../dashboard/index.html#day/2026-10-13');
+    expect(links[4]?.props.target).toBe('_blank');
+    expect(links[4]?.props['aria-label']).toBe('Tuesday, 2h\u00a030m. Opens this day in the dashboard');
+    expect(links.map((a) => a.props.href)).not.toContain('../dashboard/index.html#day/2026-10-10');
+    expect(text(byClass(byClass(tree, 'tip'), 'tip-foot'))).toBe('Click to open this day');
+  });
+
+  it('reports hover on the bar and focus on the link', () => {
+    const onActive = vi.fn();
+    const tree = expand(WeekChart({ days, empty: false, paused: false, active: null, onActive }));
+    const link = all(tree, (el) => el.type === 'a')[6];
+    const hit = byClass(tree, 'hit')[6];
+    for (const event of ['onFocus', 'onBlur']) (link?.props[event] as () => void)();
+    for (const event of ['onPointerEnter', 'onPointerLeave']) (hit?.props[event] as () => void)();
+    expect(onActive.mock.calls).toEqual([[6], [null], [6], [null]]);
+  });
+
   it('shows no tooltip for a day without data', () => {
     const quiet = days.map((d, k) => (k === 2 ? { ...d, total: 0, top: [] } : d));
     expect(byClass(expand(WeekChart({ days: quiet, empty: false, paused: false, active: 2, onActive: vi.fn() })), 'tip')).toHaveLength(0);

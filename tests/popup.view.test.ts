@@ -109,13 +109,13 @@ describe('popup controls', () => {
     const onActiveDay = vi.fn();
     const tree = render(model(), null, { onActiveDay });
     const hits = byClass(tree, 'hit');
+    const link = byClass(tree, 'day-link')[6];
     expect(hits).toHaveLength(7);
     (hits[6]?.props.onPointerEnter as () => void)();
-    (hits[6]?.props.onFocus as () => void)();
+    (link?.props.onFocus as () => void)();
     (hits[6]?.props.onPointerLeave as () => void)();
-    (hits[6]?.props.onBlur as () => void)();
+    (link?.props.onBlur as () => void)();
     expect(onActiveDay.mock.calls).toEqual([[6], [6], [null], [null]]);
-    expect(hits[6]?.props.tabindex).toBe(0);
   });
 });
 
@@ -145,7 +145,7 @@ describe('popup, other states', () => {
     expect(byClass(tree, 'chart-bar')).toHaveLength(0);
     expect(byClass(tree, 'chart-dot')).toHaveLength(7 * 8);
     expect(text(byClass(tree, 'facts-r'))).toBe('<1mJust started');
-    expect(byClass(tree, 'hit').every((h) => h.props.tabindex === undefined)).toBe(true);
+    expect(byClass(tree, 'day-link')).toHaveLength(0);
     expect(everything(tree)).not.toMatch(/NaN|undefined|Infinity|\$[A-Z]+\$/);
   });
 
