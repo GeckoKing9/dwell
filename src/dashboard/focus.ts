@@ -1,11 +1,14 @@
 /**
  * Site focus: one site's part of a week or a day, for the charts and the headline. Pure, and built on the
- * week's own aggregate: the site is averaged over the very days the week's average uses, and compared with
- * the week before by the same rule as its Most used row, so no two figures on the page can disagree.
+ * week's own aggregate: the site's daily average and its comparison are taken over the very days the
+ * week's headline uses (`averaged`, `compared`), by the headline's rule, so the two read side by side.
  */
-import { dayAggregate, siteDelta, siteHours } from '../stats/aggregate.ts';
+import { dayAggregate, siteHours, weekDelta } from '../stats/aggregate.ts';
 import type { SiteDelta, WeekAggregate } from '../stats/aggregate.ts';
+import { addDays } from '../stats/weeks.ts';
+import { dayKey } from '../store/schema.ts';
 import type { DayRecord } from '../store/schema.ts';
+import { own } from '../tracker/records.ts';
 
 export interface SiteWeek {
   site: string;
@@ -14,8 +17,8 @@ export interface SiteWeek {
   total: number;
   /** Over the days the week's own daily average uses. */
   dailyAverage: number;
-  /** The site's seconds over the same days of the week before, as its Most used row compares. */
-  previous: number;
+  /** Over the days of the week before the week's own comparison uses; 0 when the site was not used then, null with nothing to compare. */
+  previousAverage: number | null;
   delta: SiteDelta;
   /** Percent of the week's total, 0 to 100. */
   share: number;
@@ -37,29 +40,27 @@ function percent(part: number, whole: number): number {
   return whole > 0 ? (part / whole) * 100 : 0;
 }
 
-function sum(values: readonly number[]): number {
-  return values.reduce((a, b) => a + b, 0);
+function mean(values: readonly number[]): number | null {
+  return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
+}
+
+/** 'new' when the week before had data but not this site (true whatever this week holds); the headline's rule otherwise. */
+function siteWeekDelta(average: number, previous: number | null): SiteDelta {
+  if (previous !== null && previous < 1) return { kind: 'new', percent: 0 };
+  return weekDelta(average, previous);
 }
 
 export function siteWeek(agg: WeekAggregate, days: Record<string, DayRecord>, site: string): SiteWeek {
-  const record = (key: string): DayRecord | undefined => (Object.hasOwn(days, key) ? days[key] : undefined);
-  const perDay = agg.days.map((cell) => {
-    const stored = cell.status === 'data' ? record(cell.key) : undefined;
+  const seconds = (date: Date): number => {
+    const stored = own(days, dayKey(date));
     return stored ? (dayAggregate(stored).sites.find((s) => s.site === site)?.seconds ?? 0) : 0;
-  });
-  const averaged = perDay.filter((_, k) => k <= agg.averageEnd && agg.days[k]?.status === 'data');
-  const total = sum(perDay);
-  const previous = agg.previous.get(site) ?? 0;
-  const row = agg.sites.find((r) => r.site === site);
-  return {
-    site,
-    days: perDay,
-    total,
-    dailyAverage: averaged.length > 0 ? sum(averaged) / averaged.length : 0,
-    previous,
-    delta: row?.delta ?? siteDelta(0, previous, agg.previousTotal),
-    share: percent(total, agg.total),
   };
+  const perDay = agg.days.map((cell) => (cell.status === 'data' ? seconds(cell.date) : 0));
+  const monday = agg.days[0]?.date;
+  const dailyAverage = mean(agg.averaged.map((k) => perDay[k] ?? 0)) ?? 0;
+  const previousAverage = monday === undefined ? null : mean(agg.compared.map((k) => seconds(addDays(monday, k - 7))));
+  const total = perDay.reduce((a, b) => a + b, 0);
+  return { site, days: perDay, total, dailyAverage, previousAverage, delta: siteWeekDelta(dailyAverage, previousAverage), share: percent(total, agg.total) };
 }
 
 export function siteDay(record: DayRecord, site: string): SiteDay {

@@ -148,11 +148,15 @@ export interface SiteMemory {
   carryMs: number;
 }
 
-/** The tab whose page last took the user's input outside Chrome's focus; `at` is that input. */
+/**
+ * The tab whose page last took the user's input outside Chrome's focus; `at` is that input. `capped`:
+ * another app took focus since, so it lasts no longer than the lead past that input.
+ */
 export interface Attention {
   tabId: number;
   windowId: number;
   at: number;
+  capped?: true;
 }
 
 /** Plain JSON: it survives `JSON.stringify`/`JSON.parse` unchanged (restart equivalence). */

@@ -9,6 +9,8 @@ describe('the stored hot state', () => {
     expect(readEngineState({ version: HOT_VERSION, engine: base })).toEqual(base);
     const held = { ...base, attention: { tabId: 8, windowId: 2, at: 900 } };
     expect(readEngineState({ version: HOT_VERSION, engine: held })).toEqual(held);
+    const capped = { ...base, attention: { tabId: 8, windowId: 2, at: 900, capped: true } };
+    expect(readEngineState({ version: HOT_VERSION, engine: capped })).toEqual(capped);
   });
 
   it.each([
@@ -17,6 +19,7 @@ describe('the stored hot state', () => {
     ['a missing window id', { tabId: 8, at: 900 }],
     ['a time that is not a number', { tabId: 8, windowId: 2, at: 'soon' }],
     ['an infinite time', { tabId: 8, windowId: 2, at: Infinity }],
+    ['a cap that is not true', { tabId: 8, windowId: 2, at: 900, capped: 'yes' }],
   ])('counts the state as missing when attention is %s', (_label, attention) => {
     expect(readEngineState({ version: HOT_VERSION, engine: { ...base, attention } })).toBeNull();
   });

@@ -53,9 +53,18 @@ describe('attention: input given to a page whose window has no focus', () => {
     expect(switched.total(IG).seconds).toBe(30);
   });
 
-  it('keeps going when another app takes focus or another window switches tabs: the pointer leaving the page ends it', () => {
-    const app = scroll(unfocusedInstagram(), 20, 2, 30).emit({ type: 'focus', windowId: null }).wait(300).end();
-    expect(app.total(IG).seconds).toBe(80);
+  it('lasts at most 20 s past its last input once another app takes focus (Alt-Tab without moving the pointer)', () => {
+    const app = scroll(unfocusedInstagram({ ...DEFAULTS, idleThresholdSec: 300 }), 20, 2, 30).emit({ type: 'focus', windowId: null }).wait(300).end();
+    expect(app.total(IG).seconds).toBe(20 + 20);
+  });
+
+  it('keeps counting without a gap when scrolling goes on after another app took focus', () => {
+    const story = scroll(unfocusedInstagram(), 20, 2, 30).emit({ type: 'focus', windowId: null });
+    scroll(story, 20, 2, 30).wait(300).end();
+    expect(story.total(IG)).toEqual({ seconds: 50 + 60, visits: 1 });
+  });
+
+  it('keeps going when another window switches tabs', () => {
     const other = scroll(unfocusedInstagram(), 20, 2, 30).emit(...openTab(1, 10, DOCS)).wait(300).end();
     expect(other.total(IG).seconds).toBe(80);
   });
@@ -174,14 +183,18 @@ describe('watched media: playback with sound on a page on screen', () => {
     expect(story.total(YT).seconds).toBe(60);
   });
 
-  it('counts a background tab whose video plays with sound in picture-in-picture', () => {
+  it('stops counting when the tab is no longer its window active tab, even if its page never reported again', () => {
+    const story = unfocusedVideo(true).wait(60).emit({ type: 'activate', windowId: 2, tabId: 21 }).wait(300).end();
+    expect(story.total(YT).seconds).toBe(60);
+  });
+
+  it('never counts a background tab that last reported watched: its page may be gone', () => {
     const story = new Story(MORNING)
       .emit({ type: 'url', tabId: 20, site: YT }, ...openTab(1, 10, DOCS), { type: 'focus', windowId: 1 }, { type: 'idle', state: 'idle' })
       .emit({ type: 'media', tabId: 20, playing: true, watched: true })
       .wait(300)
       .end();
-    expect(story.total(YT).seconds).toBe(300);
-    expect(story.total(DOCS).seconds).toBe(0);
+    expect(story.total(YT).seconds).toBe(0);
   });
 
   it('reads a media event without the watched field, as in older logs, as not watched', () => {

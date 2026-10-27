@@ -30,13 +30,13 @@ describe('week model', () => {
   });
 
   it('compares sites with the same weekdays of the week before', () => {
-    expect([...week.previous.entries()].sort()).toEqual([
+    expect([...week.agg.previous.entries()].sort()).toEqual([
       ['github.com', 9000],
       ['netflix.com', 1800],
     ]);
     const [github, youtube] = week.agg.sites;
-    expect(github && deltaText(github, week.previous)).toBe('+3h\u00a020m');
-    expect(youtube && deltaText(youtube, week.previous)).toBe('new');
+    expect(github && deltaText(github, week.agg.previous)).toBe('+3h\u00a020m');
+    expect(youtube && deltaText(youtube, week.agg.previous)).toBe('new');
   });
 
   it('lists past empty days as gaps and averages over the recorded ones', () => {
@@ -142,7 +142,7 @@ describe('week model cost', () => {
     }
     const model = weekModel(sampleData(days), 0);
     expect(model.agg.total).toBeGreaterThan(0);
-    expect(model.previous.get('github.com')).toBeGreaterThan(0);
+    expect(model.agg.previous.get('github.com')).toBeGreaterThan(0);
     expect(model.agg.blocked.instagram).toBe(3);
     expect(reads.size).toBe(6); // Mon-Wed of this week and of the like-for-like previous window
     expect(Math.max(...reads.values())).toBe(1);
@@ -159,10 +159,12 @@ describe('site focus on a week', () => {
     expect(focus?.share).toBeCloseTo((21_000 / 26_400) * 100);
   });
 
-  it('compares exactly as its Most used row does, against the same days of the week before', () => {
+  it('compares its daily average over the very days the week headline compares, by the headline’s rule', () => {
     const model = weekModel(sampleData(), 0, 'github.com');
-    expect(model.focus?.delta).toEqual(model.agg.sites.find((s) => s.site === 'github.com')?.delta);
-    expect(model.focus?.previous).toBe(model.previous.get('github.com'));
+    expect(model.agg.averaged).toEqual([0, 1]);
+    expect(model.agg.compared).toEqual([0, 1]);
+    expect(model.focus?.previousAverage).toBe(2700);
+    expect(model.focus?.delta).toEqual({ kind: 'more', percent: 222 });
     expect(weekModel(sampleData(), 0, 'netflix.com').focus?.delta).toEqual({ kind: 'less', percent: 100 });
   });
 
@@ -170,7 +172,7 @@ describe('site focus on a week', () => {
     const focus = weekModel(sampleData(), 0, 'instagram.com').focus;
     expect(focus?.days).toEqual([1800, 0, 0, 0, 0, 0, 0]);
     expect(focus?.dailyAverage).toBe(900);
-    expect(focus?.previous).toBe(0);
+    expect(focus?.previousAverage).toBe(0);
     expect(focus?.delta.kind).toBe('new');
   });
 
@@ -183,7 +185,7 @@ describe('site focus on a week', () => {
 
   it('has nothing to compare with in an empty week and no focus without a site', () => {
     const focus = weekModel(sampleData({}), 0, 'a.com').focus;
-    expect(focus).toMatchObject({ total: 0, dailyAverage: 0, previous: 0, share: 0, delta: { kind: 'none', percent: 0 } });
+    expect(focus).toMatchObject({ total: 0, dailyAverage: 0, previousAverage: null, share: 0, delta: { kind: 'none', percent: 0 } });
     expect(weekModel(sampleData(), 0).focus).toBeNull();
   });
 
@@ -191,6 +193,7 @@ describe('site focus on a week', () => {
     const only = { 'd:2026-10-14': sampleData().days['d:2026-10-14']! };
     const focus = weekModel(sampleData(only), 0, 'github.com').focus;
     expect(focus?.dailyAverage).toBe(3600);
+    expect(focus?.previousAverage).toBeNull();
   });
 });
 

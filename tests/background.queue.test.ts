@@ -96,6 +96,27 @@ describe('the tracking job', () => {
     expect(engineState(fake)).toMatchObject({ focusedWindow: 1, activeTabs: { '1': 10, '2': 20 }, tabs: { '20': { site: 'youtube.com' } } });
   });
 
+  it('still seeds the focused window, and says so, when reading the other windows fails', async () => {
+    openWindow(fake, 1, [{ id: 10, url: A }]);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(chrome.tabs, 'query').mockRejectedValueOnce(new Error('window closing'));
+    const bg = createBackground();
+    await heartbeat(bg);
+    expect(engineState(fake)).toMatchObject({ focusedWindow: 1, activeTabs: { '1': 10 } });
+    expect(error).toHaveBeenCalledWith('Dwell: reading the other windows failed', expect.any(Error));
+    error.mockRestore();
+  });
+
+  it('learns the other windows again when it reseeds after a gap', async () => {
+    openWindow(fake, 1, [{ id: 10, url: A }]);
+    const bg = createBackground();
+    await heartbeat(bg);
+    fake.tabs.push({ id: 20, windowId: 2, url: 'https://www.youtube.com/watch?v=1', active: true, incognito: false });
+    advance(600);
+    await heartbeat(bg);
+    expect(engineState(fake).activeTabs).toEqual({ '1': 10, '2': 20 });
+  });
+
   it('seeds with nothing focused when Chrome has no window at all', async () => {
     const bg = createBackground();
     await heartbeat(bg);

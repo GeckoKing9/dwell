@@ -35,8 +35,8 @@ function isSiteMemoryMap(value: unknown): boolean {
 function isAttention(value: unknown): boolean {
   if (value === undefined) return true;
   if (!isPlainObject(value)) return false;
-  const { tabId, windowId, at } = value;
-  return Number.isInteger(tabId) && Number.isInteger(windowId) && typeof at === 'number' && Number.isFinite(at);
+  const { tabId, windowId, at, capped } = value;
+  return Number.isInteger(tabId) && Number.isInteger(windowId) && typeof at === 'number' && Number.isFinite(at) && (capped === undefined || capped === true);
 }
 
 function isEngineState(value: unknown): value is EngineState {

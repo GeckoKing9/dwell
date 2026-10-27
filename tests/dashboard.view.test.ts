@@ -67,6 +67,9 @@ describe('week view', () => {
     const hits = byClass(tree, 'hit');
     expect(hits.map((h) => h.props.id)).toEqual(['week-col-0', 'week-col-1', 'week-col-2', 'week-col-3', 'week-col-4', 'week-col-5', 'week-col-6']);
     expect(hits.slice(3).map((h) => [h.props['aria-disabled'], h.props.tabindex])).toEqual(Array(4).fill(['true', -1]));
+    expect(hits[4]?.props['aria-label']).toBe('Friday, October 16');
+    expect(hits[4]?.props.onPointerEnter).toBeUndefined();
+    expect(hits[4]?.props.onFocus).toBeUndefined();
     call(hits[4], 'onClick');
     call(hits[4], 'onKeyDown', { key: 'Enter', preventDefault: vi.fn() });
     expect(on.onDay).not.toHaveBeenCalled();
@@ -181,6 +184,7 @@ describe('week view, other weeks', () => {
     expect(text(byClass(tree, 'headline-notes'))).toBe('Nothing was recorded this week. Days fill in as soon as you browse with tracking on.');
     expect(text(byClass(tree, 'empty-note'))).toBe('Nothing was recorded this week. Days fill in as soon as you browse with tracking on.');
     expect(live(tree)).toHaveLength(0);
+    expect(byClass(tree, 'hit')[0]?.props['aria-label']).toBe('Monday, October 12, No data');
     expect(byClass(tree, 'wc-val').map((d) => text([d]))).toEqual(['No data', 'No data', 'No data', '', '', '', '']);
     expect(everything(tree)).not.toMatch(/NaN|undefined|Infinity/);
   });
@@ -251,6 +255,7 @@ describe('day view', () => {
     expect(byClass(tree, 'dc-hour').map((d) => text([d]))).toEqual(['12 AM', '6 AM', '12 PM', '6 PM']);
     expect(byClass(tree, 'wc-axis').map((d) => text([d]))).toEqual(['30m', '60m']);
     expect(byClass(tree, 'hit').map((h) => h.props.id)).toEqual(Array.from({ length: 24 }, (_, x) => `day-hour-${x}`));
+    expect(byClass(tree, 'hit')[0]?.props['aria-label']).toBe('12 – 1 AM');
     expect(live(tree).map((h) => h.props['aria-label'])).toEqual([
       '9 – 10 AM, 50m',
       '10 – 11 AM, 50m',
@@ -309,7 +314,7 @@ describe('site focus, week view', () => {
     expect(byClass([headline], 'sr').map((s) => text([s]))).toEqual([`5h${NB}50m`, `2h${NB}25m`]);
     expect(text(byClass([headline], 'label'))).toBe('This site, this week so farThis site, daily average, full days');
     expect(text([byId(tree, 'focus-chip') as El])).toBe('github.com×');
-    expect(text([byId(tree, 'delta-line') as El])).toBe(`133% more than the same days of the week before (2h${NB}30m).`);
+    expect(text([byId(tree, 'delta-line') as El])).toBe('Daily average is 222% higher than the week before (45m).');
     expect(text([byId(tree, 'focus-share') as El])).toBe('80% of the time recorded this week.');
     expect(text([headline])).not.toContain('Quietest');
     expect(byId(tree, 'focus-clear')?.props.title).toBe('Show all sites (Esc)');
@@ -332,7 +337,7 @@ describe('site focus, week view', () => {
   it('says when the site was not used, and that the week before had none of it either', () => {
     const quiet = renderDashboard({ view: 'week', back: 1, site: 'instagram.com' }, sampleData());
     expect(text(byClass(quiet, 'headline-notes'))).toContain('instagram.com was not used this week.');
-    expect(text([byId(quiet, 'delta-line') as El])).toBe('Not used on the same days of the week before.');
+    expect(text([byId(quiet, 'delta-line') as El])).toBe('Not used on Mon of the week before.');
     expect(byClass(quiet, 'wc-val').map((d) => text([d]))).toEqual(['–', '–', '–', 'No data', 'No data', '–', '–']);
     expect(byClass(quiet, 'wc-avg')).toHaveLength(0);
     expect(everything(quiet)).not.toMatch(/NaN|undefined|Infinity/);

@@ -62,11 +62,12 @@ function playingUntil(media: MediaState): number {
   return media.offAt === undefined ? -Infinity : media.offAt + MEDIA_HOLD_MS;
 }
 
-/** The page that last took input outside Chrome's focus, for `lastsMs` after that input. */
+/** The page that last took input outside Chrome's focus, for `lastsMs` after that input (the lead at most once capped). */
 function attended(state: EngineState, lastsMs: number): Presence | null {
   const held = state.attention;
   const site = tabSite(state, held?.tabId);
-  return held === undefined || site === null ? null : { site, until: held.at + lastsMs };
+  if (held === undefined || site === null) return null;
+  return { site, until: held.at + (held.capped ? Math.min(lastsMs, ATTENTION_LEAD_MS) : lastsMs) };
 }
 
 /** KTD2: the focused window's active tab, while the user is active or its media plays. */
@@ -81,14 +82,15 @@ function focused(state: EngineState, settings: TrackerSettings): Presence | null
 }
 
 /**
- * A tab playing with sound on screen, first by tab id when there are several. Only its content script
- * says `watched`, and only for a visible page or picture-in-picture, so a tab switch or a minimised
- * window ends it through the script, and a background tab counts only in picture-in-picture.
+ * A window's active tab playing with sound on screen, first by window id when there are several. Its
+ * content script says `watched` only for a visible page or picture-in-picture; requiring the active tab
+ * as well means a page that can no longer report (crashed, cut off) stops counting at the next tab switch.
  */
 function watched(state: EngineState, settings: TrackerSettings, at: number): Presence | null {
   if (!settings.mediaOverride) return null;
-  for (const tab of Object.values(state.tabs)) {
-    if (tab.site === null || tab.media?.src !== 'msg' || tab.media.watched !== true) continue;
+  for (const tabId of Object.values(state.activeTabs)) {
+    const tab = own(state.tabs, String(tabId));
+    if (tab === undefined || tab.site === null || tab.media?.src !== 'msg' || tab.media.watched !== true) continue;
     const until = playingUntil(tab.media);
     if (at < until) return { site: tab.site, until };
   }

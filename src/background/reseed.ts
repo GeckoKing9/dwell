@@ -57,7 +57,12 @@ export async function activeTabEvents(windowId: number | null, grouping: Groupin
  * count before that window is ever focused, and nothing else would tell the engine about it.
  */
 export async function seedEvents(at: number, settings: Settings): Promise<EngineEvent[]> {
-  const seed = await readSeed(at, settings);
-  const others = await activeTabEvents(null, settings, at).catch(() => []);
+  const [seed, others] = await Promise.all([
+    readSeed(at, settings),
+    activeTabEvents(null, settings, at).catch((error: unknown) => {
+      console.error('Dwell: reading the other windows failed', error);
+      return [];
+    }),
+  ]);
   return [seed, ...others.filter((event) => event.tabId !== seed.tabId)];
 }

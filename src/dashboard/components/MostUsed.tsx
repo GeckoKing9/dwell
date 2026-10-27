@@ -54,7 +54,7 @@ export function MostUsed({ model, showAll, onToggle, onSite }: MostUsedProps) {
           </div>
           <ol>
             {shown.map((row, k) => {
-              const delta = deltaText(row, model.previous);
+              const delta = deltaText(row, model.agg.previous);
               const share = percentText(row.share);
               const category = categoryName(row.category);
               const selected = row.site === focused;

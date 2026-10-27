@@ -74,12 +74,12 @@ export interface WeekAggregate {
   busiest: DayCell | null;
   /** partial: the week is still running and is compared Monday to today. throughDay: 0 = Monday. */
   compare: { partial: boolean; throughDay: number };
-  /** The last weekday index (0 = Monday) the daily average and its comparison run through; -1 when none. */
-  averageEnd: number;
-  /** Seconds per site over the same days of the week before (Monday to today while the week runs). */
+  /** Weekday indices (0 = Monday) of this week's days the daily average is taken over, ascending. */
+  averaged: number[];
+  /** Weekday indices of the week before's days `previousAverage` is taken over, ascending; empty when it is null. */
+  compared: number[];
+  /** Seconds per site over the same days of the week before (Monday to today while the week runs): the rows' base. */
   previous: ReadonlyMap<Site, number>;
-  /** Their sum: the base each site's change is measured against. */
-  previousTotal: number;
 }
 
 const HOUR_RE = /^(?:[0-9]|1[0-9]|2[0-3])$/;
@@ -160,7 +160,7 @@ export function weekDelta(current: number, previous: number | null): Delta {
   return { kind: cur < previous ? 'less' : 'more', percent };
 }
 
-export function siteDelta(current: number, previous: number, previousTotal: number): SiteDelta {
+function siteDelta(current: number, previous: number, previousTotal: number): SiteDelta {
   if (previousTotal <= 0) return { kind: 'none', percent: 0 };
   if (previous < 1) return { kind: 'new', percent: 0 };
   if (Math.abs(current - previous) <= SAME_SITE_SECONDS) return { kind: 'same', percent: 0 };
@@ -197,6 +197,10 @@ function collect(days: Record<string, DayRecord>, week: WeekRange, retentionStar
     }
   }
   return { byDay, blocked, sites, total };
+}
+
+function daysThrough(win: Collected, lastIdx: number): number[] {
+  return [...win.byDay.keys()].filter((k) => k <= lastIdx).sort((a, b) => a - b);
 }
 
 function average(win: Collected, lastIdx: number): number | null {
@@ -278,8 +282,8 @@ export function weekAggregate(
     quietest,
     busiest,
     compare: { partial: isCurrent, throughDay: Math.max(-1, lastIdx) },
-    averageEnd: compareEnd,
+    averaged: daysThrough(cur, compareEnd),
+    compared: previousAverage === null ? [] : daysThrough(prev, compareEnd),
     previous: new Map([...prev.sites.values()].map((s) => [s.site, s.seconds])),
-    previousTotal: prev.total,
   };
 }

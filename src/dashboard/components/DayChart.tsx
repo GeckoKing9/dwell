@@ -61,7 +61,8 @@ export function DayChart({ model, hour, onHour, width, active, onActive, wrapRef
           const site = focus ? (focus.hours[x] ?? 0) : 0;
           const bar = column(cx - bw / 2, BASE, bw, height(s));
           const part = column(cx - bw / 2, BASE, bw, height(site));
-          const label = columnLabel(hourRangeText(x), durationText(s), focus ? { site: focus.site, part: site > 0 ? durationText(site) : t('colNotUsed') } : null);
+          const sitePart = focus ? { site: focus.site, part: site > 0 ? durationText(site) : t('colNotUsed') } : null;
+          const label = s > 0 ? columnLabel(hourRangeText(x), durationText(s), sitePart) : hourRangeText(x);
           return (
             <g key={x}>
               <DotChannel cx={cx} base={BASE} rows={ROWS} step={step} majorEvery={3} faint={model.isToday && x > nowHour} />

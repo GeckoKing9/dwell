@@ -1134,44 +1134,26 @@
     "description": "Tooltip of the x on the focused-site chip; names the key that does the same."
   },
   "focusDeltaNew": {
-    "message": "Not used on the same days of the week before.",
-    "description": "Week headline with a site focused: the site has no time in the comparison days of the week before."
-  },
-  "focusDeltaSame": {
-    "message": "About the same as the same days of the week before ($D$).",
-    "description": "Week headline with a site focused: within a minute of the same days of the week before, as its Most used row says.",
+    "message": "Not used on $A$–$B$ of the week before.",
+    "description": "Week headline with a site focused: the site has no time on the days of the week before its daily average is compared with.",
     "placeholders": {
-      "d": {
+      "a": {
         "content": "$1",
-        "example": "2h 15m"
+        "example": "Mon"
+      },
+      "b": {
+        "content": "$2",
+        "example": "Tue"
       }
     }
   },
-  "focusDeltaLess": {
-    "message": "$P$% less than the same days of the week before ($D$).",
-    "description": "Week headline with a site focused: less time than the same days of the week before. P is a whole number, D the time then.",
+  "focusDeltaNewOne": {
+    "message": "Not used on $A$ of the week before.",
+    "description": "Week headline with a site focused: as focusDeltaNew when the comparison covers one day.",
     "placeholders": {
-      "p": {
+      "a": {
         "content": "$1",
-        "example": "19"
-      },
-      "d": {
-        "content": "$2",
-        "example": "2h 15m"
-      }
-    }
-  },
-  "focusDeltaMore": {
-    "message": "$P$% more than the same days of the week before ($D$).",
-    "description": "Week headline with a site focused: more time than the same days of the week before. P is a whole number, D the time then.",
-    "placeholders": {
-      "p": {
-        "content": "$1",
-        "example": "19"
-      },
-      "d": {
-        "content": "$2",
-        "example": "2h 15m"
+        "example": "Mon"
       }
     }
   },

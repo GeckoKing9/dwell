@@ -3,6 +3,7 @@ import { t } from '../../shared/i18n.ts';
 import { durationText } from '../../shared/ui/Duration.tsx';
 import { DotChannel } from '../../shared/ui/chart.tsx';
 import { ChartTip } from '../../shared/ui/ChartTip.tsx';
+import type { DayStatus } from '../../stats/aggregate.ts';
 import { dateString } from '../../store/schema.ts';
 import { barClass, column, columnLabel } from '../bars.ts';
 import { fmtDate, hoursLabel } from '../labels.ts';
@@ -51,6 +52,12 @@ function dayValue(d: ChartDay, narrow: boolean, site: number | null): string {
   }
 }
 
+/** A column with nothing to open says what its visible text says: no data, not kept, or just its date. */
+function inertLabel(date: string, status: DayStatus): string {
+  if (status === 'empty') return `${date}, ${t('noData')}`;
+  return status === 'old' ? `${date}, ${t('notKept')}` : date;
+}
+
 interface WeekChartProps extends ChartProps {
   model: WeekModel;
   /** Opens the day view for a 'YYYY-MM-DD' date. */
@@ -93,7 +100,7 @@ export function WeekChart({ model, width, active, onActive, onOpen, wrapRef }: W
           const part = column(cx - bw / 2, BASE, bw, height(site ?? 0));
           const date = fmtDate(d.cell.date, { weekday: 'long', month: 'long', day: 'numeric' });
           const sitePart = focus && site !== null ? { site: focus.site, part: site > 0 ? durationText(site) : t('colNotUsed') } : null;
-          const label = columnLabel(date, durationText(d.cell.total), sitePart);
+          const label = d.cell.status === 'data' ? columnLabel(date, durationText(d.cell.total), sitePart) : inertLabel(date, d.cell.status);
           return (
             <g key={k}>
               <DotChannel cx={cx} base={BASE} rows={rows} step={step} majorEvery={4} faint={d.cell.status === 'future' || d.cell.status === 'old'} />

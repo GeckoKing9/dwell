@@ -24,6 +24,15 @@ interface ChartHitProps {
  */
 export function ChartHit({ id, disabled, x, width, height, rx, label, pressed, data, onActive, onActivate }: ChartHitProps) {
   const activate = disabled ? () => undefined : onActivate;
+  // An inert column shows no tooltip: no hover or focus handlers, so passing over it renders nothing.
+  const hover = disabled
+    ? {}
+    : {
+        onPointerEnter: () => onActive(true),
+        onPointerLeave: () => onActive(false),
+        onFocus: () => onActive(true),
+        onBlur: () => onActive(false),
+      };
   return (
     <>
       <rect
@@ -40,10 +49,7 @@ export function ChartHit({ id, disabled, x, width, height, rx, label, pressed, d
         aria-disabled={disabled ? 'true' : undefined}
         aria-pressed={pressed === undefined || disabled ? undefined : pressed ? 'true' : 'false'}
         {...data}
-        onPointerEnter={() => onActive(true)}
-        onPointerLeave={() => onActive(false)}
-        onFocus={() => onActive(true)}
-        onBlur={() => onActive(false)}
+        {...hover}
         onClick={activate}
         onKeyDown={(e) => {
           if (e.key !== 'Enter' && e.key !== ' ') return;

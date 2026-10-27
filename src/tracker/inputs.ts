@@ -46,15 +46,22 @@ function navigate(state: EngineState, tabId: number, site: string | null, audibl
   return { ...next, tabs: { ...next.tabs, [key]: tabWith(site, media) } };
 }
 
+/** Another app took focus: attention keeps counting only for the lead past its last input, unless input goes on. */
+function capAttention(state: EngineState): EngineState {
+  return state.attention === undefined ? state : { ...state, attention: { ...state.attention, capped: true } };
+}
+
 /**
  * Applies one event to the browser inputs held in the state. Attention ends when another Chrome window
- * gets focus, when its own window shows another tab, and when its page leaves the site or closes. Another
- * app taking focus does not end it: the pointer leaving the page does, through the content script.
+ * gets focus, when its own window shows another tab, and when its page leaves the site or closes; another
+ * app taking focus caps it (Alt-Tab moves no pointer), and the pointer leaving the page ends it through
+ * the content script.
  */
 export function applyEvent(state: EngineState, event: EngineEvent): EngineState {
   switch (event.type) {
     case 'focus': {
-      const elsewhere = event.windowId !== null && event.windowId !== state.attention?.windowId;
+      if (event.windowId === null) return { ...capAttention(state), focusedWindow: null };
+      const elsewhere = event.windowId !== state.attention?.windowId;
       return { ...(elsewhere ? dropAttention(state) : state), focusedWindow: event.windowId };
     }
     case 'activate': {

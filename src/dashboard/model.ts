@@ -30,8 +30,6 @@ export interface WeekModel {
   current: boolean;
   agg: WeekAggregate;
   days: ChartDay[];
-  /** Like-for-like seconds per site one week earlier: Monday to the same weekday while the week runs. */
-  previous: ReadonlyMap<string, number>;
   /** Days with data the daily average is taken over. */
   averaged: number;
   /** Full days (today excluded) with data: the average line and the quietest/busiest need two. */
@@ -95,7 +93,6 @@ export function weekModel(data: DashboardData, back: number, site?: string): Wee
     current: b === 0,
     agg,
     days,
-    previous: agg.previous,
     averaged: fullDays > 0 ? fullDays : Number(todayData),
     fullDays,
     gaps: days.filter((d) => d.cell.status === 'empty' && !d.isToday).map((d) => d.cell),
