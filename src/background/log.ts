@@ -3,7 +3,7 @@
  * losslessly, so `replayLog` in `src/tracker/replayLog.ts` turns the entries back into the same events.
  * `site` is the grouped site id the event already carries, never a URL; `win` and `tab` are Chrome's
  * integer ids; `a` is the audible flag. Level events fold their value into `kind` (`idle-locked`,
- * `media-on`, `seed-idle`, `focus-none`, `url-nav` for a navigation). A `start` entry opens the job
+ * `media-on`, `media-watched`, `seed-idle`, `focus-none`, `url-nav` for a navigation, `attention-off`). A `start` entry opens the job
  * that built a fresh engine state.
  */
 import type { KeyValueStore } from '../store/adapter.ts';
@@ -24,6 +24,12 @@ function audibleField(audible: boolean | undefined): { a?: 0 | 1 } {
   return audible === undefined ? {} : { a: audible ? 1 : 0 };
 }
 
+/** A watched playback is playing too: three levels, one kind each. */
+function mediaKind(playing: boolean, watched: boolean): string {
+  if (!playing) return 'media-off';
+  return watched ? 'media-watched' : 'media-on';
+}
+
 export function logEntry(event: EngineEvent): LogEntry {
   const { at } = event;
   switch (event.type) {
@@ -36,7 +42,9 @@ export function logEntry(event: EngineEvent): LogEntry {
     case 'idle':
       return { at, kind: `idle-${event.state}` };
     case 'media':
-      return { at, kind: event.playing ? 'media-on' : 'media-off', tab: event.tabId };
+      return { at, kind: mediaKind(event.playing, event.watched === true), tab: event.tabId };
+    case 'attention':
+      return { at, kind: event.present ? 'attention-on' : 'attention-off', win: event.windowId, tab: event.tabId };
     case 'pause':
       return { at, kind: event.paused ? 'pause-on' : 'pause-off' };
     case 'tick':

@@ -79,6 +79,13 @@ body { background: var(--page); }
 /* Charts: drawn at the wrapper's width; until it is measured, the SVG scales down instead of overflowing */
 .chart-wrap svg { max-width: 100%; height: auto; }
 .chart-bar.is-hover { fill: var(--bar-hover); }
+/* The selected hour while a site's parts hold the accent: one step past the hover shade, in both themes */
+.chart-bar.is-selected { fill: var(--ink-2); }
+.chart-wrap .hit[aria-disabled="true"] { cursor: default; }
+/* The focused site's part of a column; empty columns keep a flat, hidden path so the next height can animate */
+.chart-part { fill: var(--accent); }
+.chart-bar.is-empty, .chart-part.is-empty { visibility: hidden; }
+.chart-wrap .chart-bar, .chart-wrap .chart-part { transition: d 200ms ease-out, fill 120ms ease-out; }
 .wc-axis { font-size: 11px; fill: var(--ink-3); }
 .wc-day { font-size: 12px; font-weight: 500; fill: var(--ink-2); }
 .wc-day.is-today { font-weight: 650; fill: var(--accent-text); }
@@ -124,6 +131,21 @@ body { background: var(--page); }
 /* Day view */
 .dayhead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
 .dayhead .spacer { flex: 1; }
+.weeknav .spacer { flex: 1; }
+.day-step { display: flex; align-items: center; gap: var(--s-2); margin-left: auto; }
+#day-sites .panel-head .aside { margin-left: auto; }
+
+/* Site focus: a row is a button over its whole width; the selected one sits on the accent wash */
+.mu-row:not(.is-head), .site-row { position: relative; isolation: isolate; }
+.mu-row:not(.is-head)::before, .site-row::before { content: ""; position: absolute; inset: 0 -8px; z-index: -1; border-radius: var(--r-ctl); }
+.site-row::before { inset: -4px -8px; }
+.mu-row:has(> .row-pick:hover)::before, .site-row:has(> .row-pick:hover)::before { background: var(--surface-2); }
+.mu-row.is-selected::before, .site-row.is-selected::before { background: var(--accent-wash); }
+.row-pick { position: absolute; inset: 0 -8px; border: 0; padding: 0; background: transparent; border-radius: var(--r-ctl); }
+.site-row > .row-pick { inset: -4px -8px; }
+.row-pick:focus-visible { outline-offset: 0; }
+.focus-line { margin-bottom: 6px; }
+.focus-line .chip-x { color: var(--ink); font-size: var(--t-13); }
 
 /* Settings */
 .settings { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: var(--s-6); align-items: start; }

@@ -18,7 +18,7 @@ dwell/
 │   ├── tracker/                  # PURE engine: reduce(state, event) -> attributions; hour buckets; eTLD+1 grouping
 │   ├── store/                    # day keys in storage.local, hot state in storage.session, prune, export, hardened import
 │   ├── blocker/                  # pure URL classifier, allowlisted redirect targets, rulesets/*.json
-│   ├── content/                  # guard-core.ts (the guard's adapter) and its entries guard.ts, guard-instagram.ts, guard-facebook.ts; media.ts (video playing); <site>.css hiders
+│   ├── content/                  # guard-core.ts (the guard's adapter) and its entries guard.ts, guard-instagram.ts, guard-facebook.ts; media.ts (video playing, watched, and attention.ts: input the page takes without focus); <site>.css hiders
 │   ├── stats/                    # pure aggregation: weeks, deltas, categories, formatting
 │   ├── popup/                    # Preact popup (360 x 560)
 │   ├── dashboard/                # Preact dashboard page: Week, Day, MostUsed, Categories, Blocked, Settings, Privacy
@@ -75,7 +75,7 @@ dwell/
 ## Product & UX Guidelines
 
 **Core UX principles:**
-- Count the way a person would count: focused window, active tab, present user.
+- Count the way a person would count: one site at a time, where attention is (the page last scrolled without focus, else the focused window's active tab, else a video playing with sound on screen), and only while the user is present (ADR-6).
 - Information, never judgement: deltas are facts in plain words.
 - One tap, no confirmation dialogs; the only "are you sure" is the 10 s undo after delete-all.
 - Pause is honest: every surface shows the paused state.
@@ -94,7 +94,7 @@ dwell/
 - Manifest CSP `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'`. No `externally_connectable`. `incognito: not_allowed`.
 - No `fetch`, `XMLHttpRequest`, `WebSocket`, `sendBeacon`, `EventSource`, `WebTransport`, `RTCPeerConnection`, `new Image`, `import()`, `window.open`, `eval`, `new Function`, computed access on `globalThis`/`self`/`window`, or `createElement` of script, link or iframe anywhere in `src/`. `npm run check:privacy` enforces it.
 - Every `tabs.update`, `tabs.create`, `windows.create`, `location.replace` and DNR redirect target comes from the one allowlist in `src/blocker/targets.ts`.
-- The worker authorises every message by sender: content scripts may send only `blocked` and `media`; settings, pause, import, delete and undo only from extension pages. Payloads are validated for shape.
+- The worker authorises every message by sender: content scripts may send only `blocked`, `media` and `attention`; settings, pause, import, delete and undo only from extension pages. Payloads are validated for shape.
 - Import is hardened: size and count caps, date-window check, hostname regex, `__proto__`/`constructor`/`prototype` rejected, integer ranges, `Object.create(null)`, single-commit write.
 - The privacy wording is "auditable", never "provable"; the README, the privacy panel and the manifest must agree (a test checks it).
 
@@ -148,13 +148,15 @@ dwell/
 - Aggregation: week boundaries, deltas, formatting, simulator determinism.
 - Store: prune, export/import round trip, hardened import rejections, undo window.
 - Privacy: bundle grep, lint, manifest literal comparison, fetch-refused e2e, recorded network traffic.
-- E2E (headed Chromium with the extension loaded): tab switching totals, worker restart, pause, media message, Shorts rewrite, a single Reel left to Instagram's pop-up, "More posts" hidden, a viewer move undone by Back, toggle off lets a hard load through.
+- E2E (headed Chromium with the extension loaded): tab switching totals, worker restart, pause, media message, attention message, Shorts rewrite, a single Reel left to Instagram's pop-up, "More posts" hidden, a viewer move undone by Back, toggle off lets a hard load through.
 
 **Manual checklist (record in `docs/project_status.md`):**
 - [ ] Blur the window 10 s: no site gains more than 1 s
 - [ ] Lock the screen with a video playing: counting stops
 - [ ] Close the lid 10 min: at most 60 s attributed
 - [ ] Focus an incognito window: nothing recorded
+- [ ] Hover-scroll Instagram in a window without focus for 2 min: about 2 min plus the idle threshold
+- [ ] A YouTube video with sound in a window without focus: it counts; muted, it does not
 - [ ] Live Instagram, YouTube, Facebook: Reel tap cancelled, Shorts rewritten, hiders applied
 
 ---

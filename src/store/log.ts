@@ -19,7 +19,7 @@ export const MAX_ENTRIES_PER_HOUR = 3600;
 
 /**
  * Every kind an entry may have: one per engine event, with level values folded in (`idle-locked`,
- * `media-on`, `seed-idle`), plus `start`, written when the worker built a fresh engine state.
+ * `media-watched`, `attention-off`, `seed-idle`), plus `start`, written when the worker built a fresh engine state.
  */
 export const LOG_KINDS = [
   'focus',
@@ -31,7 +31,10 @@ export const LOG_KINDS = [
   'idle-idle',
   'idle-locked',
   'media-on',
+  'media-watched',
   'media-off',
+  'attention-on',
+  'attention-off',
   'pause-on',
   'pause-off',
   'tick',
@@ -52,7 +55,9 @@ const URL_MARKS = ['://', '/', '?'] as const;
 const KINDS: ReadonlySet<string> = new Set(LOG_KINDS);
 /** Version 1 held only `{ at, kind, site? }`, and its seed carried no idle state. Read only, never written. */
 const V1_KINDS: ReadonlySet<string> = new Set([
-  ...LOG_KINDS.filter((kind) => kind !== 'start' && kind !== 'url-nav' && !kind.startsWith('seed-')),
+  ...LOG_KINDS.filter(
+    (kind) => kind !== 'start' && kind !== 'url-nav' && kind !== 'media-watched' && !kind.startsWith('seed-') && !kind.startsWith('attention-'),
+  ),
   'seed',
 ]);
 const ENTRY_KEYS: ReadonlySet<string> = new Set(['at', 'kind', 'site', 'win', 'tab', 'a']);

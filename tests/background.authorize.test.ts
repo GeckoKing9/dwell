@@ -45,6 +45,7 @@ describe('authorize: content scripts on the four sites', () => {
     'https://x.com/someuser/status/123',
   ])('accepts media from %s', (url) => {
     expect(authorize({ type: 'media', playing: false }, content(url), ID)).toEqual({ ok: true, origin: 'content' });
+    expect(authorize({ type: 'attention', present: true }, content(url), ID)).toEqual({ ok: true, origin: 'content' });
   });
 
   it('accepts blocked only for the site the sender is on', () => {

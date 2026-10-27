@@ -3,7 +3,7 @@
  * - The sender must be this extension.
  * - An extension page (popup, dashboard; top frame only) may send only the page message types.
  * - A content script (a top-frame tab on an https www, m or bare host of Instagram, YouTube or Facebook,
- *   or on x.com) may send only `blocked` and `media`, and `blocked` only for the site it runs on.
+ *   or on x.com) may send only `blocked`, `media` and `attention`, and `blocked` only for the site it runs on.
  * Reasons name the rule that failed and never echo the sender URL.
  */
 import { siteForHost } from '../blocker/patterns.ts';
@@ -17,7 +17,14 @@ export type Authorization = { ok: true; origin: Origin } | { ok: false; reason: 
 export interface SenderLike {
   readonly id?: string | undefined;
   readonly url?: string | undefined;
-  readonly tab?: { readonly id?: number | undefined } | undefined;
+  readonly tab?:
+    | {
+        readonly id?: number | undefined;
+        readonly windowId?: number | undefined;
+        readonly url?: string | undefined;
+        readonly incognito?: boolean | undefined;
+      }
+    | undefined;
   readonly frameId?: number | undefined;
 }
 

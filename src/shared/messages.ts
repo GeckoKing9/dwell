@@ -18,9 +18,16 @@ export interface BlockedMessage {
   type: 'blocked';
   site: BlockedSite;
 }
+/** `watched`: the playback has sound and its page is on screen; absent reads as false. */
 export interface MediaMessage {
   type: 'media';
   playing: boolean;
+  watched?: boolean;
+}
+/** The user gave the page input outside Chrome's focus (`present`), or the pointer left or the page hid. */
+export interface AttentionMessage {
+  type: 'attention';
+  present: boolean;
 }
 export interface SettingsMessage {
   type: 'settings';
@@ -41,13 +48,13 @@ export interface UndoDeleteMessage {
   type: 'undoDelete';
 }
 
-export type ContentMessage = BlockedMessage | MediaMessage;
+export type ContentMessage = BlockedMessage | MediaMessage | AttentionMessage;
 export type PageMessage = SettingsMessage | PauseMessage | ImportMessage | DeleteAllMessage | UndoDeleteMessage;
 export type Message = ContentMessage | PageMessage;
 export type MessageType = Message['type'];
 
-/** The only types a content script (a tab on one of the three sites) may send. */
-export const CONTENT_MESSAGE_TYPES: readonly ContentMessage['type'][] = Object.freeze(['blocked', 'media'] as const);
+/** The only types a content script (a tab on one of the four sites) may send. */
+export const CONTENT_MESSAGE_TYPES: readonly ContentMessage['type'][] = Object.freeze(['blocked', 'media', 'attention'] as const);
 /** The only types an extension page (popup, dashboard) may send. */
 export const PAGE_MESSAGE_TYPES: readonly PageMessage['type'][] = Object.freeze([
   'settings',
@@ -86,10 +93,14 @@ function parseFixedShape(value: Json): Exclude<Message, SettingsMessage> | null 
   switch (value.type) {
     case 'blocked':
       return keysWithin(value, ['type', 'site']) && isBlockedSite(value.site) ? { type: 'blocked', site: value.site } : null;
-    case 'media':
-      return keysWithin(value, ['type', 'playing']) && typeof value.playing === 'boolean'
-        ? { type: 'media', playing: value.playing }
-        : null;
+    case 'media': {
+      const { playing, watched } = value;
+      if (!keysWithin(value, ['type', 'playing', 'watched'], ['type', 'playing']) || typeof playing !== 'boolean') return null;
+      if (watched === undefined) return { type: 'media', playing };
+      return typeof watched === 'boolean' ? { type: 'media', playing, watched } : null;
+    }
+    case 'attention':
+      return keysWithin(value, ['type', 'present']) && typeof value.present === 'boolean' ? { type: 'attention', present: value.present } : null;
     case 'pause':
       return keysWithin(value, ['type', 'paused']) && typeof value.paused === 'boolean'
         ? { type: 'pause', paused: value.paused }

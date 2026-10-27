@@ -58,10 +58,11 @@ describe('engine robustness', () => {
         let total = 0;
         for (const step of steps(delivered, settings, startAt)) {
           const length = step.event.at - step.before.lastAt;
-          expect(new Set(step.attributions.map((a) => a.site)).size).toBeLessThanOrEqual(1);
+          const sites = new Set(step.attributions.map((a) => a.site)).size;
+          expect(sites).toBeLessThanOrEqual(3);
           if (length <= 0) expect(step.attributions).toEqual([]);
-          // A carried sub-second remainder may complete one second inside a later, shorter step.
-          expect(secondsOf(step.attributions) * 1000).toBeLessThan(Math.max(0, length) + 1000);
+          // Each site's carried sub-second remainder may complete one second inside a later, shorter step.
+          expect(secondsOf(step.attributions) * 1000).toBeLessThan(Math.max(0, length) + 1000 * Math.max(1, sites));
           expect(step.after.lastAt).toBeGreaterThanOrEqual(step.before.lastAt);
           total += secondsOf(step.attributions);
         }

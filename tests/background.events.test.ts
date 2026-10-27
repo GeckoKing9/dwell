@@ -6,6 +6,7 @@ import {
   focusEvent,
   idleEvent,
   mediaEvent,
+  attentionEvent,
   pauseEvent,
   tickEvent,
   isTrackedChange,
@@ -163,6 +164,9 @@ describe('log entries', () => {
     [{ type: 'idle', at: AT, state: 'locked' }, { at: AT, kind: 'idle-locked' }],
     [{ type: 'media', at: AT, tabId: 1, playing: true }, { at: AT, kind: 'media-on', tab: 1 }],
     [{ type: 'media', at: AT, tabId: 1, playing: false }, { at: AT, kind: 'media-off', tab: 1 }],
+    [{ type: 'media', at: AT, tabId: 1, playing: true, watched: true }, { at: AT, kind: 'media-watched', tab: 1 }],
+    [{ type: 'attention', at: AT, tabId: 1, windowId: 2, present: true }, { at: AT, kind: 'attention-on', win: 2, tab: 1 }],
+    [{ type: 'attention', at: AT, tabId: 1, windowId: 2, present: false }, { at: AT, kind: 'attention-off', win: 2, tab: 1 }],
     [{ type: 'pause', at: AT, paused: true }, { at: AT, kind: 'pause-on' }],
     [{ type: 'pause', at: AT, paused: false }, { at: AT, kind: 'pause-off' }],
     [{ type: 'tick', at: AT }, { at: AT, kind: 'tick' }],
@@ -198,6 +202,9 @@ describe('the other events', () => {
     expect(idleEvent('locked', AT)).toEqual({ type: 'idle', at: AT, state: 'locked' });
     expect(tickEvent(AT)).toEqual({ type: 'tick', at: AT });
     expect(pauseEvent(true, AT)).toEqual({ type: 'pause', at: AT, paused: true });
-    expect(mediaEvent(3, false, AT)).toEqual({ type: 'media', at: AT, tabId: 3, playing: false });
+    expect(mediaEvent(3, false, false, AT)).toEqual({ type: 'media', at: AT, tabId: 3, playing: false });
+    expect(mediaEvent(3, true, true, AT)).toEqual({ type: 'media', at: AT, tabId: 3, playing: true, watched: true });
+    expect(mediaEvent(3, false, true, AT)).toEqual({ type: 'media', at: AT, tabId: 3, playing: false });
+    expect(attentionEvent(3, 2, true, AT)).toEqual({ type: 'attention', at: AT, tabId: 3, windowId: 2, present: true });
   });
 });

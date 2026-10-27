@@ -26,6 +26,8 @@ export interface DayAggregate {
   hours: number[];
   /** Always 24 entries; each lists that hour's top sites, busiest first. */
   hourSites: SiteTime[][];
+  /** Always 24 entries; each lists every site of that hour, busiest first (`hourSites` is cut from it). */
+  hourAll: SiteTime[][];
   blocked: Record<BlockedSite, number>;
 }
 
@@ -72,6 +74,12 @@ export interface WeekAggregate {
   busiest: DayCell | null;
   /** partial: the week is still running and is compared Monday to today. throughDay: 0 = Monday. */
   compare: { partial: boolean; throughDay: number };
+  /** Weekday indices (0 = Monday) of this week's days the daily average is taken over, ascending. */
+  averaged: number[];
+  /** Weekday indices of the week before's days `previousAverage` is taken over, ascending; empty when it is null. */
+  compared: number[];
+  /** Seconds per site over the same days of the week before (Monday to today while the week runs): the rows' base. */
+  previous: ReadonlyMap<Site, number>;
 }
 
 const HOUR_RE = /^(?:[0-9]|1[0-9]|2[0-3])$/;
@@ -117,15 +125,29 @@ function reduceDay(record: DayRecord): DayAggregate {
     if (seconds > 0) sites.push({ site, seconds, visits: Math.max(0, Math.trunc(safeSeconds(data.v))) });
   }
   sites.sort(bySecondsThenName);
-  const hourSites = perHour.map((m) =>
-    [...m.entries()]
-      .map(([site, seconds]): SiteTime => ({ site, seconds }))
-      .sort(bySecondsThenName)
-      .slice(0, TOP_SITES_PER_HOUR),
+  const hourAll = perHour.map((m) =>
+    [...m.entries()].map(([site, seconds]): SiteTime => ({ site, seconds })).sort(bySecondsThenName),
   );
+  const hourSites = hourAll.map((list) => list.slice(0, TOP_SITES_PER_HOUR));
   const blocked = { instagram: 0, youtube: 0, facebook: 0, x: 0 };
   for (const b of BLOCKED_SITES) blocked[b] = Math.trunc(safeSeconds(record.blocked[b]));
-  return { total, sites, hours, hourSites, blocked };
+  return { total, sites, hours, hourSites, hourAll, blocked };
+}
+
+/** Each valid hour's seconds of one site's record, by the same rules as the day reduction. */
+function eachHour(data: { h: Record<string, unknown> }, visit: (hour: number, seconds: number) => void): void {
+  for (const [h, value] of Object.entries(data.h)) {
+    const s = safeSeconds(value);
+    if (HOUR_RE.test(h) && s > 0) visit(Number(h), s);
+  }
+}
+
+/** One site's seconds in each of the 24 hours of a stored day; zeros when the site is absent. */
+export function siteHours(record: DayRecord, site: Site): number[] {
+  const hours = new Array<number>(24).fill(0);
+  const data = Object.hasOwn(record.sites, site) ? record.sites[site] : undefined;
+  if (data) eachHour(data, (hour, s) => (hours[hour] = s));
+  return hours;
 }
 
 /** Change of `current` against `previous`; same under 3 percent, none without a usable baseline (under one second counts as none, which also keeps the ratio finite). */
@@ -175,6 +197,10 @@ function collect(days: Record<string, DayRecord>, week: WeekRange, retentionStar
     }
   }
   return { byDay, blocked, sites, total };
+}
+
+function daysThrough(win: Collected, lastIdx: number): number[] {
+  return [...win.byDay.keys()].filter((k) => k <= lastIdx).sort((a, b) => a - b);
 }
 
 function average(win: Collected, lastIdx: number): number | null {
@@ -256,5 +282,8 @@ export function weekAggregate(
     quietest,
     busiest,
     compare: { partial: isCurrent, throughDay: Math.max(-1, lastIdx) },
+    averaged: daysThrough(cur, compareEnd),
+    compared: previousAverage === null ? [] : daysThrough(prev, compareEnd),
+    previous: new Map([...prev.sites.values()].map((s) => [s.site, s.seconds])),
   };
 }

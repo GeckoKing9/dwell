@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { dayAggregate, weekAggregate, weekDelta } from '../src/stats/aggregate.ts';
+import { dayAggregate, siteHours, weekAggregate, weekDelta } from '../src/stats/aggregate.ts';
 import type { WeekAggregate } from '../src/stats/aggregate.ts';
 import { CATEGORIES, dayKey, emptyDayRecord } from '../src/store/schema.ts';
 import type { DayRecord } from '../src/store/schema.ts';
@@ -258,5 +258,47 @@ describe('weekAggregate properties', () => {
       }),
       { numRuns: 200 },
     );
+  });
+});
+
+describe('siteHours and every site of each hour', () => {
+  const record: DayRecord = {
+    sites: {
+      'a.com': { h: { '9': 600, '10': 1200, '24': 50, x: 30, '11': -5, '12': Number.NaN }, v: 2 },
+      'b.com': { h: { '9': 900 }, v: 1 },
+      'c.com': { h: { '9': 300 }, v: 1 },
+      'd.com': { h: { '9': 600 }, v: 1 },
+      'e.com': { h: { '9': 0 }, v: 1 },
+    },
+    blocked: { instagram: 0, youtube: 0, facebook: 0, x: 0 },
+  };
+
+  it('gives one site’s seconds per hour with the same rules as the day total', () => {
+    const hours = siteHours(record, 'a.com');
+    expect(hours).toHaveLength(24);
+    expect(hours[9]).toBe(600);
+    expect(hours[10]).toBe(1200);
+    expect(hours.reduce((a, b) => a + b, 0)).toBe(1800);
+    expect(siteHours(record, 'missing.com')).toEqual(new Array(24).fill(0));
+    expect(siteHours(record, 'toString')).toEqual(new Array(24).fill(0));
+  });
+
+  it('lists every site of each hour busiest first, past the tooltip’s three', () => {
+    const lists = dayAggregate(record).hourAll;
+    expect(lists).toHaveLength(24);
+    expect(lists[9]).toEqual([
+      { site: 'b.com', seconds: 900 },
+      { site: 'a.com', seconds: 600 },
+      { site: 'd.com', seconds: 600 },
+      { site: 'c.com', seconds: 300 },
+    ]);
+    expect(lists[10]).toEqual([{ site: 'a.com', seconds: 1200 }]);
+    expect(lists[11]).toEqual([]);
+    expect(dayAggregate(record).hourSites[9]).toEqual(lists[9]?.slice(0, 3));
+  });
+
+  it('agrees with the day total for every hour', () => {
+    const agg = dayAggregate(record);
+    agg.hourAll.forEach((list, h) => expect(list.reduce((a, s) => a + s.seconds, 0)).toBe(agg.hours[h]));
   });
 });

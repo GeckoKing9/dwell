@@ -6,6 +6,7 @@ import type {
   Buckets,
   EngineEvent,
   EngineState,
+  MediaState,
   ReduceResult,
   SiteMemory,
   TrackerSettings,
@@ -13,6 +14,11 @@ import type {
 
 /** A tab keeps counting as playing for this long after its media stops (gaps between songs). */
 export const MEDIA_HOLD_MS = 30_000;
+/**
+ * How long one input to a page without focus outranks an active focused window: two of the content
+ * script's 10 s pings, so continuous scrolling keeps it and a stray wheel tick costs at most this.
+ */
+export const ATTENTION_LEAD_MS = 20_000;
 /** Site memory (visit clock and carry) is dropped this long after the site was last counted. */
 export const SITE_MEMORY_MS = 86_400_000;
 /** Outside the range of `Date`; such a timestamp cannot be bucketed. */
@@ -40,26 +46,76 @@ export function createInitialState(now: number): EngineState {
   };
 }
 
-/**
- * The presence predicate (KTD2) for the inputs in `state`: the counted site, and the instant at
- * which counting stops by itself (a media hold running out) or Infinity.
- */
-function presence(state: EngineState, settings: TrackerSettings): { site: string; until: number } | null {
-  if (state.paused || state.idle === 'locked' || state.focusedWindow === null) return null;
+interface Presence {
+  site: string;
+  /** The instant counting stops by itself (a hold or the attention running out), or Infinity. */
+  until: number;
+}
+
+function tabSite(state: EngineState, tabId: number | undefined): string | null {
+  return tabId === undefined ? null : (own(state.tabs, String(tabId))?.site ?? null);
+}
+
+/** Until when a tab's media counts as playing: forever while on, the hold after a stop, else never. */
+function playingUntil(media: MediaState): number {
+  if (media.on) return Infinity;
+  return media.offAt === undefined ? -Infinity : media.offAt + MEDIA_HOLD_MS;
+}
+
+/** The page that last took input outside Chrome's focus, for `lastsMs` after that input (the lead at most once capped). */
+function attended(state: EngineState, lastsMs: number): Presence | null {
+  const held = state.attention;
+  const site = tabSite(state, held?.tabId);
+  if (held === undefined || site === null) return null;
+  return { site, until: held.at + (held.capped ? Math.min(lastsMs, ATTENTION_LEAD_MS) : lastsMs) };
+}
+
+/** KTD2: the focused window's active tab, while the user is active or its media plays. */
+function focused(state: EngineState, settings: TrackerSettings): Presence | null {
+  if (state.focusedWindow === null) return null;
   const tabId = own(state.activeTabs, String(state.focusedWindow));
-  const tab = tabId === undefined ? undefined : own(state.tabs, String(tabId));
-  if (!tab || tab.site === null) return null;
-  if (state.idle === 'active') return { site: tab.site, until: Infinity };
-  const media = settings.mediaOverride ? tab.media : undefined;
-  if (!media) return null;
-  if (media.on) return { site: tab.site, until: Infinity };
-  return media.offAt === undefined ? null : { site: tab.site, until: media.offAt + MEDIA_HOLD_MS };
+  const site = tabSite(state, tabId);
+  if (site === null) return null;
+  if (state.idle === 'active') return { site, until: Infinity };
+  const media = settings.mediaOverride && tabId !== undefined ? own(state.tabs, String(tabId))?.media : undefined;
+  return media ? { site, until: playingUntil(media) } : null;
+}
+
+/**
+ * A window's active tab playing with sound on screen, first by window id when there are several. Its
+ * content script says `watched` only for a visible page or picture-in-picture; requiring the active tab
+ * as well means a page that can no longer report (crashed, cut off) stops counting at the next tab switch.
+ */
+function watched(state: EngineState, settings: TrackerSettings, at: number): Presence | null {
+  if (!settings.mediaOverride) return null;
+  for (const tabId of Object.values(state.activeTabs)) {
+    const tab = own(state.tabs, String(tabId));
+    if (tab === undefined || tab.site === null || tab.media?.src !== 'msg' || tab.media.watched !== true) continue;
+    const until = playingUntil(tab.media);
+    if (at < until) return { site: tab.site, until };
+  }
+  return null;
+}
+
+/**
+ * The presence predicate at instant `at`, ranked (ADR-6): the page holding attention for
+ * ATTENTION_LEAD_MS after its input; the focused window's active tab (KTD2); that page again for the
+ * rest of the idle threshold; a watched tab. Locked and paused always win. Each answer lasts until
+ * `until`; past it, the next rank may answer, so one interval can be split between sites.
+ */
+function presence(state: EngineState, settings: TrackerSettings, at: number): Presence | null {
+  if (state.paused || state.idle === 'locked') return null;
+  const idleMs = settings.idleThresholdSec * 1000;
+  const ranked = [attended(state, Math.min(ATTENTION_LEAD_MS, idleMs)), focused(state, settings), attended(state, idleMs)];
+  for (const candidate of ranked) {
+    if (candidate !== null && at < candidate.until) return candidate;
+  }
+  return watched(state, settings, at);
 }
 
 /** The site being counted at `at` (default: the last event), for the popup and the worker. */
 export function currentSite(state: EngineState, settings: TrackerSettings, at: number = state.lastAt): string | null {
-  const now = presence(state, settings);
-  return now !== null && at < now.until ? now.site : null;
+  return presence(state, settings, at)?.site ?? null;
 }
 
 /** Splits a counted range into hour attributions, deciding the visit and carrying sub-second ms. */
@@ -108,16 +164,20 @@ function closeInterval(state: EngineState, at: number, settings: TrackerSettings
   }
   const gap = at - from > gapMs;
   const end = gap ? from + settings.heartbeatSec * 1000 : at;
-  const now = presence(state, settings);
-  const until = now === null ? from : Math.min(end, now.until);
-  const counted = now !== null && until > from ? attribute(state.sites, now.site, from, until, settings) : null;
-  return {
-    ...state,
-    lastAt: at,
-    needsReseed: state.needsReseed || gap,
-    sites: counted?.sites ?? state.sites,
-    attributions: counted?.attributions ?? [],
-  };
+  // Presence only ever runs out between events, never starts: walk the ranked answers until none is left.
+  let sites = state.sites;
+  const attributions: Attribution[] = [];
+  let t = from;
+  let now = presence(state, settings, t);
+  while (now !== null && t < end) {
+    const until = Math.min(end, now.until);
+    const counted = attribute(sites, now.site, t, until, settings);
+    sites = counted.sites;
+    attributions.push(...counted.attributions);
+    t = until;
+    now = presence(state, settings, t);
+  }
+  return { ...state, lastAt: at, needsReseed: state.needsReseed || gap, sites, attributions };
 }
 
 /**

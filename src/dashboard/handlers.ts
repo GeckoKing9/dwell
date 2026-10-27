@@ -10,7 +10,7 @@ import { checkIgnoreHost, checkSplitHost, deleteEverything, exportData, exportEv
 import type { DashboardHandlers } from './components/DashboardView.tsx';
 import { replyFailure, settlePending, shownFor } from './data.ts';
 import type { Pending, PageDeps } from './data.ts';
-import { routeHash } from './route.ts';
+import { routeHash, toggleSite, withSite } from './route.ts';
 import type { Route } from './route.ts';
 import { mergeSeen } from './settingsUi.ts';
 import type { ListField, NoticeSlot, SettingsUi } from './settingsUi.ts';
@@ -26,6 +26,9 @@ export interface HandlerContext {
   setPending: Update<Pending>;
   setShowAll: Update<boolean>;
   setUndoUntil: Update<number | null>;
+  /** The route on screen: navigation keeps its focused site. */
+  route: Route;
+  setHour: Update<number | null>;
   refresh(): Promise<void>;
   fileRef: RefObject<HTMLInputElement | null>;
 }
@@ -39,7 +42,13 @@ export function makeHandlers(ctx: HandlerContext): DashboardHandlers {
       console.error('Dwell dashboard: the action failed', error);
       notice(slot, t('changeFailed', { r: error instanceof Error ? error.message : String(error) }));
     };
-  const go = (next: Route): void => deps.hash.set(routeHash(next));
+  const { route } = ctx;
+  const site = 'site' in route ? route.site : undefined;
+  /** Moving between the week and the day view starts at the top; moving within one keeps the scroll position. */
+  const go = (next: Route): void => {
+    if (next.view !== route.view) deps.scrollTop();
+    deps.hash.set(routeHash(next));
+  };
   const setField = (field: ListField, draft: string, error: string): void =>
     setUi((u) => ({ ...u, drafts: { ...u.drafts, [field]: draft }, errors: { ...u.errors, [field]: error } }));
 
@@ -66,8 +75,11 @@ export function makeHandlers(ctx: HandlerContext): DashboardHandlers {
   };
 
   return {
-    onWeek: (back) => go({ view: 'week', back }),
-    onDay: (date) => go({ view: 'day', date }),
+    onWeek: (back) => go(withSite({ view: 'week', back }, site)),
+    onDay: (date) => go(withSite({ view: 'day', date }, site)),
+    onRoute: go,
+    onSite: (next) => go(toggleSite(route, next)),
+    onHour: (hour) => ctx.setHour((current) => (hour === null || hour === current ? null : hour)),
     onResume: () => void post({ type: 'pause', paused: false }, { paused: false }),
     onToggleAll: () => ctx.setShowAll((v) => !v),
     onUndo: () => {

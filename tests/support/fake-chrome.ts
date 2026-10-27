@@ -209,8 +209,9 @@ export interface StoredEngine {
   lastAt: number;
   focusedWindow: number | null;
   activeTabs: Record<string, number>;
-  tabs: Record<string, { site: string | null; media?: { src: string; on: boolean } }>;
+  tabs: Record<string, { site: string | null; media?: { src: string; on: boolean; watched?: true } }>;
   needsReseed: boolean;
+  attention?: { tabId: number; windowId: number; at: number };
 }
 
 /** The engine state inside the stored hot state, as the worker saved it. */

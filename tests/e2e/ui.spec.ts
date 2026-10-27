@@ -281,6 +281,41 @@ test.describe('dashboard', () => {
     await expect(page).toHaveURL(new RegExp(`#day/${tuesday}$`));
   });
 
+  test('a focused chart column keeps keyboard focus and its tooltip when the arrow keys change the week', async () => {
+    await seedSimulated();
+    const page = await openDashboard('#week/1');
+    await page.locator('#week-col-1').focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page).toHaveURL(/#week\/2$/);
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe('week-col-1');
+    await expect(page.locator('[data-chart="week"] .tip')).toHaveCount(1);
+  });
+
+  test('a click on a most-used row focuses its site through day and week navigation and a reload, and Escape clears it', async () => {
+    await seedSimulated();
+    const page = await openDashboard('#week/1');
+    const site = (await page.locator('#most-used li.mu-row .d').first().textContent()) ?? '';
+    const pick = page.locator('#most-used li.mu-row .row-pick').first();
+    await pick.click();
+    const focused = (path: string): RegExp => new RegExp(`#${path}\\?site=${site.replaceAll('.', '\\.')}$`);
+    await expect(page).toHaveURL(focused('week/1'));
+    await expect(pick).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#focus-chip')).toContainText(site);
+    await expect(page.locator('[data-chart="week"] path.chart-part:not(.is-empty)')).not.toHaveCount(0);
+    const tuesday = lastTuesday();
+    await page.locator(`.hit[data-day="${tuesday}"]`).click();
+    await expect(page).toHaveURL(focused(`day/${tuesday}`));
+    await expect(page.locator('#focus-chip')).toContainText(site);
+    await page.locator('#day-back').click();
+    await expect(page).toHaveURL(focused('week/1'));
+    await page.reload();
+    await expect(page.locator('#focus-chip')).toContainText(site);
+    await page.keyboard.press('Escape');
+    await expect(page).toHaveURL(/#week\/1$/);
+    await expect(page.locator('#focus-chip')).toHaveCount(0);
+    await expect(page.locator('#most-used .row-pick[aria-pressed="true"]')).toHaveCount(0);
+  });
+
   test('changing the idle threshold is stored and the worker’s idle interval follows', async () => {
     await seedSimulated();
     await worker.evaluate(() => {

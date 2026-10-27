@@ -4,19 +4,23 @@ import { DashboardView } from './components/DashboardView.tsx';
 import { applyChanges, loadDashboardData, withPending } from './data.ts';
 import type { DashboardData, PageDeps, Pending } from './data.ts';
 import { makeHandlers } from './handlers.ts';
+import { keyAction, pressOf } from './keys.ts';
 import { buildView } from './model.ts';
-import { parseRoute } from './route.ts';
+import { parseRoute, samePage } from './route.ts';
 import type { Route } from './route.ts';
 import { EMPTY_UI, mergeSeen } from './settingsUi.ts';
 import type { SettingsUi } from './settingsUi.ts';
 
-/* v8 ignore start -- @preserve: stateful glue, exercised by the dashboard e2e spec; the views, handlers and actions it calls are unit-tested */
+/* v8 ignore start -- @preserve: stateful glue, exercised by the dashboard e2e spec; the views, handlers, keys and actions it calls are unit-tested */
 const DEFAULT_WIDTH = 720;
+/** How often the clock moves while nothing is written: today's now line, the today highlight and midnight. */
+const TICK_MS = 60_000;
 
 /**
  * Reads every day key and the settings on open, then applies each relevant storage change in memory (a full
  * read only when a key is removed, a value does not read, or a read is still running), so the worker's
- * writes show while the page is open. Routes follow the location hash; writes go through `makeHandlers`.
+ * writes show while the page is open. The clock ticks once a minute. Routes follow the location hash; the
+ * selected hour is page state, cleared when the week or day changes. Writes go through `makeHandlers`.
  */
 export function App({ deps }: { deps: PageDeps }) {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -24,6 +28,7 @@ export function App({ deps }: { deps: PageDeps }) {
   const [pending, setPending] = useState<Pending>({});
   const [route, setRoute] = useState<Route>(() => parseRoute(deps.hash.get()));
   const [active, setActive] = useState<number | null>(null);
+  const [hour, setHour] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [ui, setUi] = useState<SettingsUi>(EMPTY_UI);
@@ -31,8 +36,10 @@ export function App({ deps }: { deps: PageDeps }) {
   const latest = useRef(0);
   const inflight = useRef(0);
   const loaded = useRef<DashboardData | null>(null);
+  const shown = useRef(route);
   const fileRef = useRef<HTMLInputElement>(null);
   const stopObserving = useRef<(() => void) | null>(null);
+  const onKey = useRef<((event: KeyboardEvent) => void) | null>(null);
 
   /** Only the newest read is applied, so a slow older read never overwrites a newer one. */
   const refresh = (): Promise<void> => {
@@ -67,14 +74,30 @@ export function App({ deps }: { deps: PageDeps }) {
     });
   }, [deps]);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (loaded.current === null) return;
+      loaded.current = { ...loaded.current, now: deps.now() };
+      setData(loaded.current);
+    }, TICK_MS);
+    return () => clearInterval(timer);
+  }, [deps]);
+
   useEffect(
     () =>
       deps.hash.onChange(() => {
-        setRoute(parseRoute(deps.hash.get()));
-        setActive(null);
+        const next = parseRoute(deps.hash.get());
+        if (!samePage(shown.current, next)) setHour(null);
+        // A column index means a weekday on the week and an hour on a day: keep it (and its tooltip under a
+        // focused or hovered column) while only the week or the day changes.
+        if (shown.current.view !== next.view) setActive(null);
+        shown.current = next;
+        setRoute(next);
       }),
     [deps],
   );
+
+  useEffect(() => deps.onKeyDown((event) => onKey.current?.(event)), [deps]);
 
   useEffect(() => {
     if (undoUntil === null) return undefined;
@@ -94,6 +117,7 @@ export function App({ deps }: { deps: PageDeps }) {
   const view = useMemo(() => (data && settings ? buildView(route, { ...data, settings }) : null), [data, settings, route]);
 
   if (!view || !settings) {
+    onKey.current = null;
     return (
       <div class="dash" aria-busy={failed ? undefined : 'true'}>
         {failed ? (
@@ -104,12 +128,20 @@ export function App({ deps }: { deps: PageDeps }) {
       </div>
     );
   }
-  const handlers = makeHandlers({ deps, settings, ui, setUi, setPending, setShowAll, setUndoUntil, refresh, fileRef });
+  const handlers = makeHandlers({ deps, settings, ui, setUi, setPending, setShowAll, setUndoUntil, route, setHour, refresh, fileRef });
+  onKey.current = (event) => {
+    const action = keyAction(pressOf(event), { view, site: 'site' in route ? route.site : undefined, hour });
+    if (action === null) return;
+    event.preventDefault();
+    if (action.kind === 'clearHour') handlers.onHour(null);
+    else handlers.onRoute(action.route);
+  };
   return (
     <DashboardView
       view={view}
       settings={settings}
       chart={{ width, active, onActive: setActive, wrapRef }}
+      hour={hour}
       showAll={showAll}
       ui={{ ...ui, seenSplits: mergeSeen(ui.seenSplits, settings.overrides), undoOpen: undoUntil !== null }}
       on={handlers}

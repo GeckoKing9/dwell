@@ -1,13 +1,15 @@
 /** View models for the week and day views: pure functions of the stored days, the settings and the clock. */
 import { dayAggregate, RETENTION_DAYS, weekAggregate } from '../stats/aggregate.ts';
 import type { DayAggregate, DayCell, SiteRow, SiteTime, WeekAggregate } from '../stats/aggregate.ts';
-import { addDays, dayDiff, startOfDay, weekIndexFromToday, weekOf } from '../stats/weeks.ts';
+import { addDays, startOfDay, weekIndexFromToday, weekOf } from '../stats/weeks.ts';
 import type { WeekRange } from '../stats/weeks.ts';
 import { dateString, dayKey, emptyDayRecord, parseDayKey } from '../store/schema.ts';
 import type { DayRecord } from '../store/schema.ts';
 import { t } from '../shared/i18n.ts';
 import { durationText } from '../shared/ui/Duration.tsx';
 import { knownSites, weeksOf } from './data.ts';
+import { siteDay, siteWeek } from './focus.ts';
+import type { SiteDay, SiteWeek } from './focus.ts';
 import type { DashboardData } from './data.ts';
 import type { Route } from './route.ts';
 
@@ -28,14 +30,14 @@ export interface WeekModel {
   current: boolean;
   agg: WeekAggregate;
   days: ChartDay[];
-  /** Like-for-like seconds per site one week earlier: Monday to the same weekday while the week runs. */
-  previous: ReadonlyMap<string, number>;
   /** Days with data the daily average is taken over. */
   averaged: number;
   /** Full days (today excluded) with data: the average line and the quietest/busiest need two. */
   fullDays: number;
   /** Past days of the week with nothing recorded. */
   gaps: DayCell[];
+  /** The focused site's part of the week, or null with no site focused. */
+  focus: SiteWeek | null;
 }
 
 export interface DayModel {
@@ -51,6 +53,10 @@ export interface DayModel {
   peak: number | null;
   prev: string | null;
   next: string | null;
+  /** Today's 'YYYY-MM-DD', for the Today control. */
+  today: string;
+  /** The focused site's part of the day, or null with no site focused. */
+  focus: SiteDay | null;
 }
 
 export type View =
@@ -63,24 +69,11 @@ function record(days: Record<string, DayRecord>, key: string): DayRecord {
   return days[key] ?? emptyDayRecord();
 }
 
-function previousSites(days: Record<string, DayRecord>, week: WeekRange, now: Date): Map<string, number> {
-  const today = startOfDay(now);
-  const keepFrom = addDays(today, -(RETENTION_DAYS - 1));
-  const lastIdx = Math.min(6, dayDiff(week.start, today));
-  const out = new Map<string, number>();
-  for (let k = 0; k <= lastIdx; k++) {
-    const date = addDays(week.start, k - 7);
-    if (date.getTime() < keepFrom.getTime()) continue;
-    for (const s of dayAggregate(record(days, dayKey(date))).sites) out.set(s.site, (out.get(s.site) ?? 0) + s.seconds);
-  }
-  return out;
-}
-
 export function clampBack(back: number, weekCount: number): number {
   return Math.min(Math.max(0, Math.trunc(back)), Math.max(0, weekCount - 1));
 }
 
-export function weekModel(data: DashboardData, back: number): WeekModel {
+export function weekModel(data: DashboardData, back: number, site?: string): WeekModel {
   const weeks = weeksOf(data);
   const b = clampBack(back, weeks.length);
   const week = weeks[weeks.length - 1 - b] ?? weekOf(data.now);
@@ -100,10 +93,10 @@ export function weekModel(data: DashboardData, back: number): WeekModel {
     current: b === 0,
     agg,
     days,
-    previous: previousSites(data.days, week, data.now),
     averaged: fullDays > 0 ? fullDays : Number(todayData),
     fullDays,
     gaps: days.filter((d) => d.cell.status === 'empty' && !d.isToday).map((d) => d.cell),
+    focus: site === undefined ? null : siteWeek(agg, data.days, site),
   };
 }
 
@@ -117,7 +110,7 @@ export function deltaText(row: SiteRow, previous: ReadonlyMap<string, number>): 
 }
 
 /** The day view for a stored or empty day up to today; null for a future date. */
-export function dayModel(data: DashboardData, date: string): DayModel | null {
+export function dayModel(data: DashboardData, date: string, site?: string): DayModel | null {
   const day = parseDayKey(date);
   const today = startOfDay(data.now);
   if (day === null || day.getTime() > today.getTime()) return null;
@@ -125,7 +118,8 @@ export function dayModel(data: DashboardData, date: string): DayModel | null {
   const keepFrom = addDays(today, -(RETENTION_DAYS - 1));
   const first = weeks[0]?.start ?? keepFrom;
   const earliest = first.getTime() > keepFrom.getTime() ? first : keepFrom;
-  const agg = dayAggregate(record(data.days, dayKey(day)));
+  const stored = record(data.days, dayKey(day));
+  const agg = dayAggregate(stored);
   const busiest = Math.max(...agg.hours);
   const week = weekOf(day);
   return {
@@ -140,6 +134,8 @@ export function dayModel(data: DashboardData, date: string): DayModel | null {
     peak: agg.total > 0 ? agg.hours.indexOf(busiest) : null,
     prev: day.getTime() > earliest.getTime() ? dateString(addDays(day, -1)) : null,
     next: day.getTime() < today.getTime() ? dateString(addDays(day, 1)) : null,
+    today: dateString(today),
+    focus: site === undefined ? null : siteDay(stored, site),
   };
 }
 
@@ -151,10 +147,10 @@ export function buildView(route: Route, data: DashboardData): View {
     case 'privacy':
       return { kind: 'privacy' };
     case 'day': {
-      const model = dayModel(data, route.date);
-      return model ? { kind: 'day', model } : { kind: 'week', model: weekModel(data, 0) };
+      const model = dayModel(data, route.date, route.site);
+      return model ? { kind: 'day', model } : { kind: 'week', model: weekModel(data, 0, route.site) };
     }
     case 'week':
-      return { kind: 'week', model: weekModel(data, route.back) };
+      return { kind: 'week', model: weekModel(data, route.back, route.site) };
   }
 }

@@ -30,13 +30,13 @@ describe('week model', () => {
   });
 
   it('compares sites with the same weekdays of the week before', () => {
-    expect([...week.previous.entries()].sort()).toEqual([
+    expect([...week.agg.previous.entries()].sort()).toEqual([
       ['github.com', 9000],
       ['netflix.com', 1800],
     ]);
     const [github, youtube] = week.agg.sites;
-    expect(github && deltaText(github, week.previous)).toBe('+3h\u00a020m');
-    expect(youtube && deltaText(youtube, week.previous)).toBe('new');
+    expect(github && deltaText(github, week.agg.previous)).toBe('+3h\u00a020m');
+    expect(youtube && deltaText(youtube, week.agg.previous)).toBe('new');
   });
 
   it('lists past empty days as gaps and averages over the recorded ones', () => {
@@ -142,9 +142,90 @@ describe('week model cost', () => {
     }
     const model = weekModel(sampleData(days), 0);
     expect(model.agg.total).toBeGreaterThan(0);
-    expect(model.previous.get('github.com')).toBeGreaterThan(0);
+    expect(model.agg.previous.get('github.com')).toBeGreaterThan(0);
     expect(model.agg.blocked.instagram).toBe(3);
     expect(reads.size).toBe(6); // Mon-Wed of this week and of the like-for-like previous window
     expect(Math.max(...reads.values())).toBe(1);
+  });
+});
+
+describe('site focus on a week', () => {
+  it('splits each day into the site’s part and averages it over the same full days as the week', () => {
+    const focus = weekModel(sampleData(), 0, 'github.com').focus;
+    expect(focus?.site).toBe('github.com');
+    expect(focus?.days).toEqual([7200, 10_200, 3600, 0, 0, 0, 0]);
+    expect(focus?.total).toBe(21_000);
+    expect(focus?.dailyAverage).toBe(8700);
+    expect(focus?.share).toBeCloseTo((21_000 / 26_400) * 100);
+  });
+
+  it('compares its daily average over the very days the week headline compares, by the headline’s rule', () => {
+    const model = weekModel(sampleData(), 0, 'github.com');
+    expect(model.agg.averaged).toEqual([0, 1]);
+    expect(model.agg.compared).toEqual([0, 1]);
+    expect(model.focus?.previousAverage).toBe(2700);
+    expect(model.focus?.delta).toEqual({ kind: 'more', percent: 222 });
+    expect(weekModel(sampleData(), 0, 'netflix.com').focus?.delta).toEqual({ kind: 'less', percent: 100 });
+  });
+
+  it('calls a site new when the week before had data but not this site', () => {
+    const focus = weekModel(sampleData(), 0, 'instagram.com').focus;
+    expect(focus?.days).toEqual([1800, 0, 0, 0, 0, 0, 0]);
+    expect(focus?.dailyAverage).toBe(900);
+    expect(focus?.previousAverage).toBe(0);
+    expect(focus?.delta.kind).toBe('new');
+  });
+
+  it('averages a past week over all its recorded days', () => {
+    const focus = weekModel(sampleData(), 1, 'youtube.com').focus;
+    expect(focus?.days).toEqual([0, 0, 0, 0, 0, 3600, 1800]);
+    expect(focus?.dailyAverage).toBe(1080);
+    expect(focus?.delta.kind).toBe('new');
+  });
+
+  it('has nothing to compare with in an empty week and no focus without a site', () => {
+    const focus = weekModel(sampleData({}), 0, 'a.com').focus;
+    expect(focus).toMatchObject({ total: 0, dailyAverage: 0, previousAverage: null, share: 0, delta: { kind: 'none', percent: 0 } });
+    expect(weekModel(sampleData(), 0).focus).toBeNull();
+  });
+
+  it('uses today alone when it is the only day with data', () => {
+    const only = { 'd:2026-10-14': sampleData().days['d:2026-10-14']! };
+    const focus = weekModel(sampleData(only), 0, 'github.com').focus;
+    expect(focus?.dailyAverage).toBe(3600);
+    expect(focus?.previousAverage).toBeNull();
+  });
+});
+
+describe('site focus on a day', () => {
+  it('gives the site’s hours, total, busiest hour, visits and share of the day', () => {
+    const tue = dayModel(sampleData(), '2026-10-13', 'github.com');
+    expect(tue?.focus?.hours.slice(9, 13)).toEqual([3000, 3000, 3000, 1200]);
+    expect(tue?.focus).toMatchObject({ site: 'github.com', total: 10_200, peak: 9, visits: 3 });
+    expect(tue?.focus?.share).toBeCloseTo((10_200 / 13_800) * 100);
+  });
+
+  it('is an empty focus on a day the site was not used, and none without a site', () => {
+    const tue = dayModel(sampleData(), '2026-10-13', 'instagram.com');
+    expect(tue?.focus).toMatchObject({ total: 0, peak: null, visits: 0, share: 0 });
+    expect(dayModel(sampleData(), '2026-10-08', 'a.com')?.focus?.share).toBe(0);
+    expect(dayModel(sampleData(), '2026-10-13')?.focus).toBeNull();
+  });
+
+  it('lists every site of every hour and names today', () => {
+    const many = { 'd:2026-10-13': day({ 'a.com': { 9: 400 }, 'b.com': { 9: 300 }, 'c.com': { 9: 200 }, 'd.com': { 9: 100 } }) };
+    const tue = dayModel(sampleData(many), '2026-10-13');
+    expect(tue?.agg.hourAll[9]?.map((s) => s.site)).toEqual(['a.com', 'b.com', 'c.com', 'd.com']);
+    expect(tue?.agg.hourAll).toHaveLength(24);
+    expect(tue?.today).toBe('2026-10-14');
+  });
+
+  it('passes the route’s site to the week and day views', () => {
+    const week = buildView({ view: 'week', back: 0, site: 'github.com' }, sampleData());
+    expect(week.kind === 'week' && week.model.focus?.total).toBe(21_000);
+    const tue = buildView({ view: 'day', date: '2026-10-13', site: 'github.com' }, sampleData());
+    expect(tue.kind === 'day' && tue.model.focus?.total).toBe(10_200);
+    const future = buildView({ view: 'day', date: '2026-12-01', site: 'github.com' }, sampleData());
+    expect(future.kind === 'week' && future.model.focus?.site).toBe('github.com');
   });
 });

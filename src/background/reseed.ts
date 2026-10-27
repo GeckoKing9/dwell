@@ -4,7 +4,7 @@
  * on install, when the hot state is missing, and whenever the engine asks for it (`needsReseed`).
  */
 import type { Settings } from '../store/schema.ts';
-import type { EngineEvent, IdleState, SeedEvent } from '../tracker/types.ts';
+import type { ActivateEvent, EngineEvent, IdleState, SeedEvent, UrlEvent } from '../tracker/types.ts';
 import { activateEvent, siteOfTab, urlEvent, type Grouping, type TabLike } from './events.ts';
 
 /** The fields of a `chrome.windows.Window` read with `populate: true`. */
@@ -45,9 +45,24 @@ export async function readSeed(at: number, settings: Settings): Promise<SeedEven
  * `url` and `activate` events for the active tab of every window, or of one window, read from the live
  * browser: the engine learns tabs it never saw (open before install, or a window it was seeded without).
  */
-export async function activeTabEvents(windowId: number | null, grouping: Grouping, at: number): Promise<EngineEvent[]> {
+export async function activeTabEvents(windowId: number | null, grouping: Grouping, at: number): Promise<(UrlEvent | ActivateEvent)[]> {
   const tabs = await chrome.tabs.query(windowId === null ? { active: true } : { active: true, windowId });
   return tabs.flatMap((tab) =>
     tab.id === undefined ? [] : [urlEvent({ ...tab, id: tab.id }, grouping, at), activateEvent({ tabId: tab.id, windowId: tab.windowId }, at)],
   );
+}
+
+/**
+ * The seed, then the active tab of every other window: a page there (a video on a second screen) can
+ * count before that window is ever focused, and nothing else would tell the engine about it.
+ */
+export async function seedEvents(at: number, settings: Settings): Promise<EngineEvent[]> {
+  const [seed, others] = await Promise.all([
+    readSeed(at, settings),
+    activeTabEvents(null, settings, at).catch((error: unknown) => {
+      console.error('Dwell: reading the other windows failed', error);
+      return [];
+    }),
+  ]);
+  return [seed, ...others.filter((event) => event.tabId !== seed.tabId)];
 }

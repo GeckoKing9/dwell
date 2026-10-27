@@ -57,6 +57,11 @@ function toEvent(entry: LoggedEvent): EngineEvent | null {
     case 'media-on':
     case 'media-off':
       return tab === undefined ? null : { type: 'media', at, tabId: tab, playing: kind === 'media-on' };
+    case 'media-watched':
+      return tab === undefined ? null : { type: 'media', at, tabId: tab, playing: true, watched: true };
+    case 'attention-on':
+    case 'attention-off':
+      return win === undefined || tab === undefined ? null : { type: 'attention', at, tabId: tab, windowId: win, present: kind === 'attention-on' };
     case 'pause-on':
     case 'pause-off':
       return { type: 'pause', at, paused: kind === 'pause-on' };
