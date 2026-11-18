@@ -20,3 +20,5 @@ Read both sides of every contract: the engine and `tests/support/oracle.ts`, the
 - A message shape changed and one spec still pinning the old shape: grep every spec, e2e included, for the old payload.
 - A shared allowlist widened to satisfy a lint: give the new caller its own narrow guard and teach the lint about it.
 - Grouping changes reach stored settings too: an override, an ignore entry or a category keyed on the old site.
+- UI automation acting on an element it never proved is its own: a window found by class alone, a picker confirmed without reading what it holds, a switch toggled without reading its state. Prove each target before every click or keystroke.
+- A guard that guesses when its evidence is missing (a fallback profile, an id from an unnormalised path) instead of doing nothing.
