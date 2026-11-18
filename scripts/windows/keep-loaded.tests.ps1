@@ -21,6 +21,8 @@ try {
   Check 'canonical path drops a trailing backslash' (Get-CanonicalPath ((Join-Path $tmp 'Ext') + '\')) $real
   Check 'canonical path restores on-disk case and an upper-case drive' (Get-CanonicalPath $real.ToLowerInvariant()) $real
   Check 'canonical path keeps a folder that does not exist yet' (Get-CanonicalPath 'c:\no-such-dwell-dir\x\') 'C:\no-such-dwell-dir\x'
+  Push-Location $tmp
+  try { Check 'canonical path resolves a relative path against the current location' (Get-CanonicalPath 'ext') $real } finally { Pop-Location }
 
   $dir = 'C:\Dwell\extension'; $id = 'loooglpcakkjfihnceagkkpanmjhocdc'
   $prefs = Join-Path $tmp 'Secure Preferences'
@@ -36,8 +38,9 @@ try {
   $other = ConvertTo-Json -Compress 'c:\dwell\EXTENSION\'
   Check 'same folder under another id and spelling: loaded' (State "{`"extensions`":{`"settings`":{`"abc`":{`"path`":$other}}}}") 'loaded'
   Check 'another extension only: missing' (State "{`"extensions`":{`"settings`":{`"abc`":{`"path`":`"C:\\\\other`"}}}}") 'missing'
-  Check 'no extensions.settings: unknown' ((State '{}') -like 'unknown*') $true
-  Check 'broken JSON: unknown' ((State '{"extensions":') -like 'unknown*') $true
+  Check 'empty object: no extensions.settings' ((State '{}') -like 'unknown: no extensions.settings*') $true
+  Check 'extensions without settings: no extensions.settings' ((State '{"extensions":{}}') -like 'unknown: no extensions.settings*') $true
+  Check 'broken JSON: unreadable' ((State '{"extensions":') -like 'unknown:*unreadable*') $true
   Remove-Item $prefs
   Check 'no file: unknown' ((Get-DwellState $prefs $id $dir) -like 'unknown*') $true
 
