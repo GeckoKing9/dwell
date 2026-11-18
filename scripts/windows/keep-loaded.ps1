@@ -6,36 +6,61 @@ Why: an unpacked extension lives only in the profile's protected settings
 Chrome 158, 2026-11-17), Web Store extensions come back from the Google account
 and an unpacked one is simply gone. Its data stays on disk, keyed by its id, and
 the id comes from the folder path, so loading the same folder again brings the
-history back.
+history back. Removing Dwell from chrome://extensions deletes that data, so a
+profile without it means Dwell was removed on purpose: the guard then does nothing.
 
 What it does, every run:
-  1. Reads the profile's Secure Preferences. Dwell present with its path: exit.
+  1. Finds the profile holding Dwell's data (or -ProfileDir) and reads its
+     Secure Preferences. Dwell present, disabled, removed or unreadable: exit.
   2. Chrome not running, or a failed attempt in the last 12 hours: exit.
-  3. Opens a new Chrome window in that profile, goes to chrome://extensions,
-     turns on Developer mode if it is off, presses Load unpacked, types the
-     folder in the folder picker and selects it, then waits for Chrome to
-     record the extension. Every step is logged to keep-loaded.log.
+  3. Opens a new Chrome window in that profile and acts only on it: checks it is
+     a fresh one-tab new tab page, goes to chrome://extensions, turns on Developer
+     mode only if it reads off, presses Load unpacked, puts the folder in the
+     picker and confirms only when the picker holds that folder, waits for Chrome
+     to record the extension, then closes the window. Every step is logged.
 
--CheckOnly reports the state and changes nothing. -ProfileDir defaults to the
-Chrome profile that holds Dwell's data.
+-CheckOnly reports the state and changes nothing. -NoRun only defines the
+functions (keep-loaded.tests.ps1 uses it).
 #>
 param(
   [string]$ProfileDir,
   [string]$ExtensionDir = (Join-Path $env:LOCALAPPDATA 'Dwell\extension'),
   [switch]$CheckOnly,
-  [switch]$Force
+  [switch]$Force,
+  [switch]$NoRun
 )
 
 $ErrorActionPreference = 'Stop'
-$Home_ = Join-Path $env:LOCALAPPDATA 'Dwell'
-$Log = Join-Path $Home_ 'keep-loaded.log'
-$FailMark = Join-Path $Home_ 'keep-loaded.failed'
+$Log = Join-Path $env:LOCALAPPDATA 'Dwell\keep-loaded.log'
+$FailMark = Join-Path $env:LOCALAPPDATA 'Dwell\keep-loaded.failed'
 $UserData = Join-Path $env:LOCALAPPDATA 'Google\Chrome\User Data'
+$e = [char]0xE9
+$script:OwnHwnd = [IntPtr]::Zero
+$script:PickerHwnd = [IntPtr]::Zero
 
 function Write-Log([string]$Message) {
   $line = '{0} {1}' -f (Get-Date -Format 's'), $Message
   Add-Content -Path $Log -Value $line -Encoding UTF8
   Write-Output $line
+}
+
+# A state that lasts is logged once, not every 15 minutes.
+function Write-LogOnce([string]$Message) {
+  $last = if (Test-Path $Log) { [string](Get-Content $Log -Tail 1) } else { '' }
+  if (-not $last.EndsWith(" $Message")) { Write-Log $Message }
+}
+
+# The path as Chrome's folder picker hands it over: absolute, no trailing separator, on-disk case, upper-case drive.
+function Get-CanonicalPath([string]$Path) {
+  $full = [IO.Path]::GetFullPath($Path).TrimEnd('\')
+  $root = [IO.Path]::GetPathRoot($full)
+  $out = $root.ToUpperInvariant()
+  foreach ($part in $full.Substring($root.Length).Split([char]'\', [StringSplitOptions]::RemoveEmptyEntries)) {
+    $hit = $null
+    try { $hit = @([IO.Directory]::GetFileSystemEntries($out, $part)) | Select-Object -First 1 } catch { }
+    $out = if ($hit) { $hit } else { Join-Path $out $part }
+  }
+  $out
 }
 
 # Chrome's id for an unpacked folder: SHA-256 of the UTF-16 path, first 16 bytes, hex digits mapped to a-p.
@@ -46,28 +71,36 @@ function Get-UnpackedId([string]$Path) {
   -join ($hex.ToCharArray() | ForEach-Object { [char](97 + [Convert]::ToInt32([string]$_, 16)) })
 }
 
-# Returns 'loaded', 'disabled', 'missing' or 'unknown' (file unreadable: never act on it).
-function Get-DwellState([string]$Id) {
+# 'loaded', 'disabled', 'missing', or 'unknown: <why>' (never act on unknown).
+function Get-DwellState([string]$PrefsPath, [string]$Id, [string]$Dir) {
   Add-Type -AssemblyName System.Web.Extensions
   try {
-    $text = [IO.File]::ReadAllText($SecurePrefs)
     $json = New-Object System.Web.Script.Serialization.JavaScriptSerializer
     $json.MaxJsonLength = [int]::MaxValue
-    $prefs = $json.DeserializeObject($text)
+    $prefs = $json.DeserializeObject([IO.File]::ReadAllText($PrefsPath))
     $settings = $prefs['extensions']['settings']
   } catch {
-    return 'unknown'
+    return "unknown: $PrefsPath unreadable ($($_.Exception.Message))"
   }
-  if ($null -eq $settings) { return 'unknown' }
-  if (-not $settings.ContainsKey($Id)) { return 'missing' }
-  $entry = $settings[$Id]
-  if (-not $entry.ContainsKey('path') -or -not $entry['path']) { return 'missing' }
+  if ($settings -isnot [Collections.IDictionary]) { return "unknown: no extensions.settings in $PrefsPath" }
+  $entry = $null
+  foreach ($key in $settings.Keys) {
+    $v = $settings[$key]
+    if ($v -isnot [Collections.IDictionary] -or -not $v.ContainsKey('path') -or -not $v['path']) { continue }
+    # The same folder under another spelling of its path still counts as present.
+    if ($key -eq $Id -or ([string]$v['path']).TrimEnd('\') -eq $Dir) { $entry = $v; break }
+  }
+  if (-not $entry) { return 'missing' }
   if ($entry.ContainsKey('disable_reasons')) {
     $reasons = $entry['disable_reasons']
     # A list in current Chrome, a bitmask in older versions.
     if (($reasons -is [array] -and $reasons.Count -gt 0) -or ($reasons -isnot [array] -and [int]$reasons -ne 0)) { return 'disabled' }
   }
-  return 'loaded'
+  'loaded'
+}
+
+function Test-Paused([string]$Mark, [datetime]$Now) {
+  (Test-Path $Mark) -and (($Now - (Get-Item $Mark).LastWriteTime).TotalHours -lt 12)
 }
 
 function Show-Toast([string]$Text) {
@@ -84,130 +117,171 @@ function Show-Toast([string]$Text) {
   }
 }
 
-$id = Get-UnpackedId $ExtensionDir
-if (-not $ProfileDir) {
-  $owner = Get-ChildItem -Path $UserData -Directory | Where-Object { Test-Path (Join-Path $_.FullName "Local Extension Settings\$id") } | Select-Object -First 1
-  $ProfileDir = if ($owner) { $owner.Name } else { 'Default' }
-}
-$SecurePrefs = Join-Path $UserData (Join-Path $ProfileDir 'Secure Preferences')
-$state = Get-DwellState $id
-if ($CheckOnly) { Write-Output "$state $id $ExtensionDir"; exit 0 }
-if ($state -ne 'missing') {
-  $last = if (Test-Path $Log) { Get-Content $Log -Tail 1 } else { '' }
-  if ($state -eq 'disabled' -and $last -notmatch 'disabled') { Write-Log "Dwell is in Chrome but disabled ($id); left alone" }
-  exit 0
-}
-if (-not (Test-Path (Join-Path $ExtensionDir 'manifest.json'))) { Write-Log "no manifest in $ExtensionDir; nothing to load"; exit 1 }
-if (-not (Get-Process chrome -ErrorAction SilentlyContinue)) { exit 0 }
-if (-not $Force -and (Test-Path $FailMark) -and ((Get-Date) - (Get-Item $FailMark).LastWriteTime).TotalHours -lt 12) { exit 0 }
-
-Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
-Add-Type -Namespace '' -Name DwellWin32 -MemberDefinition @'
-[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, string lParam);
-[DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-[DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
-'@
-$AE = [System.Windows.Automation.AutomationElement]
-$Scope = [System.Windows.Automation.TreeScope]
-$CT = [System.Windows.Automation.ControlType]
-
-function New-Cond($Property, $Value) { New-Object System.Windows.Automation.PropertyCondition($Property, $Value) }
-
-function Wait-For([scriptblock]$Probe, [int]$Seconds) {
-  $deadline = (Get-Date).AddSeconds($Seconds)
-  do {
-    $found = & $Probe
-    if ($found) { return $found }
-    Start-Sleep -Milliseconds 400
-  } while ((Get-Date) -lt $deadline)
-  return $null
-}
-
-# Electron apps (Discord, VS Code) use the same window class, so keep only chrome.exe windows.
-function Find-ChromeWindow([string]$TitlePrefix, [switch]$All) {
-  $chromeIds = @(Get-Process chrome -ErrorAction SilentlyContinue | ForEach-Object Id)
-  foreach ($w in $AE::RootElement.FindAll($Scope::Children, (New-Cond $AE::ClassNameProperty 'Chrome_WidgetWin_1'))) {
-    if ($chromeIds -notcontains $w.Current.ProcessId) { continue }
-    if (([string]$w.Current.Name).StartsWith($TitlePrefix)) { if ($All) { $w } else { return $w } }
+# Cancels the picker and closes the window this run opened, and nothing else.
+function Close-OwnWindows {
+  if ($script:PickerHwnd -ne [IntPtr]::Zero -and [DwellWin32]::IsWindow($script:PickerHwnd)) {
+    [void][DwellWin32]::PostMessage($script:PickerHwnd, 0x0111, [IntPtr]2, [IntPtr]::Zero)   # WM_COMMAND IDCANCEL
+    Start-Sleep -Milliseconds 500
+  }
+  if ($script:OwnHwnd -ne [IntPtr]::Zero -and [DwellWin32]::IsWindow($script:OwnHwnd)) {
+    [void][DwellWin32]::PostMessage($script:OwnHwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) # WM_CLOSE
   }
 }
 
-function Find-Named($Root, $ControlType, [string[]]$Names) {
-  foreach ($el in $Root.FindAll($Scope::Descendants, (New-Cond $AE::ControlTypeProperty $ControlType))) {
-    if ($Names -contains $el.Current.Name) { return $el }
-  }
-}
-
-$e = [char]0xE9
-function Fail([string]$Why) {
-  Write-Log "restore failed: $Why"
+function Fail([string]$Why, [string]$Dir) {
   Set-Content -Path $FailMark -Value $Why -Encoding UTF8
-  Show-Toast "Chrome a retir$e Dwell et la remise automatique a $([char]0xE9)chou$e ($Why). Charge $ExtensionDir dans chrome://extensions."
+  try { Write-Log "restore failed: $Why" } catch { }
+  Close-OwnWindows
+  Show-Toast "Chrome a retir$e Dwell et la remise automatique a $($e)chou$e ($Why). Charge $Dir dans chrome://extensions."
   exit 1
 }
 
-# Any error from here on counts as a failed attempt, so the 12-hour pause applies to it too.
-trap { Fail "unexpected error: $($_.Exception.Message)" }
-Write-Log "Dwell missing from $ProfileDir ($id); restoring from $ExtensionDir"
-$chrome = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe').'(default)'
-# Chrome refuses chrome:// pages on its command line. A new window opens on the new tab page with the
-# address bar focused, so the address is typed there and Enter is posted to that window alone: it can
-# never reach another app, even when Windows keeps the new window in the background.
-$before = @(Find-ChromeWindow '' -All | ForEach-Object { $_.Current.NativeWindowHandle })
-Start-Process $chrome -ArgumentList "--profile-directory=`"$ProfileDir`"", '--new-window'
-$win = Wait-For { Find-ChromeWindow '' -All | Where-Object { $before -notcontains $_.Current.NativeWindowHandle } | Select-Object -First 1 } 20
-if (-not $win) { Fail 'the new Chrome window did not open' }
-$hwnd = [IntPtr]$win.Current.NativeWindowHandle
+function Restore-Dwell([string]$ProfileName, [string]$Dir, [string]$Id, [string]$Prefs) {
+  Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+  Add-Type -Namespace '' -Name DwellWin32 -MemberDefinition @'
+[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, string lParam);
+[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, System.Text.StringBuilder lParam);
+[DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+[DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
+'@
+  $AE = [System.Windows.Automation.AutomationElement]
+  $Scope = [System.Windows.Automation.TreeScope]
+  $CT = [System.Windows.Automation.ControlType]
+  function New-Cond($Property, $Value) { New-Object System.Windows.Automation.PropertyCondition($Property, $Value) }
+  function Wait-For([scriptblock]$Probe, [int]$Seconds) {
+    $deadline = (Get-Date).AddSeconds($Seconds)
+    do {
+      $found = & $Probe
+      if ($found) { return $found }
+      Start-Sleep -Milliseconds 400
+    } while ((Get-Date) -lt $deadline)
+    $null
+  }
+  # Electron apps (Discord, VS Code) use the same window class, so keep only chrome.exe windows.
+  function Get-ChromeWindows {
+    $ids = @(Get-Process chrome -ErrorAction SilentlyContinue | ForEach-Object Id)
+    foreach ($w in $AE::RootElement.FindAll($Scope::Children, (New-Cond $AE::ClassNameProperty 'Chrome_WidgetWin_1'))) {
+      if ($ids -contains $w.Current.ProcessId) { $w }
+    }
+  }
+  function Find-Named($Root, $ControlType, [string[]]$Names) {
+    foreach ($el in $Root.FindAll($Scope::Descendants, (New-Cond $AE::ControlTypeProperty $ControlType))) {
+      if ($Names -contains $el.Current.Name) { return $el }
+    }
+  }
+  function Get-Text([IntPtr]$Hwnd) {
+    $sb = New-Object System.Text.StringBuilder 1024
+    [void][DwellWin32]::SendMessage($Hwnd, 0x000D, [IntPtr]1024, $sb)   # WM_GETTEXT
+    $sb.ToString()
+  }
 
-$omnibox = Wait-For { $win.FindFirst($Scope::Descendants, (New-Cond $AE::ControlTypeProperty $CT::Edit)) } 10
-if (-not $omnibox) { Fail 'address bar not found' }
-try { $omnibox.SetFocus() } catch { Write-Log "address bar focus refused: $($_.Exception.Message)" }
-$omnibox.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('chrome://extensions/')
-Start-Sleep -Milliseconds 300
-[void][DwellWin32]::PostMessage($hwnd, 0x0100, [IntPtr]0x0D, [IntPtr]0x001C0001)   # WM_KEYDOWN Enter
-[void][DwellWin32]::PostMessage($hwnd, 0x0101, [IntPtr]0x0D, [IntPtr]0xC01C0001)   # WM_KEYUP Enter
-$opened = Wait-For { if ($AE::FromHandle($hwnd).Current.Name.StartsWith('Extensions')) { $true } } 15
-if (-not $opened) { Fail 'chrome://extensions did not open' }
+  trap { Fail "unexpected error: $($_.Exception.Message)" $Dir }
+  Write-Log "Dwell missing from $ProfileName ($Id); restoring from $Dir"
+  $chrome = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe').'(default)'
+  # Chrome refuses chrome:// pages on its command line. The window this run opens is a new HWND holding one
+  # new tab page with an empty address bar: a window the owner already had, a restored one, or a popup or
+  # hover card never matches. Enter is posted to that window alone, so it can never reach another app.
+  $before = @(Get-ChromeWindows | ForEach-Object { $_.Current.NativeWindowHandle })
+  Start-Process $chrome -ArgumentList "--profile-directory=`"$ProfileName`"", '--new-window'
+  $found = Wait-For {
+    foreach ($w in Get-ChromeWindows) {
+      if ($before -contains $w.Current.NativeWindowHandle) { continue }
+      $tabs = @($w.FindAll($Scope::Descendants, (New-Cond $AE::ControlTypeProperty $CT::TabItem)))
+      $edit = $w.FindFirst($Scope::Descendants, (New-Cond $AE::ControlTypeProperty $CT::Edit))
+      if ($tabs.Count -eq 1 -and $edit -and $edit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq '') {
+        return , @($w, $edit)
+      }
+    }
+  } 20
+  if (-not $found) { Fail 'the new Chrome window did not open' $Dir }
+  $win, $omnibox = $found
+  $script:OwnHwnd = [IntPtr]$win.Current.NativeWindowHandle
 
-$loadNames = @("Charger l'extension non empaquet$([char]0xE9)e", 'Load unpacked')
-$devNames = @("Mode d$([char]0xE9)veloppeur", 'Developer mode')
-$load = Wait-For { Find-Named $win $CT::Button $loadNames } 10
-if (-not $load) {
-  $dev = Find-Named $win $CT::Button $devNames
-  if (-not $dev) { $dev = Find-Named $win $CT::CheckBox $devNames }
-  if (-not $dev) { Fail 'neither Load unpacked nor the Developer mode switch was found' }
-  $dev.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
-  Write-Log 'Developer mode was off; turned it on'
+  try { $omnibox.SetFocus() } catch { Write-Log "address bar focus refused: $($_.Exception.Message)" }
+  $omnibox.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('chrome://extensions/')
+  Start-Sleep -Milliseconds 300
+  [void][DwellWin32]::PostMessage($script:OwnHwnd, 0x0100, [IntPtr]0x0D, [IntPtr]0x001C0001)   # WM_KEYDOWN Enter
+  [void][DwellWin32]::PostMessage($script:OwnHwnd, 0x0101, [IntPtr]0x0D, [IntPtr]0xC01C0001)   # WM_KEYUP Enter
+  $opened = Wait-For { if ($AE::FromHandle($script:OwnHwnd).Current.Name.StartsWith('Extensions')) { $true } } 15
+  if (-not $opened) { Fail 'chrome://extensions did not open' $Dir }
+
+  $loadNames = @("Charger l'extension non empaquet$($e)e", 'Load unpacked')
+  $devNames = @("Mode d$($e)veloppeur", 'Developer mode')
   $load = Wait-For { Find-Named $win $CT::Button $loadNames } 10
-  if (-not $load) { Fail 'Load unpacked did not appear after turning on Developer mode' }
-}
-$load.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+  if (-not $load) {
+    $dev = Find-Named $win $CT::Button $devNames
+    if (-not $dev) { Fail 'neither Load unpacked nor the Developer mode switch was found' $Dir }
+    $toggle = $dev.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+    $was = $toggle.Current.ToggleState
+    # Only an Off switch is turned on: a renamed button must never turn Developer mode off.
+    if ($was -ne [System.Windows.Automation.ToggleState]::Off) { Fail "Load unpacked not found while Developer mode reads $was" $Dir }
+    $toggle.Toggle()
+    Write-Log 'Developer mode was off; turned it on'
+    $load = Wait-For { Find-Named $win $CT::Button $loadNames } 10
+    if (-not $load) { Fail 'Load unpacked did not appear after turning on Developer mode' $Dir }
+  }
+  $load.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 
-$dialog = Wait-For {
   # The picker is owned by the Extensions window, so UI Automation lists it under that window.
-  $win.FindFirst($Scope::Children, (New-Cond $AE::ClassNameProperty '#32770'))
-} 15
-if (-not $dialog) { Fail 'the folder picker did not open' }
+  $dialog = Wait-For { $win.FindFirst($Scope::Children, (New-Cond $AE::ClassNameProperty '#32770')) } 15
+  if (-not $dialog) { Fail 'the folder picker did not open' $Dir }
+  $script:PickerHwnd = [IntPtr]$dialog.Current.NativeWindowHandle
+  # The folder box and button have no UI Automation patterns, so they are driven as Win32 controls.
+  $nameBox = $dialog.FindFirst($Scope::Descendants, (New-Cond $AE::AutomationIdProperty '1152'))
+  $select = $dialog.FindFirst($Scope::Children, (New-Cond $AE::AutomationIdProperty '1'))
+  if (-not $nameBox -or -not $select) { Fail 'the folder picker has no folder box or select button' $Dir }
+  $boxHwnd = [IntPtr]$nameBox.Current.NativeWindowHandle
+  $selectHwnd = [IntPtr]$select.Current.NativeWindowHandle
+  [void][DwellWin32]::SendMessage($boxHwnd, 0x000C, [IntPtr]::Zero, $Dir)   # WM_SETTEXT
+  if ((Get-Text $boxHwnd) -ne $Dir) { Fail 'the folder box did not take the path' $Dir }
+  [void][DwellWin32]::PostMessage($script:PickerHwnd, 0x0111, [IntPtr]1, $selectHwnd)   # WM_COMMAND IDOK
+  Start-Sleep -Seconds 2
+  if ([DwellWin32]::IsWindow($script:PickerHwnd)) {
+    # The picker opened the typed folder instead of returning it. Confirm again only if it now shows that folder.
+    $address = $dialog.FindFirst($Scope::Descendants, (New-Cond $AE::AutomationIdProperty '1001'))
+    # Its address reads 'Address: <full path or folder name>' in the picker's language.
+    $shown = if ($address) { ([string]$address.Current.Name -split ':\s', 2)[-1] } else { '' }
+    if ($shown -ne $Dir -and $shown -ne (Split-Path $Dir -Leaf)) { Fail "the picker shows '$shown', not $Dir" $Dir }
+    [void][DwellWin32]::SendMessage($boxHwnd, 0x000C, [IntPtr]::Zero, '')
+    [void][DwellWin32]::PostMessage($script:PickerHwnd, 0x0111, [IntPtr]1, $selectHwnd)
+  }
 
-# The picker's folder box and button show up in UI Automation without patterns, so drive them as Win32 controls.
-$nameBox = $dialog.FindFirst($Scope::Descendants, (New-Cond $AE::AutomationIdProperty '1152'))
-$select = $dialog.FindFirst($Scope::Children, (New-Cond $AE::AutomationIdProperty '1'))
-if (-not $nameBox -or -not $select) { Fail 'the folder picker has no folder box or select button' }
-$dialogHwnd = [IntPtr]$dialog.Current.NativeWindowHandle
-$boxHwnd = [IntPtr]$nameBox.Current.NativeWindowHandle
-$selectHwnd = [IntPtr]$select.Current.NativeWindowHandle
-function Submit-Folder([string]$Text) {
-  [void][DwellWin32]::SendMessage($boxHwnd, 0x000C, [IntPtr]::Zero, $Text)                # WM_SETTEXT
-  [void][DwellWin32]::PostMessage($dialogHwnd, 0x0111, [IntPtr]1, $selectHwnd)            # WM_COMMAND IDOK
+  # Chrome writes Secure Preferences a few seconds after a change.
+  $ok = Wait-For { if ((Get-DwellState $Prefs $Id $Dir) -eq 'loaded') { $true } } 40
+  if (-not $ok) { Fail 'Chrome did not record the extension (look for a load error on chrome://extensions)' $Dir }
+  if (Test-Path $FailMark) { Remove-Item $FailMark }
+  Write-Log "restored: Dwell is loaded again as $Id"
+  Close-OwnWindows
+  Show-Toast "Chrome avait retir$e Dwell; il est remis, avec ton historique."
 }
-Submit-Folder $ExtensionDir
-Start-Sleep -Seconds 2
-# A picker may open the typed folder instead of returning it; pressing again returns the folder it now shows.
-if ([DwellWin32]::IsWindow($dialogHwnd)) { Submit-Folder '' }
 
-# Chrome writes Secure Preferences a few seconds after a change.
-$ok = Wait-For { if ((Get-DwellState $id) -eq 'loaded') { $true } } 40
-if (-not $ok) { Fail 'Chrome did not record the extension (look for a load error on chrome://extensions)' }
-if (Test-Path $FailMark) { Remove-Item $FailMark }
-Write-Log "restored: Dwell is loaded again as $id"
-Show-Toast "Chrome avait retir$e Dwell; il est remis, avec ton historique."
+function Invoke-Guard {
+  $dir = Get-CanonicalPath $ExtensionDir
+  $id = Get-UnpackedId $dir
+  $prof = $ProfileDir
+  if (-not $prof) {
+    $owner = Get-ChildItem -Path $UserData -Directory -ErrorAction SilentlyContinue |
+      Where-Object { Test-Path (Join-Path $_.FullName "Local Extension Settings\$id") } | Select-Object -First 1
+    if ($owner) { $prof = $owner.Name }
+  }
+  $prefs = if ($prof) { Join-Path $UserData (Join-Path $prof 'Secure Preferences') } else { '' }
+  $state = if (-not $prof -or -not (Test-Path (Join-Path $UserData "$prof\Local Extension Settings\$id"))) { 'removed' }
+           else { Get-DwellState $prefs $id $dir }
+  if ($CheckOnly) { Write-Output "$state $id $prof $dir"; return }
+  switch -Wildcard ($state) {
+    'removed' { Write-LogOnce "no Dwell data ($id) in $(if ($prof) { $prof } else { 'any Chrome profile' }): removed on purpose or never loaded; nothing to do"; return }
+    'unknown*' { Write-LogOnce "state $state; nothing done"; return }
+    'disabled' { Write-LogOnce "Dwell is in Chrome but disabled ($id); left alone"; return }
+    'loaded' { return }
+  }
+  if (-not (Get-Process chrome -ErrorAction SilentlyContinue)) { return }
+  if (-not $Force -and (Test-Paused $FailMark (Get-Date))) { return }
+  if (-not (Test-Path (Join-Path $dir 'manifest.json'))) { Fail "no manifest in $dir" $dir }
+  # Marked before acting, so a run killed half-way (time limit, logoff) still pauses the next ones.
+  Set-Content -Path $FailMark -Value 'attempt started' -Encoding UTF8
+  Restore-Dwell $prof $dir $id $prefs
+}
+
+if (-not $NoRun) {
+  try { Invoke-Guard } catch { Write-Log "guard error: $($_.Exception.Message)"; exit 1 }
+}
