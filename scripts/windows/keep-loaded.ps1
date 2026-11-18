@@ -226,6 +226,16 @@ function Restore-Dwell([string]$ProfileName, [string]$Dir, [string]$Id, [string]
         $omnibox.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -like 'chrome://extensions*') { $true }
   } 15
   if (-not $opened) { Fail 'chrome://extensions did not open' $Dir }
+  # Another extension can open or switch tabs in this window at any time, so the page is proven again before each action.
+  function Assert-OwnPage([string]$Step) {
+    $ok = $false
+    try {
+      $tabs = @($win.FindAll($Scope::Descendants, (New-Cond $AE::ControlTypeProperty $CT::TabItem))).Count
+      $url = $omnibox.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
+      $ok = $tabs -eq 1 -and $url -like 'chrome://extensions*'
+    } catch { }
+    if (-not $ok) { Fail "the guard's window no longer shows only chrome://extensions ($Step)" $Dir }
+  }
 
   $loadNames = @("Charger l'extension non empaquet$($e)e", 'Load unpacked')
   $devNames = @("Mode d$($e)veloppeur", 'Developer mode')
@@ -238,11 +248,13 @@ function Restore-Dwell([string]$ProfileName, [string]$Dir, [string]$Id, [string]
     $was = $toggle.Current.ToggleState
     # Only an Off switch is turned on: a renamed button must never turn Developer mode off.
     if ($was -ne [System.Windows.Automation.ToggleState]::Off) { Fail "Load unpacked not found while Developer mode reads $was" $Dir }
+    Assert-OwnPage 'before Developer mode'
     $toggle.Toggle()
     Write-Log 'Developer mode was off; turned it on'
     $load = Wait-For { Find-Named $win $CT::Button $loadNames } 10
     if (-not $load) { Fail 'Load unpacked did not appear after turning on Developer mode' $Dir }
   }
+  Assert-OwnPage 'before Load unpacked'
   $load.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 
   # The picker is owned by the Extensions window, so UI Automation lists it under that window.
@@ -255,6 +267,7 @@ function Restore-Dwell([string]$ProfileName, [string]$Dir, [string]$Id, [string]
   if (-not $nameBox -or -not $select) { Fail 'the folder picker has no folder box or select button' $Dir }
   $boxHwnd = [IntPtr]$nameBox.Current.NativeWindowHandle
   $selectHwnd = [IntPtr]$select.Current.NativeWindowHandle
+  Assert-OwnPage 'before the folder picker'
   [void][DwellWin32]::SendMessage($boxHwnd, 0x000C, [IntPtr]::Zero, $Dir)   # WM_SETTEXT
   if ((Get-Text $boxHwnd) -ne $Dir) { Fail 'the folder box did not take the path' $Dir }
   [void][DwellWin32]::PostMessage($script:PickerHwnd, 0x0111, [IntPtr]1, $selectHwnd)   # WM_COMMAND IDOK
@@ -265,6 +278,7 @@ function Restore-Dwell([string]$ProfileName, [string]$Dir, [string]$Id, [string]
     # Its address reads 'Address: <path>' in the picker's language; only the full path proves the folder.
     $shown = if ($address) { ([string]$address.Current.Name -split ':\s', 2)[-1] } else { '' }
     if ($shown -ne $Dir) { Fail "the picker shows '$shown', not $Dir" $Dir }
+    Assert-OwnPage 'before confirming the picker again'
     [void][DwellWin32]::SendMessage($boxHwnd, 0x000C, [IntPtr]::Zero, '')
     [void][DwellWin32]::PostMessage($script:PickerHwnd, 0x0111, [IntPtr]1, $selectHwnd)
   }
