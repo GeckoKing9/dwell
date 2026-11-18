@@ -84,6 +84,8 @@ Open `chrome://extensions`, turn on **Developer mode**, choose **Load unpacked**
 
 Chrome derives an unpacked extension's id from the folder path, and the data belongs to that id: keep `dist/` where it is, and to update, pull, run `npm run build` again and press the reload arrow on Dwell's card. Chrome may remind you that a developer-mode extension is loaded; that is expected for an unpacked install.
 
+Chrome can drop an unpacked extension on its own: when it resets a profile's protected settings (it did on the first start of Chrome 158), it reinstalls Web Store extensions from your Google account and simply forgets unpacked ones. The data stays on disk under the extension's id, so loading the same folder again brings the history back. On Windows, `scripts/windows/install-keep-loaded.ps1` sets up a scheduled task that checks every 15 minutes and at logon, and if Dwell is gone while Chrome runs, opens `chrome://extensions` in a new window and loads the folder again (default `%LOCALAPPDATA%\Dwell\extension`; `-ExtensionDir` for another). It drives only that window and its folder picker, never the keyboard, logs to `%LOCALAPPDATA%\Dwell\keep-loaded.log`, and after a failed try shows a notification and waits 12 hours. `-Uninstall` removes it.
+
 Each release on GitHub attaches `dwell-<version>.zip` and `dwell-<version>.sha256.txt`, built by `.github/workflows/release.yml` from the tagged commit. The text file holds one SHA-256 per file inside the zip, so an unpacked copy, or later an installed store build, can be checked file by file with `sha256sum -c`. A store build will differ in `manifest.json`, to which the store adds its own fields, and in an added `_metadata/` folder.
 
 ## How it is tested
